@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PageFlow Admin Login</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Arial', sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            background:
+                url('/public/images/admin\ login\ background.webp');
+
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .login-container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 2.5rem;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 400px;
+            backdrop-filter: blur(10px);
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .login-header h1 {
+            color: #333;
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #555;
+            font-weight: 500;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.8rem;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #b76e79;
+        }
+
+        .error {
+            color: red;
+            font-size: 0.9rem;
+            margin-top: 0.3rem;
+            display: none;
+        }
+
+        .login-btn {
+            width: 100%;
+            padding: 1rem;
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .login-btn:hover {
+            background-color: #c0392b;
+        }
+
+        /* Optional decorative elements */
+        .book-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            color: #e74c3c;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <div class="book-icon">📚</div>
+
+            <h1>Admin Login</h1>
+            <% if (typeof errorMessage !=="undefined" && errorMessage.length> 0) { %>
+                <h2 style="color: red;">
+                    <%= errorMessage %>
+                </h2>
+                <% } %>
+
+        </div>
+        <form action="/admin/login" method="POST">
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" placeholder="Enter Email Here" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" placeholder="Enter Password Here" required>
+                <div class="error" id="passwordError">Password must be at least 6 characters</div>
+
+            </div>
+            <button type="submit" class="login-btn">Login</button>
+        </form>
+    </div>
+
+    <% if (typeof error !=='undefined' ) { %>
+        <div class="error-message">
+            <%= error %>
+        </div>
+        <% } %>
+
+
+
+            <script>
+                document.querySelector("form").addEventListener("submit", function (event) {
+                    let isValid = true;
+
+                    // Email validation
+                    const email = document.getElementById("email").value;
+                    const emailError = document.getElementById("emailError");
+                    const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$/;
+                    if (!emailPattern.test(email)) {
+                        emailError.style.display = "block";
+                        isValid = false;
+                    } else {
+                        emailError.style.display = "none";
+                    }
+
+                    // Password validation
+                    const password = document.getElementById("password").value;
+                    const passwordError = document.getElementById("passwordError");
+                    if (password.length < 6) {
+                        passwordError.style.display = "block";
+                        isValid = false;
+                    } else {
+                        passwordError.style.display = "none";
+                    }
+
+                    if (!isValid) {
+                        event.preventDefault(); // Prevent form submission if validation fails
+                    }
+                });
+
+
+
+            </script>
+
+
+</body>
+
+</html>

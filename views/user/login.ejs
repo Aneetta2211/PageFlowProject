@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - PAGEFLOW</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">w
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        body {
+            background-color: #f6f8f9;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .login-container {
+            width: 100%;
+            max-width: 900px;
+        }
+        .login-box {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        }
+        .login-box img {
+            width: 100%;
+            border-radius: 10px;
+        }
+        .toggle-password {
+            cursor: pointer;
+            position: absolute;
+            right: 15px;
+            top: 70%; 
+            transform: translateY(-50%);
+            color: #6c757d; 
+        }
+        .toggle-password:hover {
+            color: #000; 
+        }
+    </style>
+</head>
+<body>
+    <div class="container login-container">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <img src="re-images/signup.jpg" alt="Book" class="img-fluid">
+            </div>
+            <div class="col-md-6">
+                <div class="login-box">
+                    <h3 class="mb-4">Log in to PageFlow</h3>
+                    <form id="loginForm" action="/login" method="post" novalidate>
+                        <div class="mb-3">
+                            <label>Email</label>
+                            <input type="text" id="email" name="email" class="form-control">
+                            <div id="emailError" class="text-danger small mt-1" style="display: none;"></div>
+                        </div>
+                        <div class="mb-3 position-relative">
+                            <label for="password">Password</label>
+                            <input type="password" id="password" name="password" class="form-control">
+                            <span class="toggle-password" onclick="togglePassword('password', 'eyeIcon')">
+                                <i id="eyeIcon" class="fas fa-eye-slash"></i>
+                            </span>
+                            <div id="passwordError" class="text-danger small mt-1" style="display: none;"></div>
+                        </div>
+                        <% if (message && message.trim().length > 0) { %>
+                            <div id="serverMessage" class="alert <%= messageType === 'error' ? 'alert-danger' : 'alert-success' %> text-center">
+                                <%= message %>
+                            </div>
+                        <% } %>
+                        <div class="mb-3 text-end">
+                            <a href="/forgotPassword" class="text-danger">Forgot Password?</a>
+                        </div>
+                        <button type="submit" class="btn btn-danger w-100">Login</button>
+                    </form>
+                    
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const emailInput = document.getElementById("email");
+        const passwordInput = document.getElementById("password");
+        const emailError = document.getElementById("emailError");
+        const passwordError = document.getElementById("passwordError");
+        const loginForm = document.getElementById("loginForm");
+    
+        function validateEmail() {
+            const value = emailInput.value.trim();
+            const pattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+            if (value === "") {
+                emailError.innerText = "Email is required";
+                emailError.style.display = "block";
+                emailInput.classList.add("is-invalid");
+                return false;
+            } else if (!pattern.test(value)) {
+                emailError.innerText = "Please enter a valid email";
+                emailError.style.display = "block";
+                emailInput.classList.add("is-invalid");
+                return false;
+            } else {
+                emailError.style.display = "none";
+                emailInput.classList.remove("is-invalid");
+                return true;
+            }
+        }
+    
+        function validatePassword() {
+            const value = passwordInput.value;
+            if (value === "") {
+                passwordError.innerText = "Password is required";
+                passwordError.style.display = "block";
+                passwordInput.classList.add("is-invalid");
+                return false;
+            } else if (value.length < 8) {
+                passwordError.innerText = "At least 8 characters required";
+                passwordError.style.display = "block";
+                passwordInput.classList.add("is-invalid");
+                return false;
+            } else {
+                passwordError.style.display = "none";
+                passwordInput.classList.remove("is-invalid");
+                return true;
+            }
+        }
+    
+        emailInput.addEventListener("input", validateEmail);
+        passwordInput.addEventListener("input", validatePassword);
+    
+        loginForm.addEventListener("submit", function (e) {
+            const isEmailValid = validateEmail();
+            const isPasswordValid = validatePassword();
+            if (!isEmailValid || !isPasswordValid) {
+                e.preventDefault();
+            }
+        });
+    
+        // Hide server message when typing
+        document.querySelectorAll("input").forEach(input => {
+            input.addEventListener("input", () => {
+                const serverMsg = document.getElementById("serverMessage");
+                if (serverMsg) {
+                    serverMsg.style.display = "none";
+                }
+            });
+        });
+    
+        function togglePassword(inputId, eyeIconId) {
+            const passwordInput = document.getElementById(inputId);
+            const eyeIcon = document.getElementById(eyeIconId);
+            if (passwordInput.type === "password") {
+                passwordInput.type = "text";
+                eyeIcon.classList.remove("fa-eye-slash");
+                eyeIcon.classList.add("fa-eye");
+            } else {
+                passwordInput.type = "password";
+                eyeIcon.classList.remove("fa-eye");
+                eyeIcon.classList.add("fa-eye-slash");
+            }
+        }
+    </script>
+    
+</body>
+</html>

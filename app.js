@@ -1,13 +1,67 @@
-const express=require('express')
-const app=express()
-const env=require("dotenv").config();
-const db=require('./config/db');
-db()
+const express = require("express");
+const app = express();
+const path = require("path");
+const dotenv = require('dotenv').config();
+const session = require("express-session");
+const passport = require("./config/passport.js");
+const db = require('./config/db.js');
+const adminRouter = require('./routes/adminRouter.js');
+db();
+
+const userRouter = require("./routes/userRouter.js");
+
+app.set("view engine", "ejs");
+app.set("views", path.join(__dirname, "views"));
+
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+
+app.use(session({
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: false,
+        httpOnly: true,
+        maxAge: 72 * 60 * 60 * 1000
+    }
+}));
+
+app.use(passport.initialize());
+app.use(passport.session());
+
+app.use((req, res, next) => {
+    console.log("Session Data:", req.session);
+    next();
+});
+
+app.use((req, res, next) => {
+    if (!req.user && req.session.user) {
+        req.user = req.session.user;
+    }
+    res.locals.user = req.user || null;
+    res.locals.message = req.query.message || null; // From redirect (e.g., reset password)
+    res.locals.messageType = req.query.message ? 'success' : null; // Default to success
+    console.log("Updated Current User:", req.user);
+    next();
+});
+app.use("/", userRouter);
+app.use('/admin', adminRouter);
+
+app.get("/", (req, res) => {
+    res.render("user/home", { isLandingPage: true, user: req.user });
+});
+
+app.get("/home", (req, res) => {
+    res.render("user/home", { isLandingPage: false, user: req.user });
+});
+
+app.use(express.static(path.join(__dirname, "public")));
 
 
-app.listen(process.env.PORT,()=>{
-    console.log("running")
-})
 
 
-module.exports=app
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Server running on http://localhost:${PORT}`);
+});

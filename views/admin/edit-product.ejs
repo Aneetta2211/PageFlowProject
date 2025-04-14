@@ -1,0 +1,452 @@
+<!-- views/admin/edit-product.ejs -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edit Product</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      margin: 0;
+      background-color: #f4f7fa;
+    }
+
+    .main-wrapper {
+      display: flex;
+      flex-grow: 1;
+    }
+
+    /* Sidebar styles (unchanged) */
+    .sidebar {
+      width: 250px;
+      background-color: #343a40;
+      color: white;
+      height: 100vh;
+      position: fixed;
+      left: 0;
+      top: 0;
+    }
+
+    .sidebar h2 {
+      margin: 0;
+      padding: 20px 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .sidebar ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .sidebar ul li {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .sidebar ul li a {
+      padding: 15px 20px;
+      display: block;
+      color: rgba(255, 255, 255, 0.8);
+      text-decoration: none;
+      transition: all 0.3s;
+    }
+
+    .sidebar ul li a:hover,
+    .sidebar ul li a.active {
+      background-color: rgba(255, 255, 255, 0.1);
+      color: #fff;
+    }
+
+    .sidebar ul li a i {
+      margin-right: 10px;
+      width: 20px;
+      text-align: center;
+    }
+
+    /* Content area styles (unchanged) */
+    .content-area {
+      flex-grow: 1;
+      margin-left: 250px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Navbar styles (unchanged) */
+    .custom-navbar {
+      background-color: #fff;
+    }
+
+    /* Main content styles */
+    .container {
+      padding: 30px;
+      flex-grow: 1;
+    }
+
+    /* Eye-catching form styles */
+    .form-container {
+      background: linear-gradient(135deg, #ffffff, #e8f0fe);
+      border-radius: 15px;
+      padding: 30px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+      max-width: 800px;
+      margin: 0 auto;
+      transition: transform 0.3s ease;
+    }
+
+    .form-container:hover {
+      transform: translateY(-5px);
+    }
+
+    .form-container h2 {
+      color: #2c3e50;
+      font-weight: bold;
+      margin-bottom: 25px;
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+      position: relative;
+    }
+
+    .form-group label {
+      font-weight: 600;
+      color: #34495e;
+      margin-bottom: 8px;
+      display: block;
+      transition: color 0.3s ease;
+    }
+
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+      width: 100%;
+      padding: 12px 15px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 1rem;
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+      border-color: #3498db;
+      box-shadow: 0 0 8px rgba(52, 152, 219, 0.3);
+      outline: none;
+    }
+
+    .form-group textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    .form-group small {
+      color: #7f8c8d;
+      font-size: 0.85rem;
+      margin-top: 5px;
+      display: block;
+    }
+
+    .btn-custom {
+      padding: 12px 25px;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      border: none;
+    }
+
+    .btn-primary-custom {
+      background-color: #3498db;
+      color: white;
+    }
+
+    .btn-primary-custom:hover {
+      background-color: #2980b9;
+      transform: translateY(-2px);
+    }
+
+    .btn-secondary-custom {
+      background-color: #95a5a6;
+      color: white;
+    }
+
+    .btn-secondary-custom:hover {
+      background-color: #7f8c8d;
+      transform: translateY(-2px);
+    }
+
+    .button-group {
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+      margin-top: 30px;
+    }
+
+    .form-group .is-invalid {
+    border-color: #dc3545 !important;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
+  }
+
+  .error-message {
+    color: #dc3545;
+    font-size: 0.85rem;
+    margin-top: 5px;
+    display: block;
+  }
+
+  /* Enhance input focus state when there's an error */
+  .form-group .is-invalid:focus {
+    border-color: #dc3545 !important;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25) !important;
+  }
+  </style>
+</head>
+<body>
+  <div class="main-wrapper">
+    <!-- Sidebar (unchanged) -->
+    <div class="sidebar">
+      <h2 class="text-center p-3">Admin</h2>
+      <ul>
+        <li><a href="/admin"><i class="fa fa-tachometer-alt"></i> Dashboard</a></li>
+        <li><a href="/admin/customers"><i class="fa fa-users"></i> Customers</a></li>
+        <li><a href="/admin/category"><i class="fa fa-th-large"></i> Category</a></li>
+        <li><a href="/admin/add-product"><i class="fa fa-plus"></i> Add Products</a></li>
+        <li><a href="/admin/products" class="active"><i class="fa fa-box"></i> Products</a></li>
+        <li><a href="/admin/coupons"><i class="fa fa-tag"></i> Coupons</a></li>
+        <li><a href="/admin/banners"><i class="fa fa-image"></i> Banners</a></li>
+        <li><a href="/admin/orders"><i class="fa fa-shopping-cart"></i> Orders</a></li>
+      </ul>
+    </div>
+
+    <!-- Content Area -->
+    <div class="content-area">
+      <!-- Navbar (unchanged) -->
+      <nav class="navbar navbar-expand-lg custom-navbar shadow-sm">
+        <div class="container-fluid">
+          <span class="navbar-brand">Edit Product</span>
+          <div>
+            <a href="/admin/logout" class="btn btn-danger">Logout</a>
+          </div>
+        </div>
+      </nav>
+
+      <!-- Main Content -->
+      <div class="container">
+        <div class="form-container">
+          <h2>Edit Product</h2>
+          <form action="/admin/edit-product/<%= product._id %>" method="POST" enctype="multipart/form-data">
+            <div class="form-group">
+              <label for="productName">Product Name</label>
+              <input type="text" class="form-control" id="productName" name="productName" value="<%= product.productName %>" required>
+            </div>
+            <div class="form-group">
+              <label for="category">Category</label>
+              <select class="form-control" id="category" name="category" required>
+                <% category.forEach(cat => { %>
+                  <option value="<%= cat._id %>" <%= product.category._id.toString() === cat._id.toString() ? 'selected' : '' %>>
+                    <%= cat.name %>
+                  </option>
+                <% }) %>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="description">Description</label>
+              <textarea class="form-control" id="description" name="description" required><%= product.description %></textarea>
+            </div>
+            <div class="form-group">
+              <label for="regularPrice">Regular Price</label>
+              <input type="number" class="form-control" id="regularPrice" name="regularPrice" value="<%= product.regularPrice %>" step="0.01" required>
+            </div>
+            <div class="form-group">
+              <label for="salesPrice">Sales Price</label>
+              <input type="number" class="form-control" id="salesPrice" name="salesPrice" value="<%= product.salesPrice %>" step="0.01" required>
+            </div>
+            <div class="form-group">
+              <label for="quantity">Quantity</label>
+              <input type="number" class="form-control" id="quantity" name="quantity" value="<%= product.quantity %>" required>
+            </div>
+            <div class="form-group">
+              <label for="isBlocked">Status</label>
+              <select class="form-control" id="isBlocked" name="isBlocked">
+                <option value="false" <%= !product.isBlocked ? 'selected' : '' %>>Active</option>
+                <option value="true" <%= product.isBlocked ? 'selected' : '' %>>Deleted</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="images">Product Images</label>
+              <input type="file" class="form-control" id="images" name="images" multiple>
+              <small>Current images: <%= product.productImage.length %> (Upload new ones to replace)</small>
+            </div>
+            <div class="button-group">
+              <button type="submit" class="btn-custom btn-primary-custom">Update Product</button>
+              <a href="/admin/products" class="btn-custom btn-secondary-custom">Cancel</a>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+  // Enhanced Validation Script
+document.addEventListener('DOMContentLoaded', function() {
+  const form = document.querySelector('form');
+  const fields = {
+    productName: document.getElementById('productName'),
+    category: document.getElementById('category'),
+    description: document.getElementById('description'),
+    regularPrice: document.getElementById('regularPrice'),
+    salesPrice: document.getElementById('salesPrice'),
+    quantity: document.getElementById('quantity'),
+    images: document.getElementById('images')
+  };
+
+  // Create error message containers
+  Object.keys(fields).forEach(key => {
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'error-message text-danger small mt-1';
+    errorDiv.id = `${key}-error`;
+    fields[key].parentNode.appendChild(errorDiv);
+  });
+
+  // Validation functions
+  const validators = {
+    productName: (value) => {
+      if (!value.trim()) {
+        return 'Product Name cannot be empty or just spaces.';
+      }
+      return '';
+    },
+    category: (value) => {
+      if (!value) {
+        return 'Please select a category.';
+      }
+      return '';
+    },
+    description: (value) => {
+      if (!value.trim()) {
+        return 'Description cannot be empty or just spaces.';
+      }
+      return '';
+    },
+    regularPrice: (value) => {
+      const price = parseFloat(value);
+      if (isNaN(price) || price <= 0) {
+        return 'Regular Price must be a positive number.';
+      }
+      return '';
+    },
+    salesPrice: (value, regularPriceValue) => {
+      const price = parseFloat(value);
+      const regularPrice = parseFloat(regularPriceValue);
+      
+      if (isNaN(price) || price <= 0) {
+        return 'Sales Price must be a positive number.';
+      }
+      if (price > regularPrice) {
+        return 'Sales Price cannot exceed Regular Price.';
+      }
+      return '';
+    },
+    quantity: (value) => {
+      const qty = parseInt(value);
+      if (isNaN(qty) || qty < 0 || !Number.isInteger(qty)) {
+        return 'Quantity must be a positive integer.';
+      }
+      return '';
+    },
+    images: (files) => {
+      if (files.length > 0) {
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+
+        for (let file of files) {
+          if (!allowedTypes.includes(file.type)) {
+            return 'Only JPEG, PNG, and GIF images are allowed.';
+          }
+          if (file.size > maxSize) {
+            return 'Each image must be less than 5MB.';
+          }
+        }
+      }
+      return '';
+    }
+  };
+
+  // Function to show error message
+  const showError = (fieldName, message) => {
+    const errorElement = document.getElementById(`${fieldName}-error`);
+    const inputElement = fields[fieldName];
+    
+    if (message) {
+      errorElement.textContent = message;
+      inputElement.classList.add('is-invalid');
+    } else {
+      errorElement.textContent = '';
+      inputElement.classList.remove('is-invalid');
+    }
+  };
+
+  // Real-time validation
+  Object.keys(fields).forEach(key => {
+    fields[key].addEventListener('input', function() {
+      let errorMessage = '';
+      
+      if (key === 'salesPrice') {
+        errorMessage = validators[key](this.value, fields.regularPrice.value);
+      } else if (key === 'images') {
+        errorMessage = validators[key](this.files);
+      } else {
+        errorMessage = validators[key](this.value);
+      }
+      
+      showError(key, errorMessage);
+    });
+  });
+
+  // Form submission validation
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    let isValid = true;
+
+    // Validate all fields
+    Object.keys(validators).forEach(key => {
+      let errorMessage = '';
+      
+      if (key === 'salesPrice') {
+        errorMessage = validators[key](fields[key].value, fields.regularPrice.value);
+      } else if (key === 'images') {
+        errorMessage = validators[key](fields[key].files);
+      } else {
+        errorMessage = validators[key](fields[key].value);
+      }
+      
+      showError(key, errorMessage);
+      
+      if (errorMessage) {
+        isValid = false;
+      }
+    });
+
+    // If all validations pass, submit the form
+    if (isValid) {
+      this.submit();
+    }
+  });
+});
+
+  </script>
+
+</body>
+</html>

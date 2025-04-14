@@ -1,0 +1,347 @@
+<%-include("../../views/partials/user/header")%>
+<main class="main">
+    <div class="page-header breadcrumb-wrap bg-light py-3 mb-4">
+        <div class="container">
+            <nav class="breadcrumb">
+                <a href="#" class="breadcrumb-item">Home</a>
+                <span class="breadcrumb-separator">/</span>
+                <span class="breadcrumb-item">Shop</span>
+                <span class="breadcrumb-separator">/</span>
+                <span class="breadcrumb-item active">Product Detail</span>
+            </nav>
+        </div>
+    </div>
+
+    <section class="product-detail-section py-5">
+        <div class="container">
+            <div class="row g-4">
+                <div class="col-lg-9 mx-auto">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-body p-4">
+                            <!-- Product Images and Details -->
+                            <div class="row g-4">
+                                <!-- Product Images -->
+                                <div class="col-md-6">
+                                    <div class="product-gallery position-relative">
+                                        <span class="zoom-icon position-absolute top-0 end-0 m-3 bg-white rounded-circle p-2 shadow-sm">
+                                            <i class="fi-rs-search"></i>
+                                        </span>
+                                        <div class="main-image mb-3">
+                                            <% for(let i = 0; i < product.productImage.length && i < 1; i++) { %>
+                                                <img src="<%= product.productImage[i] %>" alt="<%= product.productName %>" 
+                                                    class="w-100 rounded object-fit-contain" style="max-height: 400px;">
+                                            <% } %>
+                                        </div>
+                                        <div class="thumbnail-slider d-flex gap-2 overflow-auto pb-2">
+                                            <% for(let i = 0; i < product.productImage.length; i++) { %>
+                                                <div class="thumbnail flex-shrink-0">
+                                                    <img src="<%= product.productImage[i] %>" 
+                                                        alt="<%= product.productName %>"
+                                                        class="rounded cursor-pointer border hover-border-primary"
+                                                        style="width: 80px; height: 80px; object-fit: contain;">
+                                                </div>
+                                            <% } %>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Product Details -->
+                                <div class="col-md-6">
+                                    <div class="product-info">
+                                        <h1 class="product-title mb-2 fs-3"><%= product.productName %></h1>
+                                        <div class="rating-reviews d-flex align-items-center mb-3">
+                                            <div class="product-rating me-2" style="width: 90%;">
+                                                <span class="stars">★★★★☆</span>
+                                            </div>
+                                            <!-- <span class="review-label">
+                                                <span class="meta-label">Reviews:</span> 
+                                                <span class="meta-value">(25 reviews)</span>
+                                            </span> -->
+                                        </div>
+
+                                        <div class="pricing mb-4">
+                                            <span class="current-price text-primary fw-bold fs-4">
+                                                <span class="meta-label">Price:</span> 
+                                                <span class="meta-value"><%= product.salesPrice %></span>
+                                            </span>
+                                            <span class="old-price text-muted text-decoration-line-through ms-3">
+                                                <span class="meta-label">Old Price:</span> 
+                                                <span class="meta-value"><%= product.regularPrice %></span>
+                                            </span>
+                                            <% if(totalOffer) { %>
+                                                <span class="discount badge bg-success ms-3">
+                                                    <span class="meta-label">Discount:</span> 
+                                                    <span class="meta-value"><%= totalOffer %>% OFF</span>
+                                                </span>
+                                            <% } %>
+                                        </div>
+
+                                        <div class="description text-muted mb-4">
+                                            <p><%= product.description %></p>
+                                        </div>
+
+                                        <div class="actions d-flex align-items-center gap-3 mb-4">
+                                            <div class="quantity-selector d-flex align-items-center border rounded">
+                                                <a href="#" class="qty-down px-3 py-2"><i class="fi-rs-angle-small-down"></i></a>
+                                                <span class="qty-val px-3" id="quantity">1</span>
+                                                <a href="#" class="qty-up px-3 py-2"><i class="fi-rs-angle-small-up"></i></a>
+                                            </div>
+                                            <button type="submit" class="btn btn-primary btn-add-to-cart flex-grow-1" <%= product.status === 'out of stock' ? 'disabled' : '' %>>
+                                                <%= product.status === 'out of stock' ? 'Out of Stock' : 'Add to Cart' %>
+                                            </button>
+                                            <a href="#" class="btn btn-outline-secondary wishlist-btn">
+                                                <i class="fi-rs-heart"></i>
+                                            </a>
+                                        </div>
+
+                                        <ul class="product-meta small text-muted">
+                                            <!-- <li class="mb-2">
+                                                <span class="meta-label">Stock Code:</span> 
+                                                <span class="meta-value"><a href="#">FWM15VKT</a></span>
+                                            </li> -->
+                                            <li class="mb-2">
+                                                <span class="meta-label">Category:</span> 
+                                                <span class="meta-value"><a href="#"><%= category.name %></a></span>
+                                            </li>
+                                            <li>
+                                                <span class="meta-label">Availability:</span> 
+                                                <% if (product.status === 'out of stock') { %>
+                                                    <span class="meta-value out-of-stock">Out of Stock</span>
+                                                <% } else { %>
+                                                    <span class="meta-value text-success fw-medium"><%= product.quantity %> Items in stock</span>
+                                                <% } %>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Reviews Section (Static) -->
+                            <div class="reviews-section mt-4">
+                                <h3 class="fs-4 mb-3">Customer Reviews</h3>
+                                <div class="reviews-list">
+                                    <!-- Sample Review 1 -->
+                                    <div class="review-item border-bottom py-3">
+                                        <div class="d-flex align-items-center mb-2">
+                                            <span class="stars text-warning me-2">★★★★☆</span>
+                                            <span class="reviewer-name fw-medium">John Doe</span>
+                                            <span class="review-date text-muted ms-auto">March 25, 2025</span>
+                                        </div>
+                                        <p class="review-text mb-0">"Great product! The quality is amazing, though delivery took a bit longer than expected."</p>
+                                    </div>
+                                    <!-- Sample Review 2 -->
+                                    <div class="review-item border-bottom py-3">
+                                        <div class="d-flex align-items-center mb-2">
+                                            <span class="stars text-warning me-2">★★★★★</span>
+                                            <span class="reviewer-name fw-medium">Jane Smith</span>
+                                            <span class="review-date text-muted ms-auto">March 20, 2025</span>
+                                        </div>
+                                        <p class="review-text mb-0">"Absolutely love it! Worth every penny."</p>
+                                    </div>
+                                    <!-- Sample Review 3 -->
+                                    <div class="review-item py-3">
+                                        <div class="d-flex align-items-center mb-2">
+                                            <span class="stars text-warning me-2">★★★☆☆</span>
+                                            <span class="reviewer-name fw-medium">Alex Brown</span>
+                                            <span class="review-date text-muted ms-auto">March 15, 2025</span>
+                                        </div>
+                                        <p class="review-text mb-0">"Decent product, but the packaging could be improved."</p>
+                                    </div>
+                                </div>
+                                <a href="#" class="btn btn-outline-primary mt-3">See All Reviews</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+<%-include("../../views/partials/user/footer")%>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        function initImageZoom() {
+            const mainImage = document.querySelector('.main-image img');
+            const zoomContainer = document.createElement('div');
+            const zoomLens = document.createElement('div');
+            const zoomResult = document.createElement('div');
+    
+            zoomContainer.classList.add('zoom-container');
+            zoomLens.classList.add('zoom-lens');
+            zoomResult.classList.add('zoom-result');
+    
+            mainImage.parentElement.appendChild(zoomContainer);
+            zoomContainer.appendChild(mainImage);
+            zoomContainer.appendChild(zoomLens);
+            zoomContainer.appendChild(zoomResult);
+    
+            zoomContainer.addEventListener('mousemove', moveZoom);
+            zoomContainer.addEventListener('mouseenter', showZoom);
+            zoomContainer.addEventListener('mouseleave', hideZoom);
+    
+            function showZoom(e) {
+                zoomLens.style.display = 'block';
+                zoomResult.style.display = 'block';
+                zoomResult.style.backgroundImage = `url('${mainImage.src}')`;
+            }
+    
+            function hideZoom() {
+                zoomLens.style.display = 'none';
+                zoomResult.style.display = 'none';
+            }
+    
+            function moveZoom(e) {
+                let container = zoomContainer;
+                let lens = zoomLens;
+                let result = zoomResult;
+    
+                if (!container.contains(e.target)) return;
+    
+                let containerRect = container.getBoundingClientRect();
+                let x = e.clientX - containerRect.left;
+                let y = e.clientY - containerRect.top;
+    
+                lens.style.left = `${x - lens.offsetWidth / 2}px`;
+                lens.style.top = `${y - lens.offsetHeight / 2}px`;
+    
+                let backgroundX = -(x / container.offsetWidth * mainImage.offsetWidth - lens.offsetWidth / 2);
+                let backgroundY = -(y / container.offsetHeight * mainImage.offsetHeight - lens.offsetHeight / 2);
+    
+                result.style.backgroundPosition = `${backgroundX}px ${backgroundY}px`;
+            }
+    
+            document.querySelectorAll('.thumbnail img').forEach(thumbnail => {
+                thumbnail.addEventListener('click', () => {
+                    mainImage.src = thumbnail.src;
+                    zoomResult.style.backgroundImage = `url('${thumbnail.src}')`;
+                });
+            });
+        }
+    
+        initImageZoom();
+    });
+</script>
+
+<style>
+    .breadcrumb {
+        --bs-breadcrumb-divider: '/';
+    }
+    .breadcrumb-item + .breadcrumb-item::before {
+        color: #6c757d;
+    }
+    .product-gallery .thumbnail:hover {
+        border-color: #007bff;
+    }
+    .btn-add-to-cart {
+        padding: 10px 20px;
+        font-weight: 500;
+    }
+    .quantity-selector {
+        border-color: #dee2e6;
+    }
+    .quantity-selector a {
+        color: #495057;
+        text-decoration: none;
+    }
+    .wishlist-btn {
+        padding: 10px 15px;
+    }
+    .stars {
+        color: #ffc107;
+    }
+    .meta-label {
+        color: #007bff;
+        font-weight: 500;
+        margin-right: 5px;
+    }
+    .meta-value {
+        color: #28a745;
+    }
+    .meta-value.out-of-stock {
+        color: #e74c3c;
+        font-weight: 500;
+    }
+    .btn-add-to-cart:disabled {
+        background-color: #cccccc;
+        cursor: not-allowed;
+    }
+    .pricing .current-price .meta-value {
+        color: #e74c3c;
+        font-weight: bold;
+    }
+    .pricing .old-price .meta-value {
+        color: #6c757d;
+        text-decoration: line-through;
+    }
+    .pricing .discount .meta-value {
+        color: #ffffff;
+    }
+    .pricing .discount {
+        background-color: #28a745;
+    }
+    .product-gallery {
+        position: relative;
+    }
+    .product-gallery .main-image {
+        position: relative;
+        overflow: hidden;
+    }
+    .product-gallery .main-image img {
+        transition: transform 0.3s ease;
+        max-width: 100%;
+        height: auto;
+    }
+    .product-gallery .main-image:hover img {
+        transform: scale(1.5);
+    }
+    .zoom-container {
+        position: relative;
+        width: 100%;
+        height: 400px;
+        overflow: hidden;
+        cursor: zoom-in;
+    }
+    .zoom-lens {
+        position: absolute;
+        border: 1px solid #d4d4d4;
+        width: 100px;
+        height: 100px;
+        background: rgba(255, 255, 255, 0.3);
+        display: none;
+        pointer-events: none;
+    }
+    .zoom-result {
+        position: absolute;
+        border: 1px solid #d4d4d4;
+        width: 300px;
+        height: 300px;
+        top: 0;
+        left: 110%;
+        display: none;
+        overflow: hidden;
+        background-size: cover;
+    }
+    /* Reviews Section Styles */
+    .reviews-section {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+    }
+    .review-item {
+        transition: background-color 0.3s;
+    }
+    .review-item:hover {
+        background-color: #f1f3f5;
+    }
+    .reviewer-name {
+        color: #343a40;
+    }
+    .review-date {
+        font-size: 0.875em;
+    }
+    .review-text {
+        font-size: 0.95em;
+        color: #000000; /* Black text for reviews */
+    }
+</style>

@@ -161,8 +161,8 @@ hr{
   padding-bottom: 4em;
 }
 .padding-large {
-  padding-top: 7em;
-  padding-bottom: 7em;
+  padding-top: 4em;
+  padding-bottom: 4em;
 }
 .padding-xlarge {
   padding-top: 9.5em;
@@ -267,7 +267,7 @@ h6{
   color: var(--white-color);
   background-color: var(--primary-color);
   border: none;
-  padding: 1.125rem 2.625rem;
+  padding: 0.125rem 0.625rem;
   font-size: 1rem;
   border-radius: 200px;
   cursor: pointer;
@@ -944,7 +944,7 @@ th{
   cursor: default;
   -webkit-transform: translateY(-40px);
   transform: translateY(-40px);
-  -webkit-backface-visibility: hidden;
+  /* -webkit-backface-visibility: hidden; */
   -webkit-transition-property: -webkit-transform;
   transition-property: transform;
   -webkit-transition-duration: 0.3s;
@@ -1351,3 +1351,6 @@ select#input-sort {
     margin-bottom: 10px;
   }
 }
+
+
+
