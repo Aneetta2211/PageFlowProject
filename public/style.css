@@ -1,4 +1,4 @@
-/*
+/* 
 Theme Name: Bookly
 Theme URI: https://templatejungle.com/
 Author: TemplatesJungle
@@ -161,8 +161,8 @@ hr{
   padding-bottom: 4em;
 }
 .padding-large {
-  padding-top: 4em;
-  padding-bottom: 4em;
+  padding-top: 2em;
+  padding-bottom: 2em;
 }
 .padding-xlarge {
   padding-top: 9.5em;

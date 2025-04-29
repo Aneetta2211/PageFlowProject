@@ -25,16 +25,15 @@ const login = async (req, res) => {
         if (admin) {
             let passwordMatch = await bcrypt.compare(password, admin.password);
 
-            // If bcrypt fails, check plain text (temporary)
+           
             if (!passwordMatch && password === admin.password) {
-                // Hash the password and update
                 const hashedPassword = await bcrypt.hash(password, 10);
                 await User.findByIdAndUpdate(admin._id, { password: hashedPassword });
                 passwordMatch = true;
             }
 
             if (passwordMatch) {
-                // Store admin ID in session
+                
                 req.session.admin = { id: admin._id.toString() }; 
 
                 return res.redirect("/admin");
@@ -55,7 +54,7 @@ const loadDashboard = async (req, res) => {
         console.log("Loading dashboard for user:", req.session.admin);
         res.render("admin/dashboard", { 
             currentRoute: 'dashboard', 
-            errorPage: null  // Explicitly set errorPage to null
+            errorPage: null  
         });
     } catch (error) {
         console.error("Error loading dashboard:", error);

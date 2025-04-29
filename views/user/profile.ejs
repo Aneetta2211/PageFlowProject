@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <%- include("../../views/partials/user/header") %>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f9fafb;
+        }
+        .profile-container {
+            background: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: flex;
+            max-width: 1350px;
+            width: 90%;
+            margin: 2rem auto;
+            min-height: calc(100vh - 4rem);
+        }
+        .profile-sidebar {
+            background: #2c3e50;
+            color: #ffffff;
+            padding: 2rem;
+            width: 300px;
+            min-height: 100%;
+        }
+        .profile-sidebar .card {
+            background: transparent;
+            border: none;
+        }
+        .profile-sidebar .nav-link {
+            color: #d1d8e0;
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin: 5px 0;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+        }
+        .profile-sidebar .nav-link:hover,
+        .profile-sidebar .nav-link.active {
+            background: #34495e;
+            color: #ffffff;
+        }
+        .profile-sidebar .nav-link i {
+            width: 20px;
+            text-align: center;
+            font-size: 1rem;
+            margin-right: 10px;
+        }
+        .profile-content {
+            flex: 1;
+            padding: 2rem;
+            background: #ffffff;
+            border-radius: 0 10px 10px 0;
+            overflow-y: auto;
+            max-height: calc(100vh - 4rem);
+        }
+        .profile-content::-webkit-scrollbar {
+            width: 8px;
+        }
+        .profile-content::-webkit-scrollbar-thumb {
+            background: #6b7280;
+            border-radius: 4px;
+        }
+        .profile-content::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        .breadcrumb {
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin-bottom: 1.5rem;
+            background: none;
+        }
+        .breadcrumb-item a {
+            color: #3b82f6;
+            text-decoration: none;
+        }
+        .breadcrumb-item a:hover {
+            text-decoration: underline;
+        }
+        .avatar-edit {
+            position: relative;
+            width: 150px;
+        }
+        .avatar-edit img {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+        }
+        .avatar-actions, .avatar-delete {
+            position: absolute;
+            bottom: 10px;
+            cursor: pointer;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            padding: 5px;
+            border-radius: 50%;
+        }
+        .avatar-actions {
+            right: 30px;
+        }
+        .avatar-delete {
+            right: 0;
+        }
+        .otp-timer {
+            color: #d97706;
+            font-size: 0.875rem;
+        }
+        @media (max-width: 768px) {
+            .profile-container {
+                flex-direction: column;
+                min-height: auto;
+            }
+            .profile-sidebar {
+                width: 100%;
+                min-height: auto;
+            }
+            .profile-content {
+                max-height: none;
+                overflow-y: visible;
+            }
+        }
+    </style>
+    </style>
+</head>
+<body>
+    <div class="profile-container">
+        <%- include("../../views/partials/user/sidebar", { currentPage: 'profile', user: user }) %>
+        <!-- Main Content -->
+        <div class="profile-content">
+            <!-- Breadcrumbs -->
+            <nav class="text-sm text-gray-600 mb-4" aria-label="breadcrumb">
+                <ol class="flex space-x-2">
+                    <li class="flex items-center">
+                        <a href="/" class="hover:underline text-blue-600">Home</a>
+                        <span class="mx-2 text-gray-400">/</span>
+                    </li>
+                    <li class="flex items-center text-gray-500">
+                        Profile
+                    </li>
+                </ol>
+            </nav>
+
+            <% if (!editMode) { %>
+                <!-- View Mode -->
+                <div class="flex justify-between items-center mb-6">
+                    <h1 class="text-3xl font-bold text-gray-800">Profile</h1>
+                    <button onclick="toggleEditMode(true)" class="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        <i class="fas fa-edit mr-2"></i>Edit Profile
+                    </button>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white p-6 rounded-lg">
+                        <div class="flex justify-center">
+                            <img src="<%= user.profileImage || '/images/default-profile.png' %>" 
+                                 class="rounded-full w-36 h-36 object-cover" 
+                                 alt="Profile Image">
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg">
+                        <h2 class="text-xl font-semibold mb-4">Personal Information</h2>
+                        <div class="space-y-3">
+                            <p><span class="font-medium">Name:</span> <%= user.name %></p>
+                            <p><span class="font-medium">Email:</span> <%= user.email %></p>
+                            <% if (user.phone) { %>
+                                <p><span class="font-medium">Phone:</span> <%= user.phone %></p>
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+            <% } else { %>
+                <!-- Edit Mode -->
+                <h1 class="text-3xl font-bold text-gray-800 mb-6">Edit Profile</h1>
+                <form id="editProfileForm" action="/profile/update" method="POST" enctype="multipart/form-data" class="space-y-6">
+                    <!-- Profile Image Section -->
+                    <div class="bg-white p-6 rounded-lg">
+                        <div class="avatar-edit mx-auto">
+                            <img id="profileImagePreview" 
+                                 src="<%= user.profileImage || '/images/default-profile.png' %>" 
+                                 class="w-full h-full object-cover"
+                                 alt="Profile Image">
+                            <div class="avatar-actions" onclick="document.getElementById('profileImage').click()">
+                                <i class="fas fa-edit"></i>
+                            </div>
+                            <% if (user.profileImage) { %>
+                                <div class="avatar-delete" onclick="removeProfileImage()">
+                                    <i class="fas fa-trash"></i>
+                                </div>
+                            <% } %>
+                        </div>
+                        <div class="mt-3 text-center">
+                            <input type="file" class="hidden" name="profileImage" id="profileImage" accept="image/*">
+                            <input type="hidden" name="removeProfileImage" id="removeProfileImage" value="false">
+                            <p class="text-gray-500 text-sm">Recommended size: 150x150 pixels</p>
+                        </div>
+                    </div>
+
+                    <!-- Personal Information -->
+                    <div class="bg-white p-6 rounded-lg">
+                        <h2 class="text-xl font-semibold mb-4">Personal Information</h2>
+                        <div class="space-y-4">
+                            <div>
+                                <label for="name" class="block text-gray-700 mb-1">Name <span class="text-red-500">*</span></label>
+                                <input type="text" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                       id="name" name="name" value="<%= user.name %>" required>
+                                <div class="invalid-feedback">Please enter your name</div>
+                            </div>
+
+                            <div>
+                                <label for="phone" class="block text-gray-700 mb-1">Phone</label>
+                                <input type="tel" class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                       id="phone" name="phone" value="<%= user.phone || '' %>" pattern="[0-9]{10}">
+                                <div class="invalid-feedback">Please enter a valid 10-digit phone number</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Email Update Section -->
+                    <div class="bg-white p-6 rounded-lg">
+                        <h2 class="text-xl font-semibold mb-4">Email Settings</h2>
+                        <div class="space-y-4">
+                            <div>
+                                <label for="email" class="block text-gray-700 mb-1">Current Email</label>
+                                <input type="email" class="w-full p-3 border rounded-lg bg-gray-100" 
+                                       value="<%= user.email %>" readonly>
+                            </div>
+
+                            <div>
+                                <label for="newEmail" class="block text-gray-700 mb-1">New Email</label>
+                                <div class="flex">
+                                    <input type="email" class="flex-1 p-3 border rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                           id="newEmail" name="newEmail">
+                                    <button type="button" class="px-4 bg-blue-600 text-white rounded-r-lg hover:bg-blue-700" 
+                                            id="sendOtpBtn">Send OTP</button>
+                                </div>
+                                <div class="invalid-feedback">Please enter a valid email address</div>
+                                <div id="otpTimer" class="otp-timer hidden mt-2">
+                                    <i class="fas fa-clock mr-1"></i>OTP expires in: <span id="countdown">60</span>s
+                                </div>
+                            </div>
+
+                            <div id="otpSection" class="hidden">
+                                <label for="otp" class="block text-gray-700 mb-1">OTP <span class="text-red-500">*</span></label>
+                                <div class="flex">
+                                    <input type="text" class="flex-1 p-3 border rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                           id="otp" name="otp" required>
+                                    <button type="button" class="px-4 bg-green-600 text-white rounded-r-lg hover:bg-green-700" 
+                                            id="verifyOtpBtn">Verify OTP</button>
+                                </div>
+                                <div class="invalid-feedback">Please enter and verify the OTP</div>
+                                <div id="otpVerificationStatus" class="mt-2"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Password Section -->
+                    <div class="bg-white p-6 rounded-lg">
+                        <h2 class="text-xl font-semibold mb-4">Password Settings</h2>
+                        <div class="space-y-4">
+                            <!-- Current Password Field with Eye Icon -->
+                            <div>
+                                <label for="currentPassword" class="block text-gray-700 mb-1">Current Password</label>
+                                <div class="flex">
+                                    <input type="password" class="flex-1 p-3 border rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                           id="currentPassword" name="currentPassword">
+                                    <button class="px-4 bg-gray-200 text-gray-700 rounded-r-lg hover:bg-gray-300" 
+                                            type="button" id="toggleCurrentPassword">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                                <div class="invalid-feedback">Please enter your current password</div>
+                            </div>
+
+                            <!-- New Password Field with Eye Icon -->
+                            <div>
+                                <label for="newPassword" class="block text-gray-700 mb-1">New Password</label>
+                                <div class="flex">
+                                    <input type="password" class="flex-1 p-3 border rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                           id="newPassword" name="newPassword" minlength="8">
+                                    <button class="px-4 bg-gray-200 text-gray-700 rounded-r-lg hover:bg-gray-300" 
+                                            type="button" id="toggleNewPassword">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                                <div class="invalid-feedback">Password must be at least 8 characters</div>
+                            </div>
+
+                            <!-- Confirm Password Field with Eye Icon -->
+                            <div>
+                                <label for="confirmPassword" class="block text-gray-700 mb-1">Confirm Password</label>
+                                <div class="flex">
+                                    <input type="password" class="flex-1 p-3 border rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500" 
+                                           id="confirmPassword" name="confirmPassword">
+                                    <button class="px-4 bg-gray-200 text-gray-700 rounded-r-lg hover:bg-gray-300" 
+                                            type="button" id="toggleConfirmPassword">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                </div>
+                                <div class="invalid-feedback">Passwords must match</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between">
+                        <button type="button" onclick="toggleEditMode(false)" 
+                                class="px-6 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400">
+                            <i class="fas fa-times mr-2"></i>Cancel
+                        </button>
+                        <button type="submit" 
+                                class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                            <i class="fas fa-save mr-2"></i>Save Changes
+                        </button>
+                    </div>
+                </form>
+            <% } %>
+        </div>
+    </div>
+
+    <!-- SweetAlert CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+        // Toggle between view and edit modes
+        function toggleEditMode(showEdit) {
+            if (showEdit) {
+                window.location.href = '/profile?edit=true';
+            } else {
+                window.location.href = '/profile';
+            }
+        }
+
+        // Toggle password visibility for current password
+        document.getElementById('toggleCurrentPassword')?.addEventListener('click', function() {
+            const passwordInput = document.getElementById('currentPassword');
+            const icon = this.querySelector('i');
+            togglePasswordVisibility(passwordInput, icon);
+        });
+
+        // Toggle password visibility for new password
+        document.getElementById('toggleNewPassword')?.addEventListener('click', function() {
+            const passwordInput = document.getElementById('newPassword');
+            const icon = this.querySelector('i');
+            togglePasswordVisibility(passwordInput, icon);
+        });
+
+        // Toggle password visibility for confirm password
+        document.getElementById('toggleConfirmPassword')?.addEventListener('click', function() {
+            const passwordInput = document.getElementById('confirmPassword');
+            const icon = this.querySelector('i');
+            togglePasswordVisibility(passwordInput, icon);
+        });
+
+        // Common function to toggle visibility
+        function togglePasswordVisibility(input, icon) {
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+
+        // Profile Image Handling
+        document.getElementById('profileImage')?.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    document.getElementById('profileImagePreview').src = event.target.result;
+                    document.getElementById('removeProfileImage').value = 'false';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        function removeProfileImage() {
+            document.getElementById('profileImagePreview').src = '/images/default-profile.png';
+            document.getElementById('profileImage').value = '';
+            document.getElementById('removeProfileImage').value = 'true';
+            
+            Swal.fire({
+                icon: 'success',
+                title: 'Profile Image Removed',
+                showConfirmButton: false,
+                timer: 1500
+            });
+        }
+
+        // OTP Timer Logic
+        let otpTimer;
+        const sendOtpBtn = document.getElementById('sendOtpBtn');
+        
+        sendOtpBtn?.addEventListener('click', function() {
+            const email = document.getElementById('newEmail').value;
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            
+            if (!email || !emailRegex.test(email)) {
+                document.getElementById('newEmail').classList.add('border-red-500');
+                return;
+            }
+            
+            document.getElementById('newEmail').classList.remove('border-red-500');
+            
+            fetch('/profile/send-otp', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email: email }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log('OTP sent:', data.otp);
+                    
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'OTP Sent',
+                        text: 'Check your email for the OTP',
+                        showConfirmButton: false,
+                        timer: 2000
+                    });
+                    
+                    document.getElementById('otpSection').classList.remove('hidden');
+                    document.getElementById('otpTimer').classList.remove('hidden');
+                    startOtpTimer();
+                    
+                    sessionStorage.setItem('emailForVerification', email);
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Failed',
+                        text: data.message || 'Failed to send OTP',
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Failed to send OTP',
+                });
+            });
+        });
+        
+        // Verify OTP
+        const verifyOtpBtn = document.getElementById('verifyOtpBtn');
+        const otpVerificationStatus = document.getElementById('otpVerificationStatus');
+        
+        verifyOtpBtn?.addEventListener('click', function() {
+            const otp = document.getElementById('otp').value;
+            const email = document.getElementById('newEmail').value || sessionStorage.getItem('emailForVerification');
+            
+            if (!otp) {
+                document.getElementById('otp').classList.add('border-red-500');
+                return;
+            }
+            
+            fetch('/profile/verify-otp', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email: email, otp: otp }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    otpVerificationStatus.innerHTML = `<span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm"><i class="fas fa-check-circle mr-1"></i> Verified</span>`;
+                    document.getElementById('otp').classList.remove('border-red-500');
+                    
+                    sessionStorage.setItem('emailVerified', 'true');
+                    sessionStorage.setItem('verifiedEmail', email);
+                    
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Email Verified',
+                        text: 'You can now save your changes',
+                        showConfirmButton: false,
+                        timer: 2000
+                    });
+                } else {
+                    otpVerificationStatus.innerHTML = `<span class="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm"><i class="fas fa-times-circle mr-1"></i> Invalid OTP</span>`;
+                    document.getElementById('otp').classList.add('border-red-500');
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Invalid OTP',
+                        text: data.message || 'Please check the OTP and try again',
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Failed to verify OTP',
+                });
+            });
+        });
+        
+        // OTP Timer Function
+        function startOtpTimer() {
+            let timeLeft = 60;
+            document.getElementById('countdown').textContent = timeLeft;
+            
+            clearInterval(otpTimer);
+            
+            otpTimer = setInterval(function() {
+                timeLeft--;
+                document.getElementById('countdown').textContent = timeLeft;
+                
+                if (timeLeft <= 0) {
+                    clearInterval(otpTimer);
+                    document.getElementById('otpTimer').classList.add('hidden');
+                    sessionStorage.removeItem('emailForVerification');
+                }
+            }, 1000);
+        }
+        
+        // Form Submission Handling
+        document.getElementById('editProfileForm')?.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const form = e.target;
+            const formData = new FormData(form);
+            
+            let isValid = true;
+            
+            if (!form.name.value.trim()) {
+                form.name.classList.add('border-red-500');
+                isValid = false;
+            }
+            
+            if (form.phone.value && !/^\d{10}$/.test(form.phone.value)) {
+                form.phone.classList.add('border-red-500');
+                isValid = false;
+            }
+            
+            const newEmail = form.newEmail.value;
+            if (newEmail) {
+                const emailVerified = sessionStorage.getItem('emailVerified') === 'true';
+                const verifiedEmail = sessionStorage.getItem('verifiedEmail');
+                
+                if (!emailVerified || verifiedEmail !== newEmail) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Email Not Verified',
+                        text: 'Please verify your new email before saving',
+                    });
+                    isValid = false;
+                }
+            }
+            
+            const currentPassword = form.currentPassword.value;
+            const newPassword = form.newPassword.value;
+            const confirmPassword = form.confirmPassword.value;
+            
+            if (currentPassword || newPassword || confirmPassword) {
+                if (!currentPassword) {
+                    form.currentPassword.classList.add('border-red-500');
+                    isValid = false;
+                }
+                if (newPassword.length < 8) {
+                    form.newPassword.classList.add('border-red-500');
+                    isValid = false;
+                }
+                if (newPassword !== confirmPassword) {
+                    form.confirmPassword.classList.add('border-red-500');
+                    isValid = false;
+                }
+            }
+            
+            if (!isValid) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Validation Error',
+                    text: 'Please fix the errors in the form',
+                });
+                return;
+            }
+            
+            try {
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.redirected) {
+                    sessionStorage.removeItem('emailForVerification');
+                    sessionStorage.removeItem('emailVerified');
+                    sessionStorage.removeItem('verifiedEmail');
+                    
+                    window.location.href = response.url;
+                } else {
+                    const result = await response.json();
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: result.message || 'Failed to update profile',
+                    });
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Failed to update profile',
+                });
+            }
+        });
+        
+        // Remove validation errors when user starts typing
+        document.querySelectorAll('input, textarea').forEach(input => {
+            input.addEventListener('input', function() {
+                this.classList.remove('border-red-500');
+            });
+        });
+        
+        // Initialize form state on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const emailVerified = sessionStorage.getItem('emailVerified');
+            const verifiedEmail = sessionStorage.getItem('verifiedEmail');
+            const newEmailInput = document.getElementById('newEmail');
+            
+            if (emailVerified === 'true' && verifiedEmail && newEmailInput) {
+                newEmailInput.value = verifiedEmail;
+                document.getElementById('otpSection').classList.remove('hidden');
+                document.getElementById('otpVerificationStatus').innerHTML = 
+                    `<span class="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm"><i class="fas fa-check-circle mr-1"></i> Verified</span>`;
+            }
+        });
+    </script>
+</body>
+</html>

@@ -15,9 +15,7 @@
 
         body {
             min-height: 100vh;
-            background:
-                url('/public/images/admin\ login\ background.webp');
-
+            background: url('/public/images/admin login background.webp');
             background-size: cover;
             background-position: center;
             display: flex;
@@ -63,19 +61,25 @@
             border: 1px solid #ddd;
             border-radius: 5px;
             font-size: 1rem;
-            transition: border-color 0.3s;
+            transition: border-color 0.3s, box-shadow 0.3s;
         }
 
         .form-group input:focus {
             outline: none;
             border-color: #b76e79;
+            box-shadow: 0 0 5px rgba(183, 110, 121, 0.3);
         }
 
         .error {
-            color: red;
+            color: #e74c3c;
             font-size: 0.9rem;
             margin-top: 0.3rem;
             display: none;
+            font-weight: 400;
+        }
+
+        .input-error {
+            border-color: #e74c3c !important;
         }
 
         .login-btn {
@@ -94,11 +98,22 @@
             background-color: #c0392b;
         }
 
-        /* Optional decorative elements */
+        .login-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
         .book-icon {
             font-size: 2.5rem;
             margin-bottom: 1rem;
             color: #e74c3c;
+        }
+
+        .server-error {
+            color: #e74c3c;
+            text-align: center;
+            margin-bottom: 1rem;
+            font-size: 1rem;
         }
     </style>
 </head>
@@ -107,73 +122,105 @@
     <div class="login-container">
         <div class="login-header">
             <div class="book-icon">📚</div>
-
             <h1>Admin Login</h1>
-            <% if (typeof errorMessage !=="undefined" && errorMessage.length> 0) { %>
-                <h2 style="color: red;">
-                    <%= errorMessage %>
-                </h2>
-                <% } %>
-
+            <% if (typeof errorMessage !== "undefined" && errorMessage.length > 0) { %>
+                <div class="server-error"><%= errorMessage %></div>
+            <% } %>
         </div>
-        <form action="/admin/login" method="POST">
+        <form action="/admin/login" method="POST" novalidate>
             <div class="form-group">
                 <label for="email">Email</label>
                 <input type="email" id="email" name="email" placeholder="Enter Email Here" required>
+                <div class="error" id="emailError">Please enter a valid email address</div>
             </div>
             <div class="form-group">
                 <label for="password">Password</label>
                 <input type="password" id="password" name="password" placeholder="Enter Password Here" required>
                 <div class="error" id="passwordError">Password must be at least 6 characters</div>
-
             </div>
-            <button type="submit" class="login-btn">Login</button>
+            <button type="submit" class="login-btn" id="loginBtn">Login</button>
         </form>
     </div>
 
-    <% if (typeof error !=='undefined' ) { %>
-        <div class="error-message">
-            <%= error %>
-        </div>
-        <% } %>
+    <% if (typeof error !== 'undefined') { %>
+        <div class="server-error"><%= error %></div>
+    <% } %>
 
+    <script>
+        document.querySelector("form").addEventListener("submit", function (event) {
+            event.preventDefault(); // Prevent form submission until validation
 
+            const email = document.getElementById("email");
+            const password = document.getElementById("password");
+            const emailError = document.getElementById("emailError");
+            const passwordError = document.getElementById("passwordError");
+            const loginBtn = document.getElementById("loginBtn");
 
-            <script>
-                document.querySelector("form").addEventListener("submit", function (event) {
-                    let isValid = true;
+            let isValid = true;
 
-                    // Email validation
-                    const email = document.getElementById("email").value;
-                    const emailError = document.getElementById("emailError");
-                    const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$/;
-                    if (!emailPattern.test(email)) {
-                        emailError.style.display = "block";
-                        isValid = false;
-                    } else {
-                        emailError.style.display = "none";
-                    }
+            // Reset error states
+            emailError.style.display = "none";
+            passwordError.style.display = "none";
+            email.classList.remove("input-error");
+            password.classList.remove("input-error");
+            loginBtn.disabled = false;
 
-                    // Password validation
-                    const password = document.getElementById("password").value;
-                    const passwordError = document.getElementById("passwordError");
-                    if (password.length < 6) {
-                        passwordError.style.display = "block";
-                        isValid = false;
-                    } else {
-                        passwordError.style.display = "none";
-                    }
+            // Email validation
+            const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+            if (!email.value.trim()) {
+                emailError.textContent = "Email is required";
+                emailError.style.display = "block";
+                email.classList.add("input-error");
+                isValid = false;
+            } else if (!emailPattern.test(email.value.trim())) {
+                emailError.textContent = "Please enter a valid email address";
+                emailError.style.display = "block";
+                email.classList.add("input-error");
+                isValid = false;
+            }
 
-                    if (!isValid) {
-                        event.preventDefault(); // Prevent form submission if validation fails
-                    }
-                });
+            // Password validation
+            if (!password.value) {
+                passwordError.textContent = "Password is required";
+                passwordError.style.display = "block";
+                password.classList.add("input-error");
+                isValid = false;
+            } else if (password.value.length < 6) {
+                passwordError.textContent = "Password must be at least 6 characters";
+                passwordError.style.display = "block";
+                password.classList.add("input-error");
+                isValid = false;
+            }
 
+            // Submit form if valid
+            if (isValid) {
+                this.submit();
+            } else {
+                loginBtn.disabled = true;
+                setTimeout(() => {
+                    loginBtn.disabled = false;
+                }, 2000); // Re-enable button after 2 seconds
+            }
+        });
 
+        // Real-time validation on input
+        document.getElementById("email").addEventListener("input", function () {
+            const emailError = document.getElementById("emailError");
+            const emailPattern = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+            if (this.value.trim() && emailPattern.test(this.value.trim())) {
+                emailError.style.display = "none";
+                this.classList.remove("input-error");
+            }
+        });
 
-            </script>
-
-
+        document.getElementById("password").addEventListener("input", function () {
+            const passwordError = document.getElementById("passwordError");
+            if (this.value.length >= 6) {
+                passwordError.style.display = "none";
+                this.classList.remove("input-error");
+            }
+        });
+    </script>
 </body>
 
 </html>

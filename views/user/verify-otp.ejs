@@ -68,52 +68,65 @@
     </div>
 
     <script>
+  
+        const otpExpiresAt = <%= otpExpires %>;
+    
         document.addEventListener("DOMContentLoaded", function () {
             const timerDisplay = document.getElementById("timer");
             const resendLink = document.getElementById("resendOTP");
-            let countdown = 180; // 3 minutes
-
+            const verifyButton = document.getElementById("verifyButton");
+    
+           
+            let countdown = Math.floor((otpExpiresAt - Date.now()) / 1000);
+            if (countdown < 0) countdown = 0;
+    
             function updateTimer() {
                 let minutes = Math.floor(countdown / 60);
                 let seconds = countdown % 60;
                 timerDisplay.innerText = `OTP expires in ${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
-                
+    
                 if (countdown > 0) {
                     countdown--;
                     resendLink.classList.add("resend-disabled");
+                    verifyButton.disabled = false;
                     setTimeout(updateTimer, 1000);
                 } else {
                     timerDisplay.innerText = "OTP expired. Please request a new one.";
-                    document.getElementById("verifyButton").disabled = true;
+                    verifyButton.disabled = true;
                     resendLink.classList.remove("resend-disabled");
                 }
             }
+    
             updateTimer();
-
+    
             resendLink.addEventListener("click", function () {
                 if (!resendLink.classList.contains("resend-disabled")) {
                     window.location.href = "/resend-otp";
                 }
             });
-        });
-
-        function moveToNext(current, nextId) {
-            if (current.value.length === 1) {
-                document.getElementById(nextId).focus();
+    
+            
+            window.moveToNext = function (current, nextId) {
+                if (current.value.length === 1) {
+                    document.getElementById(nextId).focus();
+                }
             }
-        }
-
-        function combineOTP() {
-            let otp = "";
-            for (let i = 1; i <= 6; i++) {
-                otp += document.getElementById("otp" + i).value;
+    
+            
+            function combineOTP() {
+                let otp = "";
+                for (let i = 1; i <= 6; i++) {
+                    otp += document.getElementById("otp" + i).value;
+                }
+                document.getElementById("otpField").value = otp;
             }
-            document.getElementById("otpField").value = otp;
-        }
-
-        document.getElementById("otpForm").addEventListener("submit", function () {
-            combineOTP();
+    
+            
+            document.getElementById("otpForm").addEventListener("submit", function () {
+                combineOTP();
+            });
         });
     </script>
+    
 </body>
 </html>

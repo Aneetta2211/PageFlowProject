@@ -1,66 +1,46 @@
 const User = require("../models/userSchema");
 
-
-
-const userAuth = async (req, res, next) => {
-    try {
-        
-        if (!req.session.user || !req.session.user.id) {
-            console.log("User not logged in. Redirecting to login page.");
-            return res.redirect("/login");
-        }
-
-       
-        const user = await User.findById(req.session.user.id);
-        if (!user) {
-            console.log("User not found. Redirecting to login.");
-            return res.redirect("/login");
-        }
-
-       
-        if (user.isBlocked) {
-            console.log("Blocked user attempted access. Redirecting to login.");
-            return res.redirect("/login");
-        }
-
-        console.log("User authenticated. Proceeding to next middleware.");
-        next();
-    } catch (error) {
-        console.error("Error in userAuth middleware:", error.message);
-        res.status(500).send("Internal Server Error");
+const userAuth = (req, res, next) => {
+    if (req.session.user) {
+        User.findById(req.session.user.id)
+            .then(data => {
+                if (data && !data.isBlocked) {
+                    // Set req.user so other controllers can access it
+                    req.user = data;
+                    next();
+                } else {
+                    res.redirect("/login");
+                }
+            })
+            .catch(error => {
+                console.log("Error in user auth middleware", error);
+                res.status(500).send("Internal Server error");
+            });
+    } else {
+        res.redirect("/login");
     }
 };
 
-
-
-
-
 const adminAuth = (req, res, next) => {
-    if (req.session.admin && req.session.admin.id) {
-        User.findById(req.session.admin.id)
-            .then(admin => {
-                if (admin && admin.isAdmin) {
+    if (req.session.admin) {
+        User.findOne({ isAdmin: true })
+            .then(data => {
+                if (data) {
                     next();
                 } else {
                     res.redirect("/admin/login");
                 }
             })
             .catch(error => {
-                console.log("Error in adminAuth middleware:", error);
-                res.status(500).send("Internal Server Error");
+                console.log("Error in adminauth middleware", error);
+                res.status(500).send("Internal Server error");
             });
     } else {
         res.redirect("/admin/login");
     }
 };
 
-
-
-
-
-
-
-module.exports={
+module.exports = {
     userAuth,
     adminAuth
-}
+};

@@ -1,11 +1,8 @@
-// controllers/admin/productController.js
 const mongoose = require('mongoose');
 const Product = require("../../models/productSchema");
 const Category = require("../../models/categorySchema");
 const User = require("../../models/userSchema");
-const fs = require('fs');
-const path = require('path');
-const sharp = require('sharp');
+
 
 const getProductAddPage = async (req, res) => {
     try {
@@ -19,38 +16,43 @@ const getProductAddPage = async (req, res) => {
         res.redirect("/pageerror");
     }
 };
-
 const addProduct = async (req, res) => {
-    try {
-        const { productName, category, description, regularPrice, salesPrice, quantity } = req.body; 
-        const images = req.files ? req.files.map(file => `/uploads/products/${file.filename}`) : [];
-        if (!productName || !category || !description || !regularPrice || !salesPrice || quantity === undefined || quantity === null || !images.length) {
-            throw new Error("All required fields must be provided");
-        }
-        const status = parseInt(quantity) === 0 ? "out of stock" : "Available";
+  try {
+      const { productName, category, description, regularPrice, salesPrice, quantity } = req.body;
+      const images = req.files ? req.files.map(file => `/uploads/products/${file.filename}`) : [];
+      if (!productName || !category || !description || !regularPrice || !salesPrice || quantity === undefined || quantity === null || !images.length) {
+          throw new Error("All required fields must be provided");
+      }
+      
+      if (images.length > 4) {
+          throw new Error("Cannot upload more than 4 images");
+      }
 
-        const newProduct = new Product({
-            productName,
-            category,
-            description,
-            regularPrice: parseFloat(regularPrice),
-            salesPrice: parseFloat(salesPrice),
-            quantity: parseInt(quantity),
-            productImage: images,
-        });
 
-        const savedProduct = await newProduct.save();
-        console.log("Product saved:", savedProduct);
 
-        // Set success message in session
-        req.session.successMessage = "Product added successfully!";
-        res.redirect("/admin/products");
-    } catch (error) {
-        console.error("Error adding product:", error.message);
-        res.redirect("/pageerror");
-    }
+      const newProduct = new Product({
+          productName,
+          category,
+          description,
+          regularPrice: parseFloat(regularPrice),
+          salesPrice: parseFloat(salesPrice),
+          quantity: parseInt(quantity),
+          productImage: images,
+          status: parseInt(quantity) === 0 ? "out of stock" : "Available"
+      });
+
+      const savedProduct = await newProduct.save();
+    
+
+      console.log("Product saved:", savedProduct);
+
+      req.session.successMessage = "Product added successfully!";
+      res.redirect("/admin/products");
+  } catch (error) {
+      console.error("Error adding product:", error.message);
+      res.redirect("/pageerror");
+  }
 };
-
 
 const getEditProductPage = async (req, res) => {
   try {
@@ -73,12 +75,32 @@ const getEditProductPage = async (req, res) => {
   }
 };
 
-// Update Product
 const updateProduct = async (req, res) => {
   try {
     const productId = req.params.id;
-    const { productName, category, description, regularPrice, salesPrice, quantity, isBlocked } = req.body;
-    const images = req.files ? req.files.map(file => `/uploads/products/${file.filename}`) : [];
+    const { productName, category, description, regularPrice, salesPrice, quantity, isBlocked, existingImages, removedImages } = req.body;
+    const newImages = req.files ? req.files.map(file => `/uploads/products/${file.filename}`) : [];
+
+    
+   
+    const product = await Product.findById(productId);
+    if (!product) {
+      throw new Error("Product not found");
+    }
+
+   
+    let currentImages = Array.isArray(existingImages) ? existingImages : existingImages ? [existingImages] : [];
+    const imagesToRemove = Array.isArray(removedImages) ? removedImages : removedImages ? [removedImages] : [];
+
+   
+    currentImages = currentImages.filter(img => !imagesToRemove.includes(img));
+
+    
+    const updatedImages = [...currentImages, ...newImages];
+    if (updatedImages.length < 3) {
+      req.session.warningMessage = "You must have at least 3 product images.";
+      return res.redirect(`/admin/products/edit/${productId}`);
+    }
 
     const updateData = {
       productName,
@@ -87,17 +109,18 @@ const updateProduct = async (req, res) => {
       regularPrice: parseFloat(regularPrice),
       salesPrice: parseFloat(salesPrice),
       quantity: parseInt(quantity),
-      isBlocked: isBlocked === 'true' // Convert string to boolean
+      isBlocked: isBlocked === 'true',  
+      productImage: updatedImages,
+      status: parseInt(quantity) === 0 ? "out of stock" : "Available"
+  
     };
-
-    if (images.length > 0) {
-      updateData.productImage = images;
-    }
 
     const updatedProduct = await Product.findByIdAndUpdate(productId, updateData, { new: true });
     if (!updatedProduct) {
       throw new Error("Product not found");
     }
+   
+
 
     req.session.successMessage = "Product updated successfully!";
     res.redirect("/admin/products");
@@ -107,7 +130,7 @@ const updateProduct = async (req, res) => {
   }
 };
 
-// Block (Soft Delete) Product
+
 const blockProduct = async (req, res) => {
   try {
     const productId = req.params.id;
@@ -128,7 +151,7 @@ const blockProduct = async (req, res) => {
   }
 };
 
-// Unblock (Restore) Product
+
 const unblockProduct = async (req, res) => {
   try {
     const productId = req.params.id;
@@ -164,7 +187,6 @@ const getAllProducts = async (req, res) => {
   
       const products = await Product.find(query)
         .populate('category')
-        .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit);
   
@@ -187,7 +209,41 @@ const getAllProducts = async (req, res) => {
       console.error('Error in getAllProducts:', error);
       res.redirect("/pageerror");
     }
-  };
+};
+
+const loadProfile = async (req, res) => {
+  try {
+      console.log('Session user:', req.session.user);
+      if (!req.session.user || !req.session.user.id) {
+          console.log('No user session found, redirecting to login');
+          return res.redirect('/login');
+      }
+
+      
+      const user = await User.findById(req.session.user.id);
+      if (!user) {
+          console.log('User not found in database');
+          return res.redirect('/login');
+      }
+
+      const orders = await Order.find({ user: req.session.user.id });       
+      res.render('user/profile', {
+          section: req.query.section || 'overview',
+          user: {
+              name: user.name || 'Unknown',
+              email: user.email || '',
+              phone: user.phone || '',
+              profileImage: user.profileImage || 'https://via.placeholder.com/150',
+              addresses: user.addresses || []
+          },
+          orders: orders || [],
+          otpSent: req.session.otpSent || false
+      });
+  } catch (error) {
+      console.error('Error in loadProfile:', error);
+      res.redirect('/pageNotFound');
+  }
+};
 
 
 module.exports = {
@@ -197,6 +253,7 @@ module.exports = {
     getEditProductPage,
     updateProduct,
     blockProduct,
-    unblockProduct
-
+    unblockProduct,
+    loadProfile
+   
 };

@@ -1,5 +1,6 @@
 
 const User=require("../../models/userSchema");
+const Product=require("../../models/productSchema")
 const env=require('dotenv').config();
 const bcrypt = require("bcryptjs");
 const nodemailer = require("nodemailer");
@@ -8,7 +9,7 @@ const transporter = require("../../mailer");
 
 const pageNotFound = async (req, res) => {
     try {
-        res.render("user/page-404")  // Add 'user/' before page-404
+        res.render("user/page-404")  
     } catch (error) {
         res.redirect("/pageNotFound")
     }
@@ -17,7 +18,7 @@ const pageNotFound = async (req, res) => {
 
 const loadHomepage = async (req, res) => {
     try {
-        return res.render("user/home", { isLandingPage: true, user: req.user });
+        return res.render("user/home", { isLandingPage: true, user: req.user});
     } catch (error) {
         console.log("home page not found", error);
         res.status(500).send("server error");
@@ -29,7 +30,7 @@ const loadHomepage = async (req, res) => {
 
 const loadSignup = async (req, res) => {
     try {
-        res.render("user/signup", { error: null }); //  Load signup.ejs
+        res.render("user/signup", { error: null }); 
     } catch (error) {
         console.error("Signup Page Error:", error);
         res.status(500).send("Server Error");
@@ -38,7 +39,8 @@ const loadSignup = async (req, res) => {
 
 
 
-// Function to generate OTP
+
+
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
 const registerUser = async (req, res) => {
@@ -46,29 +48,28 @@ const registerUser = async (req, res) => {
       const { firstName, lastName, email, phone, password, confirmPassword } = req.body;
       const name = `${firstName} ${lastName}`.trim();
   
-      // Validate name (required)
+     
       if (!name) {
         console.log("Signup Error: Name is required");
         return res.render("user/signup", { error: "Name is required" });
       }
   
-      // Validate email (required and unique)
+     
       const existingUser = await User.findOne({ email });
       if (existingUser) {
         console.log("Signup Error: User already exists");
         return res.render("user/signup", { error: "User already exists" });
       }
   
-      // Validate phone (optional, but if provided, must be 10 digits and numeric)
+
       if (phone) {
-        const phonePattern = /^\d{10}$/; // Matches exactly 10 digits
+        const phonePattern = /^\d{10}$/;
         if (!phonePattern.test(phone)) {
           console.log("Signup Error: Invalid phone number");
           return res.render("user/signup", { error: "Phone number must be exactly 10 digits" });
         }
       }
   
-      // Validate password and confirmPassword match (required for non-Google signup)
       if (!password || !confirmPassword) {
         console.log("Signup Error: Password is required");
         return res.render("user/signup", { error: "Password and confirmation are required" });
@@ -77,38 +78,42 @@ const registerUser = async (req, res) => {
         console.log("Signup Error: Passwords do not match");
         return res.render("user/signup", { error: "Passwords do not match" });
       }
-  
-      // Hash password
+ 
       const hashedPassword = await bcrypt.hash(password, 10);
   
-      // Create new user (phone is optional, defaults to null if not provided)
+    
       const newUser = new User({
         name,
         email,
-        phone: phone || null, // Set to null if not provided
+        phone: phone || null,
         password: hashedPassword,
       });
       await newUser.save();
   
-      // Generate OTP and store in session
+    
       const otp = generateOTP();
       req.session.otp = otp;
       req.session.otpEmail = email;
-      req.session.otpExpires = Date.now() + 3 * 60 * 1000;
+      req.session.otpExpires = Date.now() + 1* 60 * 1000;
   
       console.log("Generated OTP:", otp);
       console.log("OTP Expiration Time:", new Date(req.session.otpExpires).toLocaleTimeString());
   
-      // Send OTP email
+     
       await transporter.sendMail({
         from: `"PAGEFLOW Support" <${process.env.EMAIL}>`,
         to: email,
         subject: "Verify Your PageFlow Account",
-        text: `Your OTP for verification is: ${otp}. It will expire in 3 minutes.`,
+        text: `Your OTP for verification is: ${otp}. It will expire in 1 minutes.`,
       });
   
       console.log("OTP sent successfully. Redirecting to OTP page...");
-      return res.render("user/verify-otp", { error: null, email });
+      return res.render("user/verify-otp", {
+        error: null,
+        email,
+        otpExpires: req.session.otpExpires
+    });
+    
   
     } catch (error) {
       console.error("Signup Error:", error);
@@ -122,23 +127,37 @@ try {
     const { otp } = req.body;
     const storedOTP = req.session.otp;
     const email = req.session.otpEmail;
+    const otpExpires = req.session.otpExpires;
 
-    if (!storedOTP || !email) {
+    if (!storedOTP || !email ||!otpExpires) {
         return res.render("user/verify-otp", { error: "OTP expired! Please request a new one.", email });
     }
 
+    if (Date.now() > otpExpires) {
+        req.session.otp = null;
+        req.session.otpEmail = null;
+        req.session.otpExpires = null;
+  
+        return res.render("user/verify-otp", { error: "OTP expired! Please request a new one.", email });
+      }
+
     if (otp !== storedOTP) {
-        return res.render("user/verify-otp", { error: "Invalid OTP. Please try again.", email });
+        return res.render("user/verify-otp", {
+            error: "Invalid OTP. Please try again.",
+            email,
+            otpExpires: req.session.otpExpires
+        });
+        
     }
 
-    // Clear OTP session
+    
     req.session.otp = null;
     req.session.otpEmail = null;
     req.session.otpExpires = null;
 
     console.log("OTP verified! Redirecting to login...");
     
-    // Add this line right here, before the redirect
+    
     console.log("About to redirect to login page");
     return res.redirect("/login?message=OTP verified! Please log in.");
 
@@ -151,17 +170,16 @@ try {
 const resendOTP = async (req, res) => {
 try {
     if (!req.session.otpEmail) {
-        return res.redirect("/signup"); // Redirect to signup if no email is stored
+        return res.redirect("/signup"); 
     }
 
-    //  Invalidate old OTP before generating a new one
+   
     req.session.otp = null;
     req.session.otpExpires = null;
 
-    //  Generate a new OTP
     const otp = generateOTP();
     req.session.otp = otp;
-    req.session.otpExpires = Date.now() + 3 * 60 * 1000; // Set new expiration (3 minutes)
+    req.session.otpExpires = Date.now() + 1 * 60 * 1000; 
 
     console.log("New OTP sent:", otp);
 
@@ -169,10 +187,15 @@ try {
         from: `"PAGEFLOW Support" <aneettajose1@gmail.com>`,
         to: req.session.otpEmail,
         subject: "Resend OTP for PageFlow",
-        text: `Your new OTP is: ${otp}. It will expire in 3 minutes.`,
+        text: `Your new OTP is: ${otp}. It will expire in 1 minutes.`,
     });
 
-    res.render("user/verify-otp", { error: "A new OTP has been sent!", email: req.session.otpEmail });
+    res.render("user/verify-otp", {
+        error: "A new OTP has been sent!",
+        email: req.session.otpEmail,
+        otpExpires: req.session.otpExpires
+    });
+    
 
 } catch (error) {
     console.error("Resend OTP Error:", error);
@@ -192,44 +215,40 @@ try {
 };
 
 const loginUser = async (req, res) => {
-try {
-    const { email, password } = req.body;
-
-    const user = await User.findOne({ email });
-    if (!user) {
-        return res.render("user/login", { message: "Invalid email or password!" });
+    try {
+        const { email, password } = req.body;
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.render("user/login", { message: "Invalid email or password!" });
+        }
+        if (user.isBlocked) {
+            return res.render("user/login", { message: "Your account is blocked. Please contact support." });
+        }
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) {
+            return res.render("user/login", { message: "Invalid email or password!" });
+        }
+        req.session.user = {
+            id: user._id,
+            name: user.name,
+            email: user.email
+        };
+        console.log("User logged in:", user.email, "isBlocked:", user.isBlocked); // Debug log
+        res.redirect("/home");
+    } catch (error) {
+        console.error("Login Error:", error);
+        return res.render("user/login", { message: "Something went wrong. Please try again!" });
     }
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-        return res.render("user/login", { message: "Invalid email or password!" });
-    }
-
-    // Store user session
-    req.session.user = {
-        id: user._id,
-        name: user.name,
-        email: user.email
-    };
-
-    // Redirect to home page after login
-    res.redirect("/home");
-
-} catch (error) {
-    console.error("Login Error:", error);
-    return res.render("user/login", { message: "Something went wrong. Please try again!" });
-}
 };
-
 
 const loadHome = async (req, res) => {
 try {
-    //  Check if the user is logged in
+    
     if (!req.session.user) {
-        return res.redirect("/login"); // Redirect to login if not logged in
+        return res.redirect("/login"); 
     }
 
-    res.render("user/home", { user: req.session.user }); //  Pass user data to home.ejs
+    res.render("user/home", { user: req.session.user }); 
 
 } catch (error) {
     console.error("Home Page Error:", error);
@@ -259,7 +278,6 @@ try {
 
 
 
-
 module.exports = {
 pageNotFound,
 loadHomepage,
@@ -271,5 +289,6 @@ loginUser,
 verifyOTP,
 resendOTP,
 logout,
+
 
 };

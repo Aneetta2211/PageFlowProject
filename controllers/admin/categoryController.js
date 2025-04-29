@@ -10,15 +10,14 @@ const categoryInfo = async (req, res) => {
         console.log("Search Query Received:", `"${searchQuery}"`);
 
         let filter = {};
-        // Check for clear first to reset the filter
         if (req.query.clear) {
-            filter = {}; // Reset filter to show all categories
+            filter = {}; 
         } else if (searchQuery) {
-            filter = { name: { $regex: searchQuery, $options: 'i' } }; // Case-insensitive search
+            filter = { name: { $regex: searchQuery, $options: 'i' } }; 
         }
 
         const categoryData = await Category.find(filter)
-            .sort({ createdAt: -1 }) // Sort newest first
+            .sort({ createdAt: -1 }) 
             .skip(skip)
             .limit(limit);
 
@@ -31,7 +30,7 @@ const categoryInfo = async (req, res) => {
             totalPages: totalPages,
             totalCategories: totalCategories,
             limit: limit,
-            searchQuery: searchQuery // Keeps search text in input after searching
+            searchQuery: searchQuery 
         });
 
     } catch (error) {
@@ -48,17 +47,45 @@ const categoryInfo = async (req, res) => {
 };
 
 const addCategory = async (req, res) => {
-  try {
-    const { name, description } = req.body;
-    const newCategory = new Category({ name, description, categoryOffer: 0 });
-    const savedCategory = await newCategory.save();
-    req.session.successMessage = "Category added successfully!";
-    res.json({ success: true, category: savedCategory });
-  } catch (error) {
-    console.error("Error adding category:", error);
-    res.json({ success: false, message: error.message });
-  }
+    try {
+        const { name, description } = req.body;
+
+        // Check for existing category with case-insensitive name
+        const existingCategory = await Category.findOne({
+            name: { $regex: new RegExp(`^${name}$`, 'i') }
+        });
+
+        if (existingCategory) {
+            return res.render("admin/add-category", {
+                error: "Category name already exists!",
+                name,
+                description
+            });
+        }
+
+        // If not found, create new category
+        const newCategory = new Category({
+            name,
+            description,
+            categoryOffer: 0
+        });
+
+        await newCategory.save();
+
+        res.redirect("/admin/category"); // Redirect after successful creation
+
+    } catch (error) {
+        console.error("Error adding category:", error);
+        res.render("admin/add-category", {
+            error: "Something went wrong. Please try again.",
+            name: "",
+            description: ""
+        });
+    }
 };
+
+
+
 
 const addOffer = async (req, res) => {
     try {
@@ -109,21 +136,67 @@ const editCategoryPage = async (req, res) => {
 const updateCategory = async (req, res) => {
     try {
         const { categoryName, description } = req.body;
-        await Category.findByIdAndUpdate(req.params.id, { 
-            name: categoryName,
-            description: description,
-           
+        const categoryId = req.params.id;
+
+        // Sanitize inputs
+        const name = categoryName?.trim();
+        const desc = description?.trim();
+
+        // Server-side validations
+        if (!name || name.length === 0) {
+            return res.json({
+                success: false,
+                message: "Category name is required"
+            });
+        }
+
+        if (name.length < 3) {
+            return res.json({
+                success: false,
+                message: "Category name must be at least 3 characters"
+            });
+        }
+
+        if (!desc || desc.length === 0) {
+            return res.json({
+                success: false,
+                message: "Description is required"
+            });
+        }
+
+        if (desc.length < 5) {
+            return res.json({
+                success: false,
+                message: "Description must be at least 5 characters"
+            });
+        }
+
+        // Check for duplicate name in other categories (case-insensitive)
+        const existingCategory = await Category.findOne({
+            _id: { $ne: categoryId },
+            name: { $regex: new RegExp(`^${name}$`, 'i') }
         });
 
+        if (existingCategory) {
+            return res.json({
+                success: false,
+                message: "Another category with the same name already exists!"
+            });
+        }
 
+        // Proceed with update
+        await Category.findByIdAndUpdate(categoryId, {
+            name: name,
+            description: desc
+        });
 
         res.json({ success: true, message: "Category updated successfully" });
+
     } catch (error) {
         console.error("Error updating category:", error);
         res.json({ success: false, message: "Error updating category" });
     }
 };
-
 
 const deleteCategory = async (req, res) => {
     try {
@@ -142,7 +215,7 @@ const toggleCategoryStatus = async (req, res) => {
             return res.status(404).json({ success: false, message: "Category not found" });
         }
         
-        // Toggle the status correctly
+      
         category.status = category.status === "active" ? "inactive" : "active";
         await category.save();
 
@@ -154,22 +227,6 @@ const toggleCategoryStatus = async (req, res) => {
     } catch (error) {
         console.error("Error toggling category status:", error);
         return res.status(500).json({ success: false, message: "Server Error" });
-    }
-};
-
-const getEditCategory = async (req, res) => {
-    try {
-        const id = req.params.id;
-        const category = await Category.findById(id);
-
-        if (!category) {
-            return res.redirect("/admin/category?error=Category not found");
-        }
-
-        res.render("admin/editCategory", { category });
-    } catch (error) {
-        console.error("Error loading category for edit:", error);
-        res.redirect("/admin/category?error=Error loading category");
     }
 };
 
@@ -202,6 +259,7 @@ const unlistCategory = async (req, res) => {
 
 module.exports={
     categoryInfo,
+    
     addCategory,
     addOffer,
     removeOffer,
@@ -209,7 +267,7 @@ module.exports={
     updateCategory,
     toggleCategoryStatus,
     deleteCategory,
-    getEditCategory,
+    // getEditCategory,
     listCategory,
     unlistCategory
     

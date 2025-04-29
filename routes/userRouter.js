@@ -1,25 +1,26 @@
-const express=require('express');
-const passport=require('passport');
-const router=express.Router();
+const express = require('express');
+const passport = require('passport');
+const upload = require('../middlewares/profileImageUpload.js');
+const router = express.Router();
 const { userAuth, adminAuth } = require("../middlewares/auth.js");
-const userController=require("../controllers/user/userController");
-const profileController=require("../controllers/user/profileController");
-const productController=require("../controllers/user/productController")
+const userController = require("../controllers/user/userController");
+const profileController = require("../controllers/user/profileController");
+const productController = require("../controllers/user/productController");
+const orderController=require("../controllers/user/orderController");
+const cartController=require("../controllers/user/cartController.js")
 
-
-//logini and signup
+// Login and Signup
 router.get("/pageNotfound", userController.pageNotFound);
 router.get("/", userController.loadHomepage);
-router.get("/signup", userController.loadSignup); 
+router.get("/signup", userController.loadSignup);
 router.post("/signup", userController.registerUser);
 router.get("/login", userController.loadLogin);
 router.post("/login", userController.loginUser);
-router.get("/home", userController.loadHome);
+router.get("/home", userAuth, userController.loadHome);
 router.post("/verify-otp", userController.verifyOTP);
 router.get("/resend-otp", userController.resendOTP);
 
-router.get('/auth/google',passport.authenticate('google',{scope:['profile','email']}));
-
+router.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 router.get("/auth/google/callback",
     passport.authenticate("google", { failureRedirect: "/login" }),
     (req, res) => {
@@ -28,14 +29,13 @@ router.get("/auth/google/callback",
             name: req.user.name,
             email: req.user.email,
         };
-        res.redirect("/home"); // Redirect to home after login
+        res.redirect("/home");
     }
 );
 
-router.get("/logout",userController.logout);
+router.get("/logout", userController.logout);
 
-
-//forgotPassword
+// Forgot Password
 router.get('/forgotPassword', profileController.getForgotPasspage);
 router.post('/forgotPassword', profileController.forgotPassword);
 router.get('/verifyOtp', profileController.getVerifyOtpPage);
@@ -44,13 +44,39 @@ router.get('/resetPassword', profileController.getResetPasswordPage);
 router.post('/resetPassword', profileController.resetPassword);
 router.get('/resend-otp-forgot', profileController.resendOTP);
 
-
-//productManagement
-
+// Product Management
 router.get('/loadShoppingPage', userAuth, productController.loadShoppingPage);
-router.get('/productDetails',userAuth,productController.productDetails)
+router.get('/productDetails/:productId', userAuth, productController.productDetails);
 
 
+// Profile Management
+
+router.get('/profile', userAuth, profileController.getProfilePage);
+router.post('/profile/update', userAuth, upload.single('profileImage'), profileController.updateProfile);
+router.post('/profile/send-otp', userAuth, profileController.sendOtpForEmail);
+router.post('/profile/verify-otp', userAuth, profileController.verifyEmailChangeOtp);
+router.post('/profile/resend-otp', userAuth, profileController.resendOtp);
+
+// Address routes
+router.get('/profile/addresses', userAuth, profileController.getAddressesPage);
+router.get('/profile/addresses/add',userAuth, profileController.getAddAddressPage);
+router.post('/profile/addresses/add',userAuth, profileController.addAddress);
+router.get('/profile/addresses/edit/:id',userAuth, profileController.getEditAddressPage);
+router.post('/profile/addresses/edit/:id',userAuth, profileController.updateAddress);
+router.delete('/profile/addresses/delete/:id', userAuth, profileController.deleteAddress);
 
 
-module.exports = router
+//Order Mangement
+router.get("/profile/orders", userAuth, orderController.getOrdersPage);
+router.get("/orders/:orderID", userAuth, orderController.getOrderDetails);
+router.post("/api/orders/:orderID/cancel", userAuth, orderController.cancelOrder);
+router.post("/api/orders/:orderID/return",userAuth, orderController.returnOrder);
+router.get("/api/orders/:orderID/invoice", userAuth, orderController.downloadInvoice);
+
+// Cart Management
+router.get('/profile/cart', userAuth, cartController.getCart);
+router.post('/cart/add/:productId', userAuth, cartController.addToCart);
+router.delete('/cart/:productId', userAuth, cartController.removeFromCart); 
+
+
+module.exports = router;

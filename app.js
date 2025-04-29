@@ -1,6 +1,7 @@
 const express = require("express");
 const app = express();
-const path = require("path");
+const fs = require('fs');
+const path = require('path');
 const dotenv = require('dotenv').config();
 const session = require("express-session");
 const passport = require("./config/passport.js");
@@ -40,13 +41,13 @@ app.use((req, res, next) => {
         req.user = req.session.user;
     }
     res.locals.user = req.user || null;
-    res.locals.message = req.query.message || null; // From redirect (e.g., reset password)
-    res.locals.messageType = req.query.message ? 'success' : null; // Default to success
+    res.locals.message = req.query.message || null; 
+    res.locals.messageType = req.query.message ? 'success' : null; 
     console.log("Updated Current User:", req.user);
     next();
 });
-app.use("/", userRouter);
-app.use('/admin', adminRouter);
+
+
 
 app.get("/", (req, res) => {
     res.render("user/home", { isLandingPage: true, user: req.user });
@@ -57,6 +58,12 @@ app.get("/home", (req, res) => {
 });
 
 app.use(express.static(path.join(__dirname, "public")));
+
+app.use("/", userRouter);
+app.use('/admin', adminRouter);
+
+
+
 
 
 

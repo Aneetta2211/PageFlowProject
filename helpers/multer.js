@@ -1,18 +1,18 @@
-// helpers/multer.js
+
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-// Ensure the upload directory exists
+
 const uploadDir = path.join(__dirname, '..', 'public', 'uploads', 'products');
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Configure storage for multer
+
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, uploadDir); // Use the absolute path
+        cb(null, uploadDir);
     },
     filename: (req, file, cb) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
@@ -20,7 +20,7 @@ const storage = multer.diskStorage({
     }
 });
 
-// File filter to accept only images
+
 const fileFilter = (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|webp|gif/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
@@ -33,10 +33,10 @@ const fileFilter = (req, file, cb) => {
     }
 };
 
-// Initialize multer with the storage and file filter
+
 const upload = multer({
     storage: storage,
-    limits: { fileSize: 5 * 1024 * 1024 }, // Limit file size to 5MB
+    limits: { fileSize: 5 * 1024 * 1024 }, 
     fileFilter: fileFilter
 });
 

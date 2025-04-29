@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <%- include("../../views/partials/user/header") %>
+    <style>
+        /* Existing styles remain unchanged */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f9fafb;
+        }
+        .profile-container {
+            background: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            overflow: hidden;
+            display: flex;
+            max-width: 1350px; 
+            width: 90%; 
+            margin: 2rem auto; 
+            height: calc(105vh - 105px); 
+        }
+        .profile-sidebar {
+            background: #2c3e50;
+            color: #ffffff;
+            padding: 2rem;
+            width: 300px;
+            height: 100%;
+        }
+        .profile-sidebar .card {
+            background: transparent;
+            border: none;
+        }
+        .profile-sidebar .nav-link {
+            color: #d1d8e0;
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin: 5px 0;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+        }
+        .profile-sidebar .nav-link:hover,
+        .profile-sidebar .nav-link.active {
+            background: #34495e;
+            color: #ffffff;
+        }
+        .profile-sidebar .nav-link i {
+            width: 20px;
+            text-align: center;
+            font-size: 1rem;
+            margin-right: 10px;
+        }
+        .profile-content {
+            flex: 1;
+            padding: 2rem;
+            background: #ffffff;
+            border-radius: 0 10px 10px 0;
+        }
+        .breadcrumb {
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin-bottom: 1.5rem;
+            background: none;
+        }
+        .breadcrumb-item a {
+            color: #3b82f6;
+            text-decoration: none;
+        }
+        .breadcrumb-item a:hover {
+            text-decoration: underline;
+        }
+        .address-card {
+            background: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .address-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .address-card-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            color: #1f2937;
+        }
+        .address-card-text {
+            color: #4b5563;
+            margin-bottom: 0.5rem;
+        }
+        .form-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #374151;
+        }
+        .form-control {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            transition: border-color 0.2s;
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        .invalid-feedback {
+            display: none;
+            width: 100%;
+            margin-top: 0.25rem;
+            font-size: 0.875rem;
+            color: #dc2626;
+        }
+        .was-validated .form-control:invalid ~ .invalid-feedback,
+        .was-validated .form-control:invalid ~ .invalid-feedback {
+            display: block;
+        }
+        .was-validated .form-control:invalid,
+        .form-control.is-invalid {
+            border-color: #dc2626;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .btn i {
+            margin-right: 0.5rem;
+        }
+        .btn-primary {
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+        }
+        .btn-primary:hover {
+            background-color: #2563eb;
+        }
+        .btn-secondary {
+            background-color: #6b7280;
+            color: white;
+            border: none;
+        }
+        .btn-secondary:hover {
+            background-color: #4b5563;
+        }
+        .btn-warning {
+            background-color: #f59e0b;
+            color: white;
+            border: none;
+        }
+        .btn-warning:hover {
+            background-color: #d97706;
+        }
+        .btn-danger {
+            background-color: #ef4444;
+            color: white;
+            border: none;
+        }
+        .btn-danger:hover {
+            background-color: #dc2626;
+        }
+        .btn-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+        }
+        .alert {
+            padding: 1rem;
+            border-radius: 0.375rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+        }
+        .alert-success {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+        .alert-danger {
+            background-color: #fee2e2;
+            color: #b91c1c;
+        }
+        .alert i {
+            margin-right: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="profile-container">
+        <%- include("../../views/partials/user/sidebar", { currentPage: 'addresses', user: user }) %>
+        <!-- Main Content -->
+        <div class="profile-content">
+            <!-- Breadcrumb -->
+            <nav class="text-sm text-gray-600 mb-4" aria-label="breadcrumb">
+                <ol class="flex space-x-2">
+                    <li class="flex items-center">
+                        <a href="/" class="hover:underline text-blue-600">Home</a>
+                        <span class="mx-2 text-gray-400">/</span>
+                    </li>
+                    <li class="flex items-center text-gray-500">
+                        Addresses
+                    </li>
+                </ol>
+            </nav>
+
+            <!-- Success/Error Messages -->
+            <% if (typeof success !== 'undefined') { %>
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i>
+                    <%= success %>
+                </div>
+            <% } %>
+            <% if (typeof error !== 'undefined') { %>
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <%= error %>
+                </div>
+            <% } %>
+
+            <!-- Address List -->
+            <% if (!showForm) { %>
+                <div class="flex justify-between items-center mb-6">
+                    <h1 class="text-3xl font-bold text-gray-800">My Addresses</h1>
+                    <% if (addresses.address.length > 0) { %>
+                        <a href="/profile/addresses/add" class="btn btn-primary">
+                            <i class="fas fa-plus"></i>Add New Address
+                        </a>
+                    <% } %>
+                </div>
+                
+                <% if (addresses.address.length > 0) { %>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <% addresses.address.forEach(addr => { %>
+                            <div class="address-card">
+                                <h3 class="address-card-title"><%= addr.addressType %></h3>
+                                <p class="address-card-text">
+                                    <strong>Name:</strong> <%= addr.name %><br>
+                                    <strong>Address:</strong> <%= addr.city %>, <%= addr.state %> <%= addr.pincode %><br>
+                                    <strong>Landmark:</strong> <%= addr.landMark %><br>
+                                    <strong>Phone:</strong> <%= addr.phone %><br>
+                                    <% if (addr.altPhone) { %>
+                                        <strong>Alt Phone:</strong> <%= addr.altPhone %><br>
+                                    <% } %>
+                                </p>
+                                <div class="flex space-x-2 mt-4">
+                                    <a href="/profile/addresses/edit/<%= addr._id %>" class="btn btn-warning btn-sm">
+                                        <i class="fas fa-edit"></i>Edit
+                                    </a>
+                                    <button class="btn btn-danger btn-sm delete-address" data-id="<%= addr._id %>">
+                                        <i class="fas fa-trash"></i>Delete
+                                    </button>
+                                </div>
+                            </div>
+                        <% }); %>
+                    </div>
+                <% } else { %>
+                    <div class="bg-white p-6 rounded-lg shadow-md text-center">
+                        <p class="text-gray-600 mb-4">No addresses found. Add a new address to get started.</p>
+                        <a href="/profile/addresses/add" class="btn btn-primary">
+                            <i class="fas fa-plus"></i>Add Address
+                        </a>
+                    </div>
+                <% } %>
+            <% } %>
+
+            <!-- Address Form (Add/Edit) -->
+            <% if (showForm) { %>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h1 class="text-3xl font-bold text-gray-800 mb-6"><%= editMode ? 'Edit Address' : 'Add New Address' %></h1>
+                    <form id="addressForm" action="<%= editMode ? '/profile/addresses/edit/' + address._id : '/profile/addresses/add' %>" method="POST" class="needs-validation" novalidate>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                            <div>
+                                <label for="addressType" class="form-label">Address Type <span class="text-red-500">*</span></label>
+                                <select class="form-control" id="addressType" name="addressType" required>
+                                    <option value="" <%= !editMode ? 'selected' : '' %>>Select Type</option>
+                                    <option value="Home" <%= editMode && address.addressType === 'Home' ? 'selected' : '' %>>Home</option>
+                                    <option value="Work" <%= editMode && address.addressType === 'Work' ? 'selected' : '' %>>Work</option>
+                                    <option value="Other" <%= editMode && address.addressType === 'Other' ? 'selected' : '' %>>Other</option>
+                                </select>
+                                <div class="invalid-feedback">Please select an address type.</div>
+                            </div>
+                            <div>
+                                <label for="name" class="form-label">Name <span class="text-red-500">*</span></label>
+                                <input type="text" class="form-control" id="name" name="name" value="<%= editMode ? address.name : '' %>" required>
+                                <div class="invalid-feedback">Please enter a name.</div>
+                            </div>
+                            <div>
+                                <label for="city" class="form-label">City <span class="text-red-500">*</span></label>
+                                <input type="text" class="form-control" id="city" name="city" value="<%= editMode ? address.city : '' %>" required>
+                                <div class="invalid-feedback">Please enter a city.</div>
+                            </div>
+                            <div>
+                                <label for="landMark" class="form-label">Landmark <span class="text-red-500">*</span></label>
+                                <input type="text" class="form-control" id="landMark" name="landMark" value="<%= editMode ? address.landMark : '' %>" required>
+                                <div class="invalid-feedback">Please enter a landmark.</div>
+                            </div>
+                            <div>
+                                <label for="state" class="form-label">State <span class="text-red-500">*</span></label>
+                                <input type="text" class="form-control" id="state" name="state" value="<%= editMode ? address.state : '' %>" required>
+                                <div class="invalid-feedback">Please enter a state.</div>
+                            </div>
+                            <div>
+                                <label for="pincode" class="form-label">Pincode <span class="text-red-500">*</span></label>
+                                <input type="text" class="form-control" id="pincode" name="pincode" value="<%= editMode ? address.pincode : '' %>" pattern="\d{6}" required>
+                                <div class="invalid-feedback">Please enter a valid 6-digit pincode.</div>
+                            </div>
+                            <div>
+                                <label for="phone" class="form-label">Phone <span class="text-red-500">*</span></label>
+                                <input type="tel" class="form-control" id="phone" name="phone" value="<%= editMode ? address.phone : '' %>" pattern="\d{10}" required>
+                                <div class="invalid-feedback">Please enter a valid 10-digit phone number.</div>
+                            </div>
+                            <div>
+                                <label for="altPhone" class="form-label">Alternate Phone (Optional)</label>
+                                <input type="tel" class="form-control" id="altPhone" name="altPhone" value="<%= editMode ? address.altPhone : '' %>" pattern="\d{10}">
+                                <div class="invalid-feedback">Please enter a valid 10-digit phone number.</div>
+                            </div>
+                        </div>
+                        <div class="flex justify-between mt-6">
+                            <a href="/profile/addresses" class="btn btn-secondary">
+                                <i class="fas fa-times"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i><%= editMode ? 'Update Address' : 'Add Address' %>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            <% } %>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // Bootstrap form validation
+        (function () {
+            'use strict'
+            const forms = document.querySelectorAll('.needs-validation')
+            Array.from(forms).forEach(form => {
+                form.addEventListener('submit', event => {
+                    if (!form.checkValidity()) {
+                        event.preventDefault()
+                        event.stopPropagation()
+                    }
+                    form.classList.add('was-validated')
+                }, false)
+            })
+        })()
+
+        // Delete address functionality
+        document.querySelectorAll('.delete-address').forEach(button => {
+            button.addEventListener('click', async () => {
+                Swal.fire({
+                    title: 'Are you sure?',
+                    text: 'Do you want to delete this address?',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#2c3e50',
+                    cancelButtonColor: '#dc2626',
+                    confirmButtonText: 'Yes, delete it!'
+                }).then(async (result) => {
+                    if (result.isConfirmed) {
+                        try {
+                            const response = await fetch(`/profile/addresses/delete/${button.dataset.id}`, {
+                                method: 'DELETE'
+                            });
+                            const result = await response.json();
+                            if (result.success) {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Deleted!',
+                                    text: 'Address deleted successfully',
+                                    showConfirmButton: false,
+                                    timer: 1500
+                                }).then(() => {
+                                    window.location.href = '/profile/addresses?success=Address deleted successfully';
+                                });
+                            } else {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Error',
+                                    text: result.message || 'Failed to delete address'
+                                });
+                            }
+                        } catch (error) {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: 'Failed to delete address'
+                            });
+                        }
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

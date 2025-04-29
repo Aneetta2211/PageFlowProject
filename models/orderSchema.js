@@ -20,7 +20,7 @@ const orderSchema=new Schema({
         },
         price:{
             type:Number,
-            default0
+            default:0
         }
     }],
     totalPrice:{
@@ -36,7 +36,7 @@ const orderSchema=new Schema({
         required:true
     },
     address:{
-        typr:Schema.Types.ObjectId,
+        type:Schema.Types.ObjectId,
         ref:'User',
         required:true
     },

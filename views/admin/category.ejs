@@ -65,8 +65,8 @@
             <li><a href="/admin/category" class="active"><i class="fa fa-th-large"></i> Category</a></li>
             <li><a href="/admin/add-product"><i class="fa fa-plus"></i> Add Products</a></li>
             <li><a href="/admin/products"><i class="fa fa-box"></i> Products</a></li>
-            <li><a href="/admin/coupons"><i class="fa fa-tag"></i> Coupons</a></li>
-            <li><a href="/admin/banners"><i class="fa fa-image"></i> Banners</a></li>
+            <!-- <li><a href="/admin/coupons"><i class="fa fa-tag"></i> Coupons</a></li>
+            <li><a href="/admin/banners"><i class="fa fa-image"></i> Banners</a></li> -->
             <li><a href="/admin/orders"><i class="fa fa-shopping-cart"></i> Orders</a></li>
         </ul>
     </div>
@@ -103,7 +103,7 @@
             </button>
         </div>
 
-        <!-- Category Table (unchanged) -->
+        <!-- Category Table -->
         <table class="table mt-4" id="categoryTable">
             <thead>
                 <tr>
@@ -164,7 +164,7 @@
             </tbody>
         </table>
 
-        <!-- Add Pagination -->
+        <!--  Pagination -->
         <% if (totalPages > 1) { %>
             <div class="pagination">
                 <% if (currentPage > 1) { %>
@@ -183,7 +183,7 @@
             </div>
         <% } %>
 
-        <!-- Offer Modal (unchanged) -->
+        <!-- Offer Modal  -->
         <div class="modal fade" id="offerModal" tabindex="-1" aria-labelledby="offerModalLabel" aria-hidden="true">
             <div class="modal-dialog">
                 <div class="modal-content">
@@ -207,7 +207,7 @@
         </div>
     </div>
 
-    <!-- Bootstrap JS and SweetAlert2 JS -->
+    
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@10/dist/sweetalert2.min.js"></script>
 
@@ -256,14 +256,14 @@
 
                         tbody.prepend(newRow);
                         document.getElementById("categoryForm").reset();
-                        // Add SweetAlert2 success message
+                        
                         Swal.fire({
                             icon: 'success',
                             title: 'Success',
                             text: 'Category added successfully!',
                             confirmButtonText: 'OK'
                         }).then(() => {
-                            // Reload the page to reflect the updated category list with pagination
+                            
                             window.location.reload();
                         });
                     } else {
@@ -322,7 +322,7 @@
                         const modal = bootstrap.Modal.getInstance(document.getElementById('offerModal'));
                         modal.hide();
                         this.reset();
-                        // Add SweetAlert2 success message
+                       
                         Swal.fire({
                             icon: 'success',
                             title: 'Success',
@@ -371,7 +371,7 @@
                                 Add Offer
                             </button>
                         `;
-                        // Add SweetAlert2 success message
+                        
                         Swal.fire({
                             icon: 'success',
                             title: 'Success',
@@ -403,7 +403,7 @@
             const statusSpan = document.getElementById(`status-${id}`);
             const isUnlisting = toggleBtn.textContent === 'Unlist';
 
-            // Show confirmation dialog
+           
             Swal.fire({
                 title: `Are you sure?`,
                 text: `This will ${isUnlisting ? 'unlist' : 'list'} the category!`,
@@ -413,7 +413,7 @@
                 cancelButtonText: 'No, cancel'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    // Perform the toggle action
+                    
                     fetch(`/admin/category/${isUnlisting ? 'unlist' : 'list'}/${id}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' }
@@ -470,7 +470,7 @@
             });
         }
 
-        // Search and Clear Functionality (unchanged)
+        // Search and Clear 
         console.log("Script loaded");
         document.addEventListener("DOMContentLoaded", function () {
             console.log("DOMContentLoaded fired");

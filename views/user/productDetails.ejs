@@ -2,12 +2,12 @@
 <main class="main">
     <div class="page-header breadcrumb-wrap bg-light py-3 mb-4">
         <div class="container">
-            <nav class="breadcrumb">
-                <a href="#" class="breadcrumb-item">Home</a>
-                <span class="breadcrumb-separator">/</span>
-                <span class="breadcrumb-item">Shop</span>
-                <span class="breadcrumb-separator">/</span>
-                <span class="breadcrumb-item active">Product Detail</span>
+            <nav class="breadcrumb" aria-label="Breadcrumb">
+                <a href="/" class="breadcrumb-item">Home</a>
+                <span class="breadcrumb-separator" aria-hidden="true">/</span>
+                <a href="/loadShoppingPage" class="breadcrumb-item">Shop</a>
+                <span class="breadcrumb-separator" aria-hidden="true">/</span>
+                <span class="breadcrumb-item active" aria-current="page">Product Detail</span>
             </nav>
         </div>
     </div>
@@ -20,7 +20,6 @@
                         <div class="card-body p-4">
                             <!-- Product Images and Details -->
                             <div class="row g-4">
-                                <!-- Product Images -->
                                 <div class="col-md-6">
                                     <div class="product-gallery position-relative">
                                         <span class="zoom-icon position-absolute top-0 end-0 m-3 bg-white rounded-circle p-2 shadow-sm">
@@ -53,10 +52,6 @@
                                             <div class="product-rating me-2" style="width: 90%;">
                                                 <span class="stars">★★★★☆</span>
                                             </div>
-                                            <!-- <span class="review-label">
-                                                <span class="meta-label">Reviews:</span> 
-                                                <span class="meta-value">(25 reviews)</span>
-                                            </span> -->
                                         </div>
 
                                         <div class="pricing mb-4">
@@ -95,20 +90,16 @@
                                         </div>
 
                                         <ul class="product-meta small text-muted">
-                                            <!-- <li class="mb-2">
-                                                <span class="meta-label">Stock Code:</span> 
-                                                <span class="meta-value"><a href="#">FWM15VKT</a></span>
-                                            </li> -->
                                             <li class="mb-2">
                                                 <span class="meta-label">Category:</span> 
                                                 <span class="meta-value"><a href="#"><%= category.name %></a></span>
                                             </li>
                                             <li>
                                                 <span class="meta-label">Availability:</span> 
-                                                <% if (product.status === 'out of stock') { %>
-                                                    <span class="meta-value out-of-stock">Out of Stock</span>
-                                                <% } else { %>
+                                                <% if (product.quantity>0 ) { %>
                                                     <span class="meta-value text-success fw-medium"><%= product.quantity %> Items in stock</span>
+                                                <% } else { %>
+                                                    <span class="meta-value out-of-stock">Out of Stock</span>
                                                 <% } %>
                                             </li>
                                         </ul>
@@ -116,11 +107,11 @@
                                 </div>
                             </div>
 
-                            <!-- Reviews Section (Static) -->
+                            
                             <div class="reviews-section mt-4">
                                 <h3 class="fs-4 mb-3">Customer Reviews</h3>
                                 <div class="reviews-list">
-                                    <!-- Sample Review 1 -->
+                                    
                                     <div class="review-item border-bottom py-3">
                                         <div class="d-flex align-items-center mb-2">
                                             <span class="stars text-warning me-2">★★★★☆</span>
@@ -129,7 +120,7 @@
                                         </div>
                                         <p class="review-text mb-0">"Great product! The quality is amazing, though delivery took a bit longer than expected."</p>
                                     </div>
-                                    <!-- Sample Review 2 -->
+                                    
                                     <div class="review-item border-bottom py-3">
                                         <div class="d-flex align-items-center mb-2">
                                             <span class="stars text-warning me-2">★★★★★</span>
@@ -138,7 +129,7 @@
                                         </div>
                                         <p class="review-text mb-0">"Absolutely love it! Worth every penny."</p>
                                     </div>
-                                    <!-- Sample Review 3 -->
+                                    
                                     <div class="review-item py-3">
                                         <div class="d-flex align-items-center mb-2">
                                             <span class="stars text-warning me-2">★★★☆☆</span>
@@ -157,81 +148,101 @@
         </div>
     </section>
 </main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.min.js"></script>
 <%-include("../../views/partials/user/footer")%>
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        
         function initImageZoom() {
-            const mainImage = document.querySelector('.main-image img');
-            const zoomContainer = document.createElement('div');
-            const zoomLens = document.createElement('div');
-            const zoomResult = document.createElement('div');
-    
-            zoomContainer.classList.add('zoom-container');
-            zoomLens.classList.add('zoom-lens');
-            zoomResult.classList.add('zoom-result');
-    
-            mainImage.parentElement.appendChild(zoomContainer);
-            zoomContainer.appendChild(mainImage);
-            zoomContainer.appendChild(zoomLens);
-            zoomContainer.appendChild(zoomResult);
-    
-            zoomContainer.addEventListener('mousemove', moveZoom);
-            zoomContainer.addEventListener('mouseenter', showZoom);
-            zoomContainer.addEventListener('mouseleave', hideZoom);
-    
-            function showZoom(e) {
-                zoomLens.style.display = 'block';
-                zoomResult.style.display = 'block';
-                zoomResult.style.backgroundImage = `url('${mainImage.src}')`;
-            }
-    
-            function hideZoom() {
-                zoomLens.style.display = 'none';
-                zoomResult.style.display = 'none';
-            }
-    
-            function moveZoom(e) {
-                let container = zoomContainer;
-                let lens = zoomLens;
-                let result = zoomResult;
-    
-                if (!container.contains(e.target)) return;
-    
-                let containerRect = container.getBoundingClientRect();
-                let x = e.clientX - containerRect.left;
-                let y = e.clientY - containerRect.top;
-    
-                lens.style.left = `${x - lens.offsetWidth / 2}px`;
-                lens.style.top = `${y - lens.offsetHeight / 2}px`;
-    
-                let backgroundX = -(x / container.offsetWidth * mainImage.offsetWidth - lens.offsetWidth / 2);
-                let backgroundY = -(y / container.offsetHeight * mainImage.offsetHeight - lens.offsetHeight / 2);
-    
-                result.style.backgroundPosition = `${backgroundX}px ${backgroundY}px`;
-            }
-    
-            document.querySelectorAll('.thumbnail img').forEach(thumbnail => {
-                thumbnail.addEventListener('click', () => {
-                    mainImage.src = thumbnail.src;
-                    zoomResult.style.backgroundImage = `url('${thumbnail.src}')`;
+            const productImages = document.querySelectorAll('.main-image img');
+            
+            productImages.forEach(img => {
+               
+                const zoomContainer = document.createElement('div');
+                zoomContainer.className = 'img-zoom-container';
+                
+              
+                img.parentNode.insertBefore(zoomContainer, img);
+                zoomContainer.appendChild(img);
+                
+              
+                zoomContainer.addEventListener('mousemove', function(e) {
+                    const bounds = this.getBoundingClientRect();
+                    const x = e.clientX - bounds.left;
+                    const y = e.clientY - bounds.top;
+                    
+                    
+                    const xPercent = Math.round(x / bounds.width * 100);
+                    const yPercent = Math.round(y / bounds.height * 100);
+                    
+                    
+                    img.style.transformOrigin = `${xPercent}% ${yPercent}%`;
+                });
+                
+                
+                zoomContainer.addEventListener('mouseenter', function() {
+                    img.classList.add('img-zoom-active');
+                });
+                
+                zoomContainer.addEventListener('mouseleave', function() {
+                    img.classList.remove('img-zoom-active');
                 });
             });
+            
+            
+            document.querySelectorAll('.thumbnail img').forEach(thumbnail => {
+                thumbnail.addEventListener('click', function() {
+                    const mainImage = document.querySelector('.main-image img');
+                    mainImage.src = this.src;
+                    
+                    
+                    document.querySelectorAll('.thumbnail img').forEach(img => {
+                        img.classList.remove('selected-thumbnail');
+                    });
+                    this.classList.add('selected-thumbnail');
+                });
+            });
+            
+            
+            if (document.querySelector('.thumbnail img')) {
+                document.querySelector('.thumbnail img').classList.add('selected-thumbnail');
+            }
         }
-    
+        
+        
         initImageZoom();
+        
+        
+        const qtyUp = document.querySelector('.qty-up');
+        const qtyDown = document.querySelector('.qty-down');
+        const qtyVal = document.querySelector('.qty-val');
+        
+        if (qtyUp && qtyDown && qtyVal) {
+            qtyUp.addEventListener('click', function(e) {
+                e.preventDefault();
+                let value = parseInt(qtyVal.textContent);
+                qtyVal.textContent = value + 1;
+            });
+            
+            qtyDown.addEventListener('click', function(e) {
+                e.preventDefault();
+                let value = parseInt(qtyVal.textContent);
+                if (value > 1) qtyVal.textContent = value - 1;
+            });
+        }
     });
 </script>
 
 <style>
+    a.dropdown-toggle svg.wishlist {
+  fill: #272727;
+}
     .breadcrumb {
         --bs-breadcrumb-divider: '/';
     }
     .breadcrumb-item + .breadcrumb-item::before {
         color: #6c757d;
-    }
-    .product-gallery .thumbnail:hover {
-        border-color: #007bff;
     }
     .btn-add-to-cart {
         padding: 10px 20px;
@@ -280,49 +291,130 @@
     .pricing .discount {
         background-color: #28a745;
     }
+    
+    
     .product-gallery {
         position: relative;
     }
-    .product-gallery .main-image {
+    
+    .main-image {
         position: relative;
-        overflow: hidden;
-    }
-    .product-gallery .main-image img {
-        transition: transform 0.3s ease;
-        max-width: 100%;
-        height: auto;
-    }
-    .product-gallery .main-image:hover img {
-        transform: scale(1.5);
-    }
-    .zoom-container {
-        position: relative;
-        width: 100%;
+        margin-bottom: 15px;
         height: 400px;
+        background-color: #f8f9fa;
+        border-radius: 8px;
         overflow: hidden;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    }
+    
+    .img-zoom-container {
+        width: 100%;
+        height: 100%;
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         cursor: zoom-in;
     }
-    .zoom-lens {
-        position: absolute;
-        border: 1px solid #d4d4d4;
-        width: 100px;
-        height: 100px;
-        background: rgba(255, 255, 255, 0.3);
-        display: none;
-        pointer-events: none;
+    
+    .main-image img {
+        max-height: 100%;
+        max-width: 100%;
+        object-fit: contain;
+        transition: transform 0.3s ease;
     }
-    .zoom-result {
-        position: absolute;
-        border: 1px solid #d4d4d4;
-        width: 300px;
-        height: 300px;
-        top: 0;
-        left: 110%;
-        display: none;
-        overflow: hidden;
-        background-size: cover;
+    
+    .img-zoom-active {
+        transform: scale(2.5); 
+        z-index: 5;
     }
-    /* Reviews Section Styles */
+  
+    .thumbnail-slider {
+        display: flex;
+        gap: 10px;
+        overflow-x: auto;
+        padding: 10px 0;
+        scrollbar-width: thin;
+        scrollbar-color: #007bff #f1f3f5;
+    }
+    
+    .thumbnail-slider::-webkit-scrollbar {
+        height: 6px;
+    }
+    
+    .thumbnail-slider::-webkit-scrollbar-track {
+        background: #f1f3f5;
+        border-radius: 10px;
+    }
+    
+    .thumbnail-slider::-webkit-scrollbar-thumb {
+        background-color: #007bff;
+        border-radius: 10px;
+    }
+    
+    .thumbnail {
+        flex: 0 0 auto;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .thumbnail img {
+        width: 80px;
+        height: 80px;
+        object-fit: contain;
+        border: 2px solid #dee2e6;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+        padding: 5px;
+    }
+    
+    .thumbnail img:hover {
+        border-color: #007bff;
+        transform: translateY(-3px);
+    }
+    
+    .thumbnail img.selected-thumbnail {
+        border-color: #007bff;
+        box-shadow: 0 5px 10px rgba(0, 123, 255, 0.2);
+    }
+    
+   
+    .zoom-icon {
+        animation: pulse 2s infinite;
+        transition: all 0.3s ease;
+        z-index: 10;
+    }
+    
+    .zoom-icon:hover {
+        transform: scale(1.1);
+        background-color: #007bff !important;
+        color: white;
+    }
+    
+    @keyframes pulse {
+        0% {
+            box-shadow: 0 0 0 0 rgba(0, 123, 255, 0.4);
+        }
+        70% {
+            box-shadow: 0 0 0 10px rgba(0, 123, 255, 0);
+        }
+        100% {
+            box-shadow: 0 0 0 0 rgba(0, 123, 255, 0);
+        }
+    }
+    
+   
+    @media (max-width: 768px) {
+        .main-image {
+            height: 300px;
+        }
+        .img-zoom-active {
+            transform: scale(1.8); 
+        }
+    }
+    
+    
     .reviews-section {
         background: #f8f9fa;
         padding: 20px;
@@ -342,6 +434,6 @@
     }
     .review-text {
         font-size: 0.95em;
-        color: #000000; /* Black text for reviews */
+        color: #000000; 
     }
 </style>
