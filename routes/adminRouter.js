@@ -46,9 +46,19 @@ router.post("/edit-product/:id", adminAuth, upload.array('images', 4), productCo
 router.post("/products/block/:id", adminAuth, productController.blockProduct);
 router.post("/products/unblock/:id", adminAuth, productController.unblockProduct);
 
+
+//offer mangement
+router.post('/category/add-offer', categoryController.addOffer);
+
+// Product offer routes
+router.post('/products/add-offer',adminAuth, productController.addProductOffer);
+router.post('/products/remove-offer',adminAuth, productController.removeProductOffer);
+
 //order Management
 router.get("/orders",adminAuth,orderController.renderOrderPage)
-
+router.get('/orders/details/:orderId', orderController.renderOrderDetailsPage);
+router.post('/orders/update-status', orderController.updateOrderStatus);
+router.post('/orders/verify-return', orderController.verifyReturnRequest);
 
 
 module.exports = router;

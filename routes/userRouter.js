@@ -1,13 +1,15 @@
 const express = require('express');
 const passport = require('passport');
-const upload = require('../middlewares/profileImageUpload.js');
 const router = express.Router();
 const { userAuth, adminAuth } = require("../middlewares/auth.js");
+const profileUpload=require("../middlewares/profileUpload.js")
 const userController = require("../controllers/user/userController");
 const profileController = require("../controllers/user/profileController");
 const productController = require("../controllers/user/productController");
-const orderController=require("../controllers/user/orderController");
-const cartController=require("../controllers/user/cartController.js")
+const orderController = require("../controllers/user/orderController");
+const cartController = require("../controllers/user/cartController.js");
+const walletController = require("../controllers/user/walletController.js");
+const wishlistController = require("../controllers/user/wishlistController.js");
 
 // Login and Signup
 router.get("/pageNotfound", userController.pageNotFound);
@@ -50,33 +52,46 @@ router.get('/productDetails/:productId', userAuth, productController.productDeta
 
 
 // Profile Management
-
 router.get('/profile', userAuth, profileController.getProfilePage);
-router.post('/profile/update', userAuth, upload.single('profileImage'), profileController.updateProfile);
 router.post('/profile/send-otp', userAuth, profileController.sendOtpForEmail);
 router.post('/profile/verify-otp', userAuth, profileController.verifyEmailChangeOtp);
 router.post('/profile/resend-otp', userAuth, profileController.resendOtp);
+router.post('/profile/delete-image', userAuth, profileController.deleteProfileImage);
+router.post('/profile/update', userAuth, profileUpload.single('profileImage'), profileController.updateProfile);
 
 // Address routes
 router.get('/profile/addresses', userAuth, profileController.getAddressesPage);
-router.get('/profile/addresses/add',userAuth, profileController.getAddAddressPage);
-router.post('/profile/addresses/add',userAuth, profileController.addAddress);
-router.get('/profile/addresses/edit/:id',userAuth, profileController.getEditAddressPage);
-router.post('/profile/addresses/edit/:id',userAuth, profileController.updateAddress);
+router.get('/profile/addresses/add', userAuth, profileController.getAddAddressPage);
+router.post('/profile/addresses/add', userAuth, profileController.addAddress);
+router.get('/profile/addresses/edit/:id', userAuth, profileController.getEditAddressPage);
+router.post('/profile/addresses/edit/:id', userAuth, profileController.updateAddress);
 router.delete('/profile/addresses/delete/:id', userAuth, profileController.deleteAddress);
+router.post('/profile/addresses/set-default/:id', userAuth, profileController.setDefaultAddress); // Added route
 
-
-//Order Mangement
+// Order Management
 router.get("/profile/orders", userAuth, orderController.getOrdersPage);
 router.get("/orders/:orderID", userAuth, orderController.getOrderDetails);
 router.post("/api/orders/:orderID/cancel", userAuth, orderController.cancelOrder);
-router.post("/api/orders/:orderID/return",userAuth, orderController.returnOrder);
+router.post("/api/orders/:orderID/return", userAuth, orderController.returnOrder);
 router.get("/api/orders/:orderID/invoice", userAuth, orderController.downloadInvoice);
+router.get('/checkout', userAuth, orderController.renderCheckout);
+router.post('/order/place', userAuth, orderController.placeOrder);
 
 // Cart Management
 router.get('/profile/cart', userAuth, cartController.getCart);
 router.post('/cart/add/:productId', userAuth, cartController.addToCart);
-router.delete('/cart/:productId', userAuth, cartController.removeFromCart); 
+router.delete('/cart/:productId', userAuth, cartController.removeFromCart);
+router.post('/cart/update', userAuth, cartController.updateCartItemQuantity); 
 
+// Wallet Management
+router.get('/profile/wallet', userAuth, walletController.loadWalletPage);
+router.post('/wallet/add-money', userAuth, walletController.addMoney);
+router.post('/api/orders/:orderId/return', userAuth, walletController.processReturnRequest);
+
+// Wishlist Management
+router.get('/profile/wishlist', userAuth, wishlistController.getWishlist); 
+router.post('/wishlist/add', userAuth, wishlistController.addToWishlist);
+router.delete('/wishlist/remove', userAuth, wishlistController.removeFromWishlist); 
+router.post('/wishlist/add-to-cart/:productId', userAuth, wishlistController.addToCart);
 
 module.exports = router;

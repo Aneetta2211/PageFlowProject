@@ -227,6 +227,16 @@
       max-width: 100%;
       display: block;
     }
+
+    .offer-success {
+      color: #28a745;
+      font-weight: 500;
+    }
+
+    .offer-error {
+      color: #dc3545;
+      font-weight: 500;
+    }
   </style>
 </head>
 <body>
@@ -239,8 +249,6 @@
         <li><a href="/admin/category"><i class="fa fa-th-large"></i> Category</a></li>
         <li><a href="/admin/add-product"><i class="fa fa-plus"></i> Add Products</a></li>
         <li><a href="/admin/products" class="active"><i class="fa fa-box"></i> Products</a></li>
-        <!-- <li><a href="/admin/coupons"><i class="fa fa-tag"></i> Coupons</a></li>
-        <li><a href="/admin/banners"><i class="fa fa-image"></i> Banners</a></li> -->
         <li><a href="/admin/orders"><i class="fa fa-shopping-cart"></i> Orders</a></li>
         <li><a href="/admin/logout"><i class="fa fa-sign-out-alt"></i> Logout</a></li>
       </ul>
@@ -279,8 +287,8 @@
                 <div id="regularPrice-error" class="error-message"></div>
               </div>
               <div class="col-md-4">
-                <label for="salesPrice" class="form-label">Sales Price</label>
-                <input type="number" class="form-control" id="salesPrice" name="salesPrice" value="<%= product.salesPrice %>" step="0.01" min="0" required>
+                <label for="salesPrice" class="form-label">Sales Price (After Offers)</label>
+                <input type="number" class="form-control" id="salesPrice" name="salesPrice" value="<%= product.salesPrice %>" step="0.01" min="0" readonly>
                 <div id="salesPrice-error" class="error-message"></div>
               </div>
               <div class="col-md-4">
@@ -295,6 +303,28 @@
                   <option value="true" <%= product.isBlocked ? 'selected' : '' %>>Deleted</option>
                 </select>
                 <div id="isBlocked-error" class="error-message"></div>
+              </div>
+              <div class="col-12">
+                <div class="mb-3">
+                  <label class="form-label">Current Offers</label>
+                  <p>Category Offer: <%= product.categoryOffer %>%</p>
+                  <p>Product Offer: <%= product.productOffer %>%</p>
+                  <p><strong>Effective Offer: <%= product.totalOffer %>% (<%= product.totalOffer > 0 ? (product.categoryOffer > product.productOffer ? 'Category' : 'Product') : 'None' %>)</strong></p>
+                  <p><strong>Final Price After Offer: ₹<%= product.discountedPrice %></strong></p>
+                </div>
+              </div>
+              <div class="col-12">
+                <div class="mb-3">
+                  <label class="form-label">Set Product Offer</label>
+                  <div class="input-group">
+                    <input type="number" class="form-control" id="productOfferInput" min="0" max="100" value="<%= product.productOffer %>">
+                    <span class="input-group-text">%</span>
+                    <button type="button" class="btn btn-success" id="applyOfferBtn">Apply Offer</button>
+                    <button type="button" class="btn btn-danger" id="removeOfferBtn">Remove Offer</button>
+                  </div>
+                  <small class="text-muted">Enter a percentage between 0-100</small>
+                  <div id="offerMessage" class="mt-2"></div>
+                </div>
               </div>
               <div class="col-12">
                 <div class="image-upload-area" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
@@ -368,8 +398,7 @@
     let cropper;
     let croppedImages = [];
     let originalFiles = [];
-    let existingImages = "<%- JSON.stringify(product && product.productImage ? product.productImage : []) %>";
-
+    let existingImages = <%- JSON.stringify((product && product.productImage) || []) %>;
 
     const maxImages = 3;
 
@@ -379,12 +408,10 @@
       let isValid = true;
       const fields = [
         { id: 'productName', errorId: 'productName-error', message: 'Product name is required' },
-        { id: 'category', errorId: 'category-error', message: 'Please select a category' },
+        { id: 'category', errorId: 'category-error', message: 'Category is required' },
         { id: 'description', errorId: 'description-error', message: 'Description is required' },
         { id: 'regularPrice', errorId: 'regularPrice-error', message: 'Regular price must be a positive number' },
-        { id: 'salesPrice', errorId: 'salesPrice-error', message: 'Sale price must be a positive number' },
-        { id: 'quantity', errorId: 'quantity-error', message: 'Quantity must be a positive integer' },
-        { id: 'isBlocked', errorId: 'isBlocked-error', message: 'Status is required' }
+        { id: 'quantity', errorId: 'quantity-error', message: 'Quantity must be a non-negative integer' }
       ];
 
       fields.forEach(field => {
@@ -548,13 +575,11 @@
       
       document.querySelectorAll('input[name="existingImages"], input[name="removedImages"]').forEach(input => input.remove());
       
-      
       container.innerHTML = '';
 
       if (existingImages.length === 0 && croppedImages.length === 0) {
         container.innerHTML = '<div class="no-images">No images loaded. Upload three images above.</div>';
       } else {
-   
         existingImages.forEach((img, index) => {
           const div = document.createElement('div');
           div.classList.add('thumbnail-container');
@@ -564,7 +589,6 @@
           `;
           container.appendChild(div);
 
-         
           const input = document.createElement('input');
           input.type = 'hidden';
           input.name = 'existingImages';
@@ -572,7 +596,6 @@
           form.appendChild(input);
         });
 
-       
         croppedImages.forEach((file, index) => {
           const reader = new FileReader();
           reader.onload = function(e) {
@@ -588,7 +611,6 @@
         });
       }
 
-      
       const totalImages = existingImages.length + croppedImages.length;
       document.getElementById('image-count').textContent = `Images: ${totalImages}/${maxImages}`;
       console.log("Thumbnails updated. Existing:", existingImages.length, "Cropped:", croppedImages.length);
@@ -597,10 +619,8 @@
     function removeImage(button, imagePath) {
       console.log("Attempting to remove existing image:", imagePath);
       
-     
       existingImages = existingImages.filter(img => img !== imagePath);
       
-     
       const form = document.querySelector('form');
       const input = document.createElement('input');
       input.type = 'hidden';
@@ -608,7 +628,6 @@
       input.value = imagePath;
       form.appendChild(input);
       
-     
       updateThumbnails();
       
       console.log("Image removed. Updated existingImages:", existingImages);
@@ -710,6 +729,233 @@
       startCropper(event);
       event.target.closest('.image-upload-area').classList.remove('dragover');
     }
+
+    // Product offer functionality
+    document.getElementById('applyOfferBtn').addEventListener('click', async function() {
+      console.log('Apply Offer button clicked');
+      const button = this;
+      const offerInput = document.getElementById('productOfferInput');
+      const offerMessage = document.getElementById('offerMessage');
+      const productId = '<%= product._id %>';
+      const offerPercentage = parseInt(offerInput.value);
+
+      console.log('Product ID:', productId, 'Offer Percentage:', offerPercentage);
+
+      // Disable button to prevent multiple clicks
+      button.disabled = true;
+      offerMessage.textContent = '';
+      offerMessage.className = '';
+
+      // Validate productId
+      if (!productId || productId === 'undefined') {
+        console.error('Invalid product ID:', productId);
+        offerMessage.textContent = 'Invalid product ID';
+        offerMessage.className = 'offer-error';
+        button.disabled = false;
+        return;
+      }
+
+      // Validate offer percentage
+      if (isNaN(offerPercentage) || offerPercentage < 0 || offerPercentage > 100) {
+        console.error('Invalid offer percentage:', offerPercentage);
+        offerMessage.textContent = 'Please enter a valid percentage between 0 and 100';
+        offerMessage.className = 'offer-error';
+        button.disabled = false;
+        return;
+      }
+
+      try {
+        const response = await fetch('/products/add-offer', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            productId: productId,
+            offerPercentage: offerPercentage
+          })
+        });
+
+        console.log('Response status:', response.status);
+
+        // Handle session expiration
+        if (response.status === 401) {
+          console.warn('Session expired. Redirecting to login.');
+          offerMessage.textContent = 'Session expired. Please log in again.';
+          offerMessage.className = 'offer-error';
+          setTimeout(() => {
+            window.location.href = '/admin/login';
+          }, 2000);
+          button.disabled = false;
+          return;
+        }
+
+        // Check for non-JSON responses
+        const contentType = response.headers.get('content-type');
+        if (!response.ok) {
+          console.error('Request failed with status:', response.status);
+          if (contentType && contentType.includes('text/html')) {
+            console.error('Received HTML response instead of JSON');
+            offerMessage.textContent = 'Unexpected server response. Please try again.';
+            offerMessage.className = 'offer-error';
+            button.disabled = false;
+            return;
+          }
+          const errorData = await response.json();
+          console.error('Error response:', errorData);
+          throw new Error(errorData.message || 'Failed to apply offer');
+        }
+
+        if (!contentType || !contentType.includes('application/json')) {
+          console.error('Unexpected response format:', contentType);
+          throw new Error('Unexpected response format');
+        }
+
+        const result = await response.json();
+        console.log('Offer application response:', result);
+
+        if (result.success) {
+          // Update UI with new offer details
+          const productOfferElement = document.querySelector('p:nth-of-type(2)');
+          const effectiveOfferElement = document.querySelector('p:nth-of-type(3) strong');
+          const finalPriceElement = document.querySelector('p:nth-of-type(4) strong');
+
+          if (productOfferElement && effectiveOfferElement && finalPriceElement) {
+            productOfferElement.textContent = `Product Offer: ${result.productOffer}%`;
+            effectiveOfferElement.textContent = 
+              `Effective Offer: ${result.totalOffer}% (${result.offerType})`;
+            finalPriceElement.textContent = 
+              `Final Price After Offer: ₹${result.salesPrice}`;
+            document.getElementById('salesPrice').value = result.salesPrice;
+            document.getElementById('productOfferInput').value = result.productOffer;
+            
+            offerMessage.textContent = result.message;
+            offerMessage.className = 'offer-success';
+            console.log('UI updated successfully');
+          } else {
+            console.error('DOM elements for offer update not found');
+            offerMessage.textContent = 'Offer applied, but UI update failed';
+            offerMessage.className = 'offer-error';
+          }
+        } else {
+          console.error('Offer application failed:', result.message);
+          throw new Error(result.message || 'Failed to apply offer');
+        }
+      } catch (error) {
+        console.error('Error applying offer:', error);
+        offerMessage.textContent = error.message || 'An error occurred while applying the offer';
+        offerMessage.className = 'offer-error';
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    document.getElementById('removeOfferBtn').addEventListener('click', async function() {
+      console.log('Remove Offer button clicked');
+      const button = this;
+      const offerMessage = document.getElementById('offerMessage');
+      const productId = '<%= product._id %>';
+
+      console.log('Product ID:', productId);
+
+      // Disable button to prevent multiple clicks
+      button.disabled = true;
+      offerMessage.textContent = '';
+      offerMessage.className = '';
+
+      // Validate productId
+      if (!productId || productId === 'undefined') {
+        console.error('Invalid product ID:', productId);
+        offerMessage.textContent = 'Invalid product ID';
+        offerMessage.className = 'offer-error';
+        button.disabled = false;
+        return;
+      }
+
+      try {
+        const response = await fetch('/products/remove-offer', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            productId: productId
+          })
+        });
+
+        console.log('Response status:', response.status);
+
+        // Handle session expiration
+        if (response.status === 401) {
+          console.warn('Session expired. Redirecting to login.');
+          offerMessage.textContent = 'Session expired. Please log in again.';
+          offerMessage.className = 'offer-error';
+          setTimeout(() => {
+            window.location.href = '/admin/login';
+          }, 2000);
+          button.disabled = false;
+          return;
+        }
+
+        // Check for non-JSON responses
+        const contentType = response.headers.get('content-type');
+        if (!response.ok) {
+          console.error('Request failed with status:', response.status);
+          if (contentType && contentType.includes('text/html')) {
+            console.error('Received HTML response instead of JSON');
+            offerMessage.textContent = 'Unexpected server response. Please try again.';
+            offerMessage.className = 'offer-error';
+            button.disabled = false;
+            return;
+          }
+          const errorData = await response.json();
+          console.error('Error response:', errorData);
+          throw new Error(errorData.message || 'Failed to remove offer');
+        }
+
+        if (!contentType || !contentType.includes('application/json')) {
+          console.error('Unexpected response format:', contentType);
+          throw new Error('Unexpected response format');
+        }
+
+        const result = await response.json();
+        console.log('Offer removal response:', result);
+
+        if (result.success) {
+          // Update UI with new offer details
+          const productOfferElement = document.querySelector('p:nth-of-type(2)');
+          const effectiveOfferElement = document.querySelector('p:nth-of-type(3) strong');
+          const finalPriceElement = document.querySelector('p:nth-of-type(4) strong');
+
+          if (productOfferElement && effectiveOfferElement && finalPriceElement) {
+            document.getElementById('productOfferInput').value = '0';
+            productOfferElement.textContent = 'Product Offer: 0%';
+            effectiveOfferElement.textContent = 
+              `Effective Offer: ${result.totalOffer}% (${result.offerType})`;
+            finalPriceElement.textContent = 
+              `Final Price After Offer: ₹${result.salesPrice}`;
+            document.getElementById('salesPrice').value = result.salesPrice;
+            
+            offerMessage.textContent = result.message;
+            offerMessage.className = 'offer-success';
+            console.log('UI updated successfully');
+          } else {
+            console.error('DOM elements for offer update not found');
+            offerMessage.textContent = 'Offer removed, but UI update failed';
+            offerMessage.className = 'offer-error';
+          }
+        } else {
+          console.error('Offer removal failed:', result.message);
+          throw new Error(result.message || 'Failed to remove offer');
+        }
+      } catch (error) {
+        console.error('Error removing offer:', error);
+        offerMessage.textContent = error.message || 'An error occurred while removing the offer';
+        offerMessage.className = 'offer-error';
+      } finally {
+        button.disabled = false;
+      }
+    });
 
     updateThumbnails();
   </script>

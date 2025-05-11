@@ -23,6 +23,16 @@
                         <i class="fas fa-shopping-cart me-2"></i> Cart
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link <%= currentPage === 'wishlist' ? 'active' : '' %>" href="/profile/wishlist">
+                        <i class="fas fa-heart me-2"></i> Wishlist
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link <%= currentPage === 'wallet' ? 'active' : '' %>" href="/profile/wallet">
+                        <i class="fas fa-wallet me-2"></i> Wallet
+                    </a>
+                </li>
             </ul>
         </div>
     </div>

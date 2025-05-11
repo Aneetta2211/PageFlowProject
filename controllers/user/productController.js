@@ -80,17 +80,33 @@ const loadShoppingPage = async (req, res) => {
     const totalProducts = await Product.countDocuments(query);
 
     const products = await Product.find(query)
+      .populate('category')
       .lean()
       .sort(sortCriteria)
       .skip(skip)
       .limit(limit);
 
-    const processedProducts = products.map(product => ({
-      ...product,
-      productImage: product.productImage && product.productImage.length > 0 
-        ? product.productImage 
-        : ["default-image.jpg"]
-    }));
+    const processedProducts = products.map(product => {
+      const categoryOffer = product.category?.categoryOffer || 0;
+      const productOffer = product.productOffer || 0;
+      const totalOffer = Math.max(categoryOffer, productOffer);
+      const offerType = categoryOffer > productOffer ? 'category' : (productOffer > categoryOffer ? 'product' : 'none');
+      const regularPrice = parseFloat(product.regularPrice) || 0;
+      const discountedPrice = regularPrice - (regularPrice * totalOffer / 100);
+      
+      return {
+        ...product,
+        productImage: product.productImage && product.productImage.length > 0 
+          ? product.productImage 
+          : ["default-image.jpg"],
+        totalOffer: totalOffer,
+        offerType,
+        discountedPrice: discountedPrice.toFixed(2),
+        showOffer: totalOffer > 0,
+        finalPrice: discountedPrice.toFixed(2),
+        salesPrice: discountedPrice.toFixed(2)
+      };
+    });
 
     const totalPages = Math.ceil(totalProducts / limit);
 
@@ -117,19 +133,32 @@ const loadShoppingPage = async (req, res) => {
 
 const productDetails = async (req, res) => {
   try {
-    const productId = req.params.productId; // Use params instead of query
+    const productId = req.params.productId; 
     const product = await Product.findById(productId).populate('category');
+    
     if (!product) {
       return res.redirect("/pageNotFound");
     }
+
     const findCategory = product.category;
     const categoryOffer = findCategory?.categoryOffer || 0;
     const productOffer = product.productOffer || 0;
-    const totalOffer = categoryOffer + productOffer;
+    
+    const totalOffer = Math.max(categoryOffer, productOffer);
+    const offerType = categoryOffer > productOffer ? 'category' : 
+                     (productOffer > categoryOffer ? 'product' : 'none');
+    
+    const regularPrice = parseFloat(product.regularPrice) || 0;
+    const discountedPrice = regularPrice - (regularPrice * totalOffer / 100);
+    product.salesPrice = discountedPrice.toFixed(2);
+    product.finalPrice = discountedPrice.toFixed(2);
+
     res.render("user/productDetails", {
       product: product,
       quantity: product.quantity,
       totalOffer: totalOffer,
+      offerType: offerType,
+      discountedPrice: discountedPrice.toFixed(2),
       category: findCategory,
     });
   } catch (error) {

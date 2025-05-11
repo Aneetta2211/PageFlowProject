@@ -32,7 +32,6 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 app.use((req, res, next) => {
-    console.log("Session Data:", req.session);
     next();
 });
 
@@ -43,11 +42,8 @@ app.use((req, res, next) => {
     res.locals.user = req.user || null;
     res.locals.message = req.query.message || null; 
     res.locals.messageType = req.query.message ? 'success' : null; 
-    console.log("Updated Current User:", req.user);
     next();
 });
-
-
 
 app.get("/", (req, res) => {
     res.render("user/home", { isLandingPage: true, user: req.user });
@@ -59,14 +55,16 @@ app.get("/home", (req, res) => {
 
 app.use(express.static(path.join(__dirname, "public")));
 
+app.use((req, res, next) => {
+    // Skip if this is a static file request
+    if (req.path.match(/\.(css|js|jpg|png|gif|ico|svg|woff|woff2|ttf|eot)$/)) {
+      return res.status(404).send('Not found');
+    }
+    next();
+});
+
 app.use("/", userRouter);
 app.use('/admin', adminRouter);
-
-
-
-
-
-
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

@@ -38,6 +38,6 @@ const cartSchema=new Schema({
 
 
 
-const Cart=mongoose.model("Cart",cartSchema);
+const Cart=mongoose.models.Cart ||mongoose.model("Cart",cartSchema);
 
 module.exports=Cart;

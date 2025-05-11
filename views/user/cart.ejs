@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,18 +13,20 @@
             font-family: 'Inter', sans-serif;
             background-color: #f9fafb;
         }
+
         /* Profile Container and Layout */
         .profile-container {
             background: #ffffff;
             border-radius: 10px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
             overflow: hidden;
             display: flex;
-            max-width: 1350px; 
-            width: 90%; 
-            margin: 2rem auto; 
-            height: calc(105vh - 105px); 
+            max-width: 1350px;
+            width: 90%;
+            margin: 2rem auto;
+            height: calc(105vh - 105px);
         }
+
         .profile-sidebar {
             background: #2c3e50;
             color: #ffffff;
@@ -31,10 +34,12 @@
             width: 300px;
             height: 100%;
         }
+
         .profile-sidebar .card {
             background: transparent;
             border: none;
         }
+
         .profile-sidebar .nav-link {
             color: #d1d8e0;
             padding: 10px 15px;
@@ -45,23 +50,29 @@
             display: flex;
             align-items: center;
         }
+
         .profile-sidebar .nav-link:hover,
         .profile-sidebar .nav-link.active {
             background: #34495e;
             color: #ffffff;
         }
+
         .profile-sidebar .nav-link i {
             width: 20px;
             text-align: center;
             font-size: 1rem;
             margin-right: 10px;
         }
+
         .profile-content {
             flex: 1;
             padding: 2rem;
             background: #ffffff;
             border-radius: 0 10px 10px 0;
+            max-height: 100%;
+            overflow-y: auto; /* Enable vertical scrolling */
         }
+
         /* Breadcrumbs */
         .breadcrumb {
             font-size: 0.875rem;
@@ -69,33 +80,41 @@
             margin-bottom: 1.5rem;
             background: none;
         }
+
         .breadcrumb-item a {
             color: #3b82f6;
             text-decoration: none;
         }
+
         .breadcrumb-item a:hover {
             text-decoration: underline;
         }
+
         /* Cart Table */
         .cart-table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 2rem;
         }
-        .cart-table th, .cart-table td {
+
+        .cart-table th,
+        .cart-table td {
             padding: 1rem;
             text-align: left;
             border-bottom: 1px solid #e5e7eb;
         }
+
         .cart-table th {
             background: #f9fafb;
             font-weight: 600;
         }
+
         .quantity-control {
             display: flex;
             align-items: center;
             gap: 0.5rem;
         }
+
         .quantity-control button {
             background: #3b82f6;
             color: white;
@@ -104,20 +123,24 @@
             cursor: pointer;
             border-radius: 4px;
         }
+
         .quantity-control button:disabled {
             background: #d1d5db;
             cursor: not-allowed;
         }
+
         .remove-btn {
             color: #ef4444;
             background: none;
             border: none;
             cursor: pointer;
         }
+
         .out-of-stock {
             color: #ef4444;
             font-weight: 500;
         }
+
         .checkout-btn {
             background: #3b82f6;
             color: white;
@@ -128,20 +151,24 @@
             font-weight: 500;
             transition: background-color 0.2s;
         }
+
         .checkout-btn:hover:not(:disabled) {
             background: #2563eb;
         }
+
         .checkout-btn:disabled {
             background: #d1d5db;
             cursor: not-allowed;
         }
+
         .empty-cart {
             background: white;
             padding: 2rem;
             border-radius: 0.5rem;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
             text-align: center;
         }
+
         .browse-btn {
             display: inline-block;
             margin-top: 1rem;
@@ -153,11 +180,60 @@
             font-weight: 500;
             transition: background-color 0.2s;
         }
+
         .browse-btn:hover {
             background: #2563eb;
         }
+
+        /* Summary Table */
+        .summary-table {
+            width: 100%;
+            max-width: 400px;
+            border-collapse: collapse;
+            margin: 2rem 0;
+            background: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        .summary-table th,
+        .summary-table td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+        }
+
+        .summary-table th {
+            background: #3b82f6;
+            color: #ffffff;
+            font-weight: 600;
+        }
+
+        .summary-table td {
+            color: #1e293b;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .summary-table tr:last-child td {
+            border-bottom: none;
+            font-weight: 700;
+            font-size: 1.25rem;
+            color: #16a34a;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
     </style>
 </head>
+
 <body>
     <div class="profile-container">
         <%- include("../../views/partials/user/sidebar", { currentPage: 'cart', user: user }) %>
@@ -193,27 +269,24 @@
                             <% cart.items.forEach(item => { %>
                                 <tr>
                                     <td>
-                                        <% if (!item.productId || item.productId.isBlocked || (item.productId.category && item.productId.category.isBlocked) || !item.productId.isListed) { %>
-                                            <span class="out-of-stock"><%= item.productId ? item.productId.productName : 'Unknown Product' %> (Unavailable)</span>
-                                        <% } else if (item.productId.stock <= 0) { %>
-                                            <span class="out-of-stock"><%= item.productId.productName %> (Out of Stock)</span>
-                                        <% } else { %>
-                                            <%= item.productId.productName %>
-                                        <% } %>
+                                        <%= item.productId ? item.productId.productName : 'Unknown Product' %>
                                     </td>
                                     <td>₹<%= item.price.toFixed(2) %></td>
                                     <td>
                                         <div class="quantity-control">
                                             <button 
                                                 onclick="updateQuantity('<%= item.productId._id %>', 'decrement')"
-                                                <%= (item.quantity <= 1 || !item.productId || item.productId.stock <= 0 || item.productId.isBlocked || (item.productId.category && item.productId.category.isBlocked) || !item.productId.isListed) ? 'disabled' : '' %>
+                                                <%= item.quantity <= 1 ? 'disabled' : '' %>
                                             >-</button>
                                             <span><%= item.quantity %></span>
                                             <button 
                                                 onclick="updateQuantity('<%= item.productId._id %>', 'increment')"
-                                                <%= (item.quantity >= (item.productId ? item.productId.stock : 0) || item.quantity >= 10 || !item.productId || item.productId.stock <= 0 || item.productId.isBlocked || (item.productId.category && item.productId.category.isBlocked) || !item.productId.isListed) ? 'disabled' : '' %>
+                                                <%= (item.quantity >= item.productId.stock) ? 'disabled' : '' %>
                                             >+</button>
                                         </div>
+                                        <% if (item.quantity >= item.productId.stock) { %>
+                                            <div class="text-xs text-red-500 mt-1" data-stock="<%= item.productId.stock %>">Max stock reached</div>
+                                        <% } %>
                                     </td>
                                     <td>₹<%= item.totalPrice.toFixed(2) %></td>
                                     <td>
@@ -225,16 +298,39 @@
                             <% }) %>
                         </tbody>
                     </table>
-                </div>
 
-                <div class="flex justify-end">
-                    <button 
-                        class="checkout-btn" 
-                        <%= cart.items.some(item => !item.productId || item.productId.stock <= 0 || item.productId.isBlocked || (item.productId.category && item.productId.category.isBlocked) || !item.productId.isListed) ? 'disabled' : '' %>
-                        onclick="proceedToCheckout()"
-                    >
-                        <i class="fas fa-credit-card mr-2"></i> Proceed to Checkout
-                    </button>
+                    <!-- Summary Table -->
+                    <div class="flex justify-end p-4">
+                        <table class="summary-table">
+                            <thead>
+                                <tr>
+                                    <th colspan="2">Order Summary</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>Subtotal</td>
+                                    <td>₹<%= total.toFixed(2) %></td>
+                                </tr>
+                                <tr>
+                                    <td>Discount</td>
+                                    <td>-₹<%- discount ? discount.toFixed(2) : '0.00' %></td>
+                                </tr>
+                                <tr>
+                                    <td>Total</td>
+                                    <td>₹<%- (total - (discount || 0)).toFixed(2) %></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="flex justify-end p-4">
+                        <% if (cart.items.some(item => !item.productId || item.productId.stock <= 0 || item.productId.isBlocked || (item.productId.category && item.productId.category.isBlocked) || !item.productId.isListed)) { %>
+                        <% } %>
+                        <button class="checkout-btn" onclick="proceedToCheckout()">
+                          <i class="fas fa-credit-card mr-2"></i> Proceed to Checkout
+                        </button>
+                      </div>
                 </div>
             <% } else { %>
                 <div class="empty-cart">
@@ -246,33 +342,39 @@
             <% } %>
         </div>
     </div>
+
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         async function updateQuantity(productId, action) {
             try {
-                console.log('Updating quantity:', { productId, action });
                 const response = await fetch('/cart/update', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ productId, action })
                 });
+    
                 const result = await response.json();
-                console.log('Update quantity response:', result);
+    
                 if (result.success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Success',
-                        text: 'Quantity updated!',
-                        timer: 1500,
-                        showConfirmButton: false
-                    }).then(() => {
-                        window.location.reload();
-                    });
+                    // Update UI
+                    updateCartUI(productId, result.newQuantity, result.newTotalPrice);
+                    // Update button states
+                    updateButtonStates(productId, result.newQuantity);
+                    // Update total
+                    updateCartTotal(result.total);
                 } else {
                     Swal.fire({
                         icon: 'error',
                         title: 'Error',
-                        text: result.message || 'Failed to update quantity.'
+                        text: result.message || 'Failed to update quantity.',
+                        confirmButtonText: 'OK',
+                        showCancelButton: true,
+                        cancelButtonText: 'Continue Shopping',
+                        cancelButtonColor: '#3b82f6'
+                    }).then((result) => {
+                        if (result.dismiss === Swal.DismissReason.cancel) {
+                            window.location.href = '/loadShoppingPage';
+                        }
                     });
                 }
             } catch (error) {
@@ -280,49 +382,158 @@
                 Swal.fire({
                     icon: 'error',
                     title: 'Error',
-                    text: 'Error updating quantity.'
+                    text: 'Error updating quantity. Please try again.',
+                    confirmButtonText: 'OK',
+                    showCancelButton: true,
+                    cancelButtonText: 'Continue Shopping',
+                    cancelButtonColor: '#3b82f6'
+                }).then((result) => {
+                    if (result.dismiss === Swal.DismissReason.cancel) {
+                        window.location.href = '/loadShoppingPage';
+                    }
                 });
             }
         }
- 
-        
-
-async function removeFromCart(productId) {
-    try {
-        console.log('Removing from cart:', productId);
-        const response = await fetch(`/cart/${productId}`, {
-            method: 'DELETE'
-        });
-        const result = await response.json();
-        console.log('Remove from cart response:', result);
-        if (result.success) {
-            Swal.fire({
-                icon: 'success',
-                title: 'Success',
-                text: 'Product removed from cart!',
-                timer: 1500,
-                showConfirmButton: false
-            }).then(() => {
-                window.location.reload();
-            });
-        } else {
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: result.message || 'Failed to remove product.'
-            });
+    
+        function updateCartUI(productId, newQuantity, newTotalPrice) {
+            const row = document.querySelector(`tr td button[onclick*="updateQuantity('${productId}'"]`).closest('tr');
+            if (!row) return;
+    
+            // Update quantity
+            const quantitySpan = row.querySelector('.quantity-control span');
+            if (quantitySpan) {
+                quantitySpan.textContent = newQuantity;
+            }
+    
+            // Update total price for the item
+            const totalPriceCell = row.cells[3];
+            if (totalPriceCell) {
+                totalPriceCell.textContent = `₹${newTotalPrice.toFixed(2)}`;
+            }
+    
+            // Update stock message
+            const stockMessage = row.querySelector('.text-xs.text-red-500');
+            if (stockMessage) {
+                stockMessage.style.display = newQuantity >= parseInt(stockMessage.dataset.stock || Infinity) ? 'block' : 'none';
+            }
         }
-    } catch (error) {
-        console.error('Error removing product:', error);
-        Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: 'Error removing product.'
+    
+        function updateButtonStates(productId, newQuantity) {
+            const row = document.querySelector(`tr td button[onclick*="updateQuantity('${productId}'"]`).closest('tr');
+            if (!row) return;
+    
+            const decrementBtn = row.querySelector(`button[onclick="updateQuantity('${productId}', 'decrement')"]`);
+            const incrementBtn = row.querySelector(`button[onclick="updateQuantity('${productId}', 'increment')"]`);
+    
+            if (decrementBtn) {
+                decrementBtn.disabled = newQuantity <= 1;
+            }
+    
+            if (incrementBtn) {
+                const stock = parseInt(row.querySelector('.text-xs.text-red-500')?.dataset.stock || 10);
+                incrementBtn.disabled = newQuantity >= stock || newQuantity >= 10;
+            }
+        }
+    
+        async function removeFromCart(productId) {
+            try {
+                const response = await fetch(`/cart/${productId}`, {
+                    method: 'DELETE'
+                });
+                const result = await response.json();
+    
+                if (result.success) {
+                    // Remove the row
+                    const row = document.querySelector(`tr td button[onclick="removeFromCart('${productId}')"]`).closest('tr');
+                    if (row) {
+                        row.remove();
+                    }
+    
+                    // Check if cart is empty
+                    const tableBody = document.querySelector('.cart-table tbody');
+                    if (tableBody.children.length === 0) {
+                        const cartContent = document.querySelector('.profile-content');
+                        cartContent.innerHTML = `
+                            <div class="empty-cart">
+                                <p class="text-gray-600 mb-4">Your cart is empty.</p>
+                                <a href="/loadShoppingPage" class="browse-btn">
+                                    <i class="fas fa-shopping-bag mr-2"></i> Browse Products
+                                </a>
+                            </div>
+                        `;
+                    }
+    
+                    // Update total
+                    updateCartTotal(result.total);
+                    updateCheckoutButton();
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: result.message || 'Failed to remove product.',
+                        confirmButtonText: 'OK',
+                        showCancelButton: true,
+                        cancelButtonText: 'Continue Shopping',
+                        cancelButtonColor: '#3b82f6'
+                    }).then((result) => {
+                        if (result.dismiss === Swal.DismissReason.cancel) {
+                            window.location.href = '/loadShoppingPage';
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Error removing product:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Error removing product.',
+                    confirmButtonText: 'OK',
+                    showCancelButton: true,
+                    cancelButtonText: 'Continue Shopping',
+                    cancelButtonColor: '#3b82f6'
+                }).then((result) => {
+                    if (result.dismiss === Swal.DismissReason.cancel) {
+                        window.location.href = '/loadShoppingPage';
+                    }
+                });
+            }
+        }
+    
+        function updateCartTotal(total) {
+            const totalElement = document.querySelector('.summary-table tr:last-child td:last-child');
+            if (totalElement) {
+                totalElement.textContent = `₹${total.toFixed(2)}`;
+            }
+        }
+    
+        function updateCheckoutButton() {
+            const checkoutBtn = document.querySelector('.checkout-btn');
+            const tableBody = document.querySelector('.cart-table tbody');
+            if (checkoutBtn && tableBody && tableBody.children.length === 0) {
+                checkoutBtn.disabled = true;
+            }
+        }
+    
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.cart-table tbody tr').forEach(row => {
+                const decrementBtn = row.querySelector('button[onclick*="decrement"]');
+                const incrementBtn = row.querySelector('button[onclick*="increment"]');
+                const quantity = parseInt(row.querySelector('.quantity-control span').textContent);
+                const stockMessage = row.querySelector('.text-xs.text-red-500');
+                const stock = stockMessage ? parseInt(stockMessage.dataset.stock || 10) : 10;
+    
+                if (decrementBtn) {
+                    decrementBtn.disabled = quantity <= 1;
+                }
+                if (incrementBtn) {
+                    incrementBtn.disabled = quantity >= stock || quantity >= 10;
+                }
+            });
         });
-    }
-}
-
-
+    
+        function proceedToCheckout() {
+            window.location.href = '/checkout';
+        }
     </script>
 </body>
 </html>

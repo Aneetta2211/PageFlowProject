@@ -5,7 +5,7 @@ const userAuth = (req, res, next) => {
         User.findById(req.session.user.id)
             .then(data => {
                 if (data && !data.isBlocked) {
-                    // Set req.user so other controllers can access it
+                
                     req.user = data;
                     next();
                 } else {

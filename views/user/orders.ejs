@@ -6,11 +6,13 @@
     <title>Order Management</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <%- include("../../views/partials/user/header") %>
     <style>
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f9fafb;
+            margin: 0;
         }
         .modal {
             display: none;
@@ -30,33 +32,27 @@
             width: 90%;
             max-width: 500px;
         }
-        .status-delivered {
-            color: #16a34a;
-        }
-        .status-cancelled {
-            color: #dc2626;
-        }
-        .status-pending {
-            color: #d97706;
-        }
-        /* Profile Container and Layout */
+        .status-delivered { color: #16a34a; }
+        .status-cancelled { color: #dc2626; }
+        .status-pending { color: #d97706; }
+        .status-return-request { color: #f59e0b; }
+        .status-returned { color: #ea580c; }
+        .status-return-denied { color: #dc2626; }
         .profile-container {
             background: #ffffff;
             border-radius: 10px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            overflow: hidden;
             display: flex;
-            max-width: 1350px; 
-            width: 90%; 
-            margin: 2rem auto; 
-            height: calc(105vh - 105px); 
+            max-width: 1350px;
+            width: 90%;
+            margin: 2rem auto;
+            min-height: calc(100vh - 4rem);
         }
         .profile-sidebar {
             background: #2c3e50;
             color: #ffffff;
             padding: 2rem;
             width: 300px;
-            height: 100%;
         }
         .profile-sidebar .card {
             background: transparent;
@@ -88,8 +84,9 @@
             padding: 2rem;
             background: #ffffff;
             border-radius: 0 10px 10px 0;
+            overflow-y: auto;
+            max-height: calc(100vh - 4rem);
         }
-        /* Breadcrumbs */
         .breadcrumb {
             font-size: 0.875rem;
             color: #6b7280;
@@ -103,25 +100,51 @@
         .breadcrumb-item a:hover {
             text-decoration: underline;
         }
+        .pagination {
+            display: flex;
+            justify-content: center;
+            margin-top: 2rem;
+            gap: 0.5rem;
+        }
+        .pagination a, .pagination span {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            text-decoration: none;
+        }
+        .pagination a {
+            background-color: #e5e7eb;
+            color: #4b5563;
+            transition: all 0.2s;
+        }
+        .pagination a:hover {
+            background-color: #d1d5db;
+        }
+        .pagination .active {
+            background-color: #3b82f6;
+            color: white;
+        }
+        .pagination .disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
     <div class="profile-container">
         <%- include("../../views/partials/user/sidebar", { currentPage: 'orders', user: user }) %>
-        <!-- Main Content -->
         <div class="profile-content">
-            <!-- Breadcrumbs -->
-<nav class="text-sm text-gray-600 mb-4" aria-label="breadcrumb">
-    <ol class="flex space-x-2">
-        <li class="flex items-center">
-            <a href="/" class="hover:underline text-blue-600">Home</a>
-            <span class="mx-2 text-gray-400">/</span>
-        </li>
-        <li class="flex items-center text-gray-500">
-            Orders
-        </li>
-    </ol>
-</nav>
+            <nav class="text-sm text-gray-600 mb-4" aria-label="breadcrumb">
+                <ol class="flex space-x-2">
+                    <li class="flex items-center">
+                        <a href="/" class="hover:underline text-blue-600">Home</a>
+                        <span class="mx-2 text-gray-400">/</span>
+                    </li>
+                    <li class="flex items-center">
+                        <a href="/profile/orders" class="hover:underline text-blue-600">Orders</a>
+                    </li>
+                </ol>
+            </nav>
 
             <h1 class="text-3xl font-bold text-gray-800 mb-6">Orders</h1>
 
@@ -135,18 +158,18 @@
             <% } else { %>
                 <div class="mb-6">
                     <input type="text" id="searchInput" placeholder="Search orders by ID..." 
-                        class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                           class="w-full p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
 
                 <div id="orderList" class="space-y-6">
                     <% orders.forEach(order => { %>
-                        <div class="bg-white p-6 rounded-lg shadow-md order-card" data-order-id="<%= order.orderID %>">
+                        <div class="bg-white p-6 rounded-lg shadow-md order-card" data-order-id="<%= order.orderId %>">
                             <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                                 <div class="space-y-2">
-                                    <h2 class="text-xl font-semibold">Order #<%= order.orderID %></h2>
+                                    <h2 class="text-xl font-semibold"><%= order.orderId %></h2>
                                     <p class="text-gray-600">
                                         <i class="far fa-calendar-alt mr-1"></i>
-                                        <%= new Date(order.orderDate).toLocaleDateString('en-US', { 
+                                        <%= new Date(order.createdOn).toLocaleDateString('en-US', { 
                                             year: 'numeric', 
                                             month: 'long', 
                                             day: 'numeric' 
@@ -154,34 +177,41 @@
                                     </p>
                                     <p class="text-gray-600">
                                         Status: 
-                                        <span class="font-medium status-<%= order.status.toLowerCase() %>">
+                                        <span class="font-medium status-<%= order.status.toLowerCase().replace(' ', '-') %>">
                                             <%= order.status %>
+                                            <% if (order.returnRequested && order.returnStatus === 'Approved') { %>
+                                                (Return Accepted)
+                                            <% } else if (order.returnRequested && order.returnStatus === 'Denied') { %>
+                                                (Return Denied)
+                                            <% } else if (order.returnRequested && order.returnStatus === 'Pending') { %>
+                                                (Return Pending)
+                                            <% } %>
                                         </span>
                                     </p>
                                     <p class="text-gray-600">
                                         <i class="fas fa-receipt mr-1"></i>
-                                        Total: $<%= order.totalAmount.toFixed(2) %>
+                                        Total: ₹<%= order.finalAmount.toFixed(2) %>
                                     </p>
                                 </div>
                                 <div class="flex flex-wrap gap-2">
-                                    <a href="/orders/<%= order.orderID %>" 
-                                        class="flex items-center px-3 py-2 bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 transition">
+                                    <a href="/orders/<%= order.orderId %>" 
+                                       class="flex items-center px-3 py-2 bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 transition">
                                         <i class="fas fa-eye mr-2"></i> Details
                                     </a>
-                                    <% if (order.status !== 'Cancelled' && order.status !== 'Delivered') { %>
-                                        <button onclick="openCancelModal('<%= order.orderID %>')" 
-                                            class="flex items-center px-3 py-2 bg-red-100 text-red-800 rounded-lg hover:bg-red-200 transition">
+                                    <% if (order.status !== 'Cancelled' && order.status !== 'Delivered' && order.status !== 'Returned' && order.status !== 'Return Request') { %>
+                                        <button onclick="openCancelModal('<%= order.orderId %>')" 
+                                                class="flex items-center px-3 py-2 bg-red-100 text-red-800 rounded-lg hover:bg-red-200 transition">
                                             <i class="fas fa-times-circle mr-2"></i> Cancel
                                         </button>
                                     <% } %>
-                                    <% if (order.status === 'Delivered') { %>
-                                        <button onclick="openReturnModal('<%= order.orderID %>')" 
-                                            class="flex items-center px-3 py-2 bg-orange-100 text-orange-800 rounded-lg hover:bg-orange-200 transition">
+                                    <% if (order.status === 'Delivered' && !order.returnRequested) { %>
+                                        <button onclick="openReturnModal('<%= order.orderId %>')" 
+                                                class="flex items-center px-3 py-2 bg-orange-100 text-orange-800 rounded-lg hover:bg-orange-200 transition">
                                             <i class="fas fa-undo-alt mr-2"></i> Return
                                         </button>
                                     <% } %>
-                                    <a href="/api/orders/<%= order.orderID %>/invoice" 
-                                        class="flex items-center px-3 py-2 bg-green-100 text-green-800 rounded-lg hover:bg-green-200 transition">
+                                    <a href="/api/orders/<%= order.orderId %>/invoice" 
+                                       class="flex items-center px-3 py-2 bg-green-100 text-green-800 rounded-lg hover:bg-green-200 transition">
                                         <i class="fas fa-file-download mr-2"></i> Invoice
                                     </a>
                                 </div>
@@ -189,11 +219,42 @@
                         </div>
                     <% }) %>
                 </div>
+
+                <% if (pagination.totalPages > 1) { %>
+                <div class="pagination">
+                    <% if (pagination.hasPrev) { %>
+                        <a href="/profile/orders?page=<%= pagination.currentPage - 1 %>&limit=<%= pagination.limit %>" class="page-link">
+                            <i class="fas fa-chevron-left"></i> Previous
+                        </a>
+                    <% } else { %>
+                        <span class="page-link disabled">
+                            <i class="fas fa-chevron-left"></i> Previous
+                        </span>
+                    <% } %>
+
+                    <% for (let i = 1; i <= pagination.totalPages; i++) { %>
+                        <% if (i === pagination.currentPage) { %>
+                            <span class="active"><%= i %></span>
+                        <% } else { %>
+                            <a href="/profile/orders?page=<%= i %>&limit=<%= pagination.limit %>"><%= i %></a>
+                        <% } %>
+                    <% } %>
+
+                    <% if (pagination.hasNext) { %>
+                        <a href="/profile/orders?page=<%= pagination.currentPage + 1 %>&limit=<%= pagination.limit %>" class="page-link">
+                            Next <i class="fas fa-chevron-right"></i>
+                        </a>
+                    <% } else { %>
+                        <span class="page-link disabled">
+                            Next <i class="fas fa-chevron-right"></i>
+                        </span>
+                    <% } %>
+                </div>
+                <% } %>
             <% } %>
         </div>
     </div>
 
-    <!-- Cancel Modal -->
     <div id="cancelModal" class="modal">
         <div class="modal-content">
             <div class="flex justify-between items-center mb-4">
@@ -219,7 +280,6 @@
         </div>
     </div>
 
-    <!-- Return Modal -->
     <div id="returnModal" class="modal">
         <div class="modal-content">
             <div class="flex justify-between items-center mb-4">
@@ -246,7 +306,6 @@
     </div>
 
     <script>
-        // Search
         document.getElementById('searchInput').addEventListener('input', function(e) {
             const searchTerm = e.target.value.toLowerCase().trim();
             const orderCards = document.querySelectorAll('.order-card');
@@ -256,7 +315,6 @@
             });
         });
 
-        // Cancel modal
         function openCancelModal(orderID) {
             document.getElementById('cancelOrderID').value = orderID;
             document.getElementById('cancelModal').style.display = 'block';
@@ -266,7 +324,6 @@
             document.getElementById('cancelReason').value = '';
         }
 
-        // Return modal
         function openReturnModal(orderID) {
             document.getElementById('returnOrderID').value = orderID;
             document.getElementById('returnModal').style.display = 'block';
@@ -276,79 +333,135 @@
             document.getElementById('returnReason').value = '';
         }
 
-        // Cancel order API
         async function confirmCancelOrder() {
-            const orderID = document.getElementById('cancelOrderID').value;
+            const orderId = document.getElementById('cancelOrderID').value;
             const reason = document.getElementById('cancelReason').value;
 
-            try {
-                const response = await fetch(`/api/orders/${orderID}/cancel`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({ reason })
-                });
-                const data = await response.json();
-                if (response.ok) {
-                    alert(data.message || 'Order cancelled successfully.');
-                    window.location.reload();
-                } else {
-                    alert(data.error || 'Failed to cancel order.');
-                }
-            } catch (error) {
-                console.error('Error cancelling order:', error);
-                alert('An error occurred while cancelling the order.');
-            }
+            const result = await Swal.fire({
+                title: 'Are you sure?',
+                text: 'Do you really want to cancel this order? This action cannot be undone.',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Yes, cancel it!',
+                cancelButtonText: 'No, keep it'
+            });
 
-            closeCancelModal();
-        }
-
-        // Return order API
-        async function confirmReturnOrder() {
-            const orderID = document.getElementById('returnOrderID').value;
-            const reason = document.getElementById('returnReason').value;
-
-            if (!reason.trim()) {
-                alert('Please provide a reason for the return.');
+            if (!result.isConfirmed) {
+                closeCancelModal();
                 return;
             }
 
             try {
-                const response = await fetch(`/api/orders/${orderID}/return`, {
+                const response = await fetch(`/api/orders/${orderId}/cancel`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Accept': 'application/json'
                     },
                     body: JSON.stringify({ reason })
                 });
-
+                
                 const data = await response.json();
-
+                
                 if (response.ok) {
-                    alert(data.message || 'Return request submitted successfully.');
+                    await Swal.fire({
+                        title: 'Cancelled!',
+                        text: data.message || 'Order cancelled successfully.',
+                        icon: 'success',
+                        confirmButtonColor: '#3085d6'
+                    });
                     window.location.reload();
                 } else {
-                    alert(data.error || 'Failed to submit return request.');
-                    if (response.status === 400) {
-                        document.getElementById('returnReason').focus();
-                    }
+                    await Swal.fire({
+                        title: 'Error!',
+                        text: data.error || 'Failed to cancel order.',
+                        icon: 'error',
+                        confirmButtonColor: '#3085d6'
+                    });
                 }
             } catch (error) {
-                console.error('Error submitting return:', error);
-                alert('An error occurred while submitting the return request.');
+                console.error('Error:', error);
+                await Swal.fire({
+                    title: 'Error!',
+                    text: 'An error occurred while cancelling the order.',
+                    icon: 'error',
+                    confirmButtonColor: '#3085d6'
+                });
             }
+            
+            closeCancelModal();
         }
 
-        // Close modals on outside click
-        window.onclick = function(event) {
-            if (event.target.classList.contains('modal')) {
-                closeCancelModal();
-                closeReturnModal();
+        async function confirmReturnOrder() {
+            const orderId = document.getElementById('returnOrderID').value;
+            const reason = document.getElementById('returnReason').value;
+
+            if (!reason.trim()) {
+                await Swal.fire({
+                    title: 'Missing Reason!',
+                    text: 'Please provide a reason for the return.',
+                    icon: 'warning',
+                    confirmButtonColor: '#3085d6'
+                });
+                return;
             }
-        };
+
+            const result = await Swal.fire({
+                title: 'Confirm Return',
+                text: 'Are you sure you want to submit this return request?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#f97316',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Yes, submit it!',
+                cancelButtonText: 'No, cancel'
+            });
+
+            if (!result.isConfirmed) {
+                closeReturnModal();
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/orders/${orderId}/return`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ reason })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    await Swal.fire({
+                        title: 'Return Submitted!',
+                        text: data.message || 'Return request submitted successfully.',
+                        icon: 'success',
+                        confirmButtonColor: '#3085d6'
+                    });
+                    window.location.reload();
+                } else {
+                    await Swal.fire({
+                        title: 'Error!',
+                        text: data.error || 'Failed to process return.',
+                        icon: 'error',
+                        confirmButtonColor: '#3085d6'
+                    });
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                await Swal.fire({
+                    title: 'Error!',
+                    text: 'An error occurred while processing the return.',
+                    icon: 'error',
+                    confirmButtonColor: '#3085d6'
+                });
+            }
+            
+            closeReturnModal();
+        }
     </script>
 </body>
 </html>

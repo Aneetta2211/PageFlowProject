@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Checkout</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <%- include("../../views/partials/user/header") %>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #f9fafb;
+    }
+    .profile-container {
+      background: #ffffff;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+      display: flex;
+      max-width: 1350px;
+      width: 90%;
+      margin: 2rem auto;
+      height: calc(105vh - 105px);
+    }
+    .profile-sidebar {
+      background: #2c3e50;
+      color: #ffffff;
+      padding: 2rem;
+      width: 300px;
+      height: 100%;
+    }
+    .profile-sidebar .card {
+      background: transparent;
+      border: none;
+    }
+    .profile-sidebar .nav-link {
+      color: #d1d8e0;
+      padding: 10px 15px;
+      border-radius: 5px;
+      margin: 5px 0;
+      font-weight: 500;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+    }
+    .profile-sidebar .nav-link:hover,
+    .profile-sidebar .nav-link.active {
+      background: #34495e;
+      color: #ffffff;
+    }
+    .profile-sidebar .nav-link i {
+      width: 20px;
+      text-align: center;
+      font-size: 1rem;
+      margin-right: 10px;
+    }
+    .profile-content {
+      flex: 1;
+      padding: 2rem;
+      background: #ffffff;
+      border-radius: 0 10px 10px 0;
+      max-height: 100%;
+      overflow-y: auto;
+    }
+    .breadcrumb {
+      font-size: 0.875rem;
+      color: #6b7280;
+      margin-bottom: 1.5rem;
+      background: none;
+    }
+    .breadcrumb-item a {
+      color: #3b82f6;
+      text-decoration: none;
+    }
+    .breadcrumb-item a:hover {
+      text-decoration: underline;
+    }
+    .address-card {
+      border: 1px solid #e5e7eb;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      cursor: pointer;
+      transition: border-color 0.3s;
+      border-radius: 8px;
+    }
+    .address-card.selected {
+      border-color: #3b82f6;
+      background-color: #eff6ff;
+    }
+    .hidden {
+      display: none;
+    }
+    .address-form input,
+    .address-form label {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      margin-bottom: 0.5rem;
+    }
+    .address-form button {
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+    }
+    .order-summary {
+      background: #ffffff;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    .order-item {
+      border-bottom: 1px solid #e5e7eb;
+      padding-bottom: 1rem;
+      margin-bottom: 1rem;
+    }
+    .order-item:last-child {
+      border-bottom: none;
+    }
+    .place-order-btn {
+      background: #16a34a;
+      color: white;
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background-color 0.2s;
+    }
+    .place-order-btn:hover {
+      background: #15803d;
+    }
+    .alert {
+      padding: 1rem;
+      border-radius: 0.375rem;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+    }
+    .alert-success {
+      background-color: #d1fae5;
+      color: #065f46;
+    }
+    .alert i {
+      margin-right: 0.5rem;
+    }
+    .default-address {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.5rem;
+      background-color: #10b981;
+      color: white;
+      border-radius: 0.25rem;
+      font-size: 0.875rem;
+      margin-left: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="profile-container">
+    <%- include("../../views/partials/user/sidebar", { currentPage: 'checkout', user: user }) %>
+    <div class="profile-content">
+      <nav class="text-sm text-gray-600 mb-4" aria-label="breadcrumb">
+        <ol class="flex space-x-2">
+          <li class="flex items-center">
+            <a href="/home" class="hover:underline text-blue-600">Home</a>
+            <span class="mx-2 text-gray-400">/</span>
+          </li>
+          <li class="flex items-center">
+            <a href="/profile/cart" class="hover:underline text-blue-600">Cart</a>
+            <span class="mx-2 text-gray-400">/</span>
+          </li>
+          <li class="flex items-center text-gray-500">
+            Checkout
+          </li>
+        </ol>
+      </nav>
+
+      <h1 class="text-3xl font-bold text-gray-800 mb-6">Checkout</h1>
+
+      <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+        <h2 class="text-xl font-semibold mb-4">Delivery Address</h2>
+        <div id="address-list">
+          <% if (addresses && addresses.address && addresses.address.length > 0) { %>
+            <% addresses.address.forEach((address, index) => { %>
+              <div class="address-card <%= address.isDefault ? 'selected' : '' %>" data-address-id="<%= address._id %>">
+                <input type="radio" name="selectedAddress" value="<%= address._id %>" class="mr-2" <%= address.isDefault ? 'checked' : '' %>>
+                <div class="flex items-center">
+                  <p class="font-medium"><%= address.name %> (<%= address.addressType %>)</p>
+                  <% if (address.isDefault) { %>
+                    <span class="default-address">
+                      <i class="fas fa-check-circle mr-1"></i>Default
+                    </span>
+                  <% } %>
+                </div>
+                <p><%= address.landMark %>, <%= address.city %>, <%= address.state %> - <%= address.pincode %></p>
+                <p>Phone: <%= address.phone %></p>
+                <div class="mt-2">
+                  <a href="/profile/addresses/edit/<%= address._id %>?from=checkout" class="text-blue-600 hover:underline mr-4">Edit</a>
+                  <button onclick="deleteAddress('<%= address._id %>')" class="text-red-600 hover:underline">Delete</button>
+                </div>
+              </div>
+            <% }) %>
+          <% } else { %>
+            <p class="text-gray-500 mb-4">No addresses found. Please add a delivery address.</p>
+          <% } %>
+        </div>
+        <a href="/profile/addresses/add?from=checkout" id="add-address-btn" class="mt-4 inline-block px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">+ Add New Address</a>
+      </div>
+
+      <div class="bg-white p-6 rounded-lg shadow-md mb-6 order-summary">
+        <h2 class="text-xl font-semibold mb-4">Order Summary</h2>
+        <div class="space-y-4">
+          <% cart.items.forEach(item => { %>
+            <div class="flex items-center order-item">
+              <img src="<%= item.productId.productImage[0] %>" alt="<%= item.productId.productName %>" class="w-20 h-20 object-cover mr-4">
+              <div class="flex-1">
+                <p class="font-medium"><%= item.productId.productName %></p>
+                <p class="text-gray-600">Quantity: <%= item.quantity %></p>
+                <p class="text-gray-600">Price: ₹<%= (item.productId.salesPrice > 0 ? item.productId.salesPrice : item.productId.regularPrice).toFixed(2) %></p>
+                <p class="font-semibold">Item Total: ₹<%= ((item.productId.salesPrice > 0 ? item.productId.salesPrice : item.productId.regularPrice) * item.quantity).toFixed(2) %></p>
+              </div>
+            </div>
+          <% }) %>
+        </div>
+
+        <div class="mt-6 border-t pt-4">
+          <div class="flex justify-between">
+            <span>Subtotal</span>
+            <span>₹<%= cart.subtotal.toFixed(2) %></span>
+          </div>
+          <div class="flex justify-between">
+            <span>Shipping</span>
+            <span>₹0.00</span>
+          </div>
+          <% if (cart.discount > 0) { %>
+            <div class="flex justify-between text-green-600">
+              <span>Discount</span>
+              <span>-₹<%= cart.discount.toFixed(2) %></span>
+            </div>
+          <% } %>
+          <div class="flex justify-between font-bold text-lg mt-2">
+            <span>Total</span>
+            <span>₹<%= (cart.subtotal - cart.discount).toFixed(2) %></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="text-right">
+        <form id="placeOrderForm" action="/order/place" method="POST">
+          <input type="hidden" name="paymentMethod" value="Cash on Delivery">
+          <input type="hidden" name="selectedAddressId" id="selected-address-id">
+          <button type="submit" class="place-order-btn" <% if (!addresses || !addresses.address || addresses.address.length === 0) { %>disabled style="opacity: 0.5; cursor: not-allowed;"<% } %>>
+            <i class="fas fa-check-circle mr-2"></i> Place Order
+          </button>
+          <% if (!addresses || !addresses.address || addresses.address.length === 0) { %>
+            <p class="text-red-500 mt-2">Please add an address before placing order</p>
+          <% } %>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Initialize selected address
+        let defaultAddress = document.querySelector('.address-card.selected input[name="selectedAddress"]');
+        if (!defaultAddress) {
+            // If no default address, select the first address (should be default due to sorting)
+            defaultAddress = document.querySelector('input[name="selectedAddress"]');
+            if (defaultAddress) {
+                defaultAddress.checked = true;
+                defaultAddress.closest('.address-card').classList.add('selected');
+            }
+        }
+        if (defaultAddress) {
+            document.getElementById('selected-address-id').value = defaultAddress.value;
+        }
+
+        // Address selection logic
+        document.querySelectorAll('.address-card').forEach((card) => {
+            card.addEventListener('click', () => {
+                document.querySelectorAll('.address-card').forEach((c) => c.classList.remove('selected'));
+                card.classList.add('selected');
+                const radioInput = card.querySelector('input[type="radio"]');
+                radioInput.checked = true;
+                document.getElementById('selected-address-id').value = card.dataset.addressId;
+            });
+        });
+
+        // Delete address function
+        window.deleteAddress = async function (addressId) {
+            Swal.fire({
+                title: 'Are you sure?',
+                text: 'Do you want to delete this address?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#2c3e50',
+                cancelButtonColor: '#dc2626',
+                confirmButtonText: 'Yes, delete it!'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    try {
+                        const response = await fetch(`/profile/addresses/delete/${addressId}?from=checkout`, {
+                            method: 'DELETE',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json'
+                            }
+                        });
+                        const data = await response.json();
+                        if (data.success) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Deleted!',
+                                text: 'Address deleted successfully',
+                                showConfirmButton: false,
+                                timer: 1500
+                            }).then(() => {
+                                window.location.reload();
+                            });
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: data.message || 'Failed to delete address'
+                            });
+                        }
+                    } catch (error) {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error',
+                            text: 'Failed to delete address'
+                        });
+                    }
+                }
+            });
+        };
+
+        // Form submission
+        const placeOrderForm = document.getElementById('placeOrderForm');
+
+        placeOrderForm.addEventListener('submit', async function (event) {
+            event.preventDefault();
+
+            const selectedAddressId = document.getElementById('selected-address-id').value;
+            const paymentMethod = document.querySelector('input[name="paymentMethod"]').value;
+
+            if (!selectedAddressId) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Please select a delivery address',
+                });
+                return;
+            }
+
+            try {
+                Swal.fire({
+                    title: 'Processing your order...',
+                    allowOutsideClick: false,
+                    didOpen: () => {
+                        Swal.showLoading();
+                    },
+                });
+
+                const response = await fetch('/order/place', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        selectedAddressId,
+                        paymentMethod
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Order Placed!',
+                        text: 'Your order has been placed successfully.',
+                        showConfirmButton: true,
+                        confirmButtonText: 'OK',
+                        showCancelButton: true,
+                        cancelButtonText: 'Continue Shopping',
+                        cancelButtonColor: '#3b82f6'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            window.location.href = data.redirect || '/profile/orders';
+                        } else if (result.dismiss === Swal.DismissReason.cancel) {
+                            window.location.href = '/home';
+                        }
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: data.message || 'Failed to place order'
+                    });
+                }
+            } catch (error) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: 'Failed to place order'
+                });
+            }
+        });
+    });
+</script>
+</body>
+</html>
