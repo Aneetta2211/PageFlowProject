@@ -1,3 +1,4 @@
+
 const express = require('express');
 const passport = require('passport');
 const router = express.Router();
@@ -76,6 +77,16 @@ router.post("/api/orders/:orderID/return", userAuth, orderController.returnOrder
 router.get("/api/orders/:orderID/invoice", userAuth, orderController.downloadInvoice);
 router.get('/checkout', userAuth, orderController.renderCheckout);
 router.post('/order/place', userAuth, orderController.placeOrder);
+router.post('/orders/:orderID/cancel-item/:productID', userAuth, orderController.cancelOrderItem);
+//razorpay management
+router.post('/order/place', userAuth,orderController.placeOrder);
+router.post('/verify-payment', userAuth,orderController.verifyPayment);
+router.post('/payment-failed',userAuth, orderController.paymentFailed);
+router.post('/retry-payment', userAuth,orderController.retryPayment);
+//coupon mangement
+router.post('/apply-coupon', userAuth, orderController.applyCoupon); 
+router.post('/remove-coupon', userAuth, orderController.removeCoupon);
+
 
 // Cart Management
 router.get('/profile/cart', userAuth, cartController.getCart);
@@ -93,5 +104,7 @@ router.get('/profile/wishlist', userAuth, wishlistController.getWishlist);
 router.post('/wishlist/add', userAuth, wishlistController.addToWishlist);
 router.delete('/wishlist/remove', userAuth, wishlistController.removeFromWishlist); 
 router.post('/wishlist/add-to-cart/:productId', userAuth, wishlistController.addToCart);
+
+
 
 module.exports = router;

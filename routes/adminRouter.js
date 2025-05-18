@@ -4,28 +4,27 @@ const adminController = require("../controllers/admin/adminController.js");
 const customerController = require("../controllers/admin/customerController.js"); 
 const categoryController = require("../controllers/admin/categoryController.js"); 
 const productController = require("../controllers/admin/productController.js"); 
-const orderController=require("../controllers/admin/adminOrderController.js")
+const couponController = require("../controllers/admin/couponController.js");
+const orderController = require("../controllers/admin/adminOrderController.js");
 const { userAuth, adminAuth } = require("../middlewares/auth.js");
 const upload = require("../helpers/multer.js");
-
-
 
 router.get('/pageerror', adminController.pageerror);
 
 router.get("/dashboard", adminAuth, adminController.loadDashboard);
 
-//login Management
+// Login Management
 router.get("/login", adminController.loadLogin);
 router.post("/login", adminController.login);
 router.get("/", adminAuth, adminController.loadDashboard);
 router.get("/logout", adminController.logout);
 
-//customer Management
+// Customer Management
 router.get("/customers", adminAuth, customerController.customerInfo);
 router.post("/users/block/:id", adminAuth, customerController.blockCustomer);
 router.post("/users/unblock/:id", adminAuth, customerController.unblockCustomer);
 
-//category Mangement
+// Category Management
 router.get("/category", adminAuth, categoryController.categoryInfo);
 router.post("/category/add", adminAuth, categoryController.addCategory);
 router.post('/category/add-offer', adminAuth, categoryController.addOffer);
@@ -37,7 +36,7 @@ router.post("/category/status/:id", adminAuth, categoryController.toggleCategory
 router.post('/category/list/:id', adminAuth, categoryController.listCategory);
 router.post('/category/unlist/:id', adminAuth, categoryController.unlistCategory);
 
-//product Mangement
+// Product Management
 router.get("/add-product", adminAuth, productController.getProductAddPage);
 router.post("/add-product", adminAuth, upload.array('images', 4), productController.addProduct);
 router.get("/products", adminAuth, productController.getAllProducts);
@@ -46,19 +45,22 @@ router.post("/edit-product/:id", adminAuth, upload.array('images', 4), productCo
 router.post("/products/block/:id", adminAuth, productController.blockProduct);
 router.post("/products/unblock/:id", adminAuth, productController.unblockProduct);
 
+// Offer Management
+router.post('/category/add-offer', adminAuth, categoryController.addOffer);
+router.post('/products/add-offer', adminAuth, productController.addProductOffer);
+router.post('/products/remove-offer', adminAuth, productController.removeProductOffer);
 
-//offer mangement
-router.post('/category/add-offer', categoryController.addOffer);
+// Order Management
+router.get("/orders", adminAuth, orderController.renderOrderPage);
+router.get('/orders/details/:orderId', adminAuth, orderController.renderOrderDetailsPage);
+router.post('/orders/update-status', adminAuth, orderController.updateOrderStatus);
+router.post('/orders/verify-return', adminAuth, orderController.verifyReturnRequest);
 
-// Product offer routes
-router.post('/products/add-offer',adminAuth, productController.addProductOffer);
-router.post('/products/remove-offer',adminAuth, productController.removeProductOffer);
-
-//order Management
-router.get("/orders",adminAuth,orderController.renderOrderPage)
-router.get('/orders/details/:orderId', orderController.renderOrderDetailsPage);
-router.post('/orders/update-status', orderController.updateOrderStatus);
-router.post('/orders/verify-return', orderController.verifyReturnRequest);
-
+// Coupon Management
+router.get('/coupons', adminAuth, couponController.couponInfo);
+router.post('/coupons/add', adminAuth, couponController.addCoupon);
+router.put('/coupons/edit/:id', adminAuth, couponController.editCoupon);
+router.delete('/coupons/delete/:id', adminAuth, couponController.deleteCoupon);
+router.post('/coupons/toggle/:id', adminAuth, couponController.toggleCouponStatus);
 
 module.exports = router;

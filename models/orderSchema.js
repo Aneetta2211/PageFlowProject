@@ -1,5 +1,3 @@
-
-
 const mongoose = require("mongoose");
 const { Schema } = mongoose;
 const { v4: uuidv4 } = require('uuid');
@@ -25,6 +23,28 @@ const orderSchema = new Schema({
             default: 0
         }
     }],
+    cancelledItems: [{
+        product: {
+            type: Schema.Types.ObjectId,
+            ref: "product",
+            required: true
+        },
+        quantity: {
+            type: Number,
+            required: true
+        },
+        price: {
+            type: Number,
+            default: 0
+        },
+        cancelReason: {
+            type: String
+        },
+        cancelledAt: {
+            type: Date,
+            default: Date.now
+        }
+    }],
     totalPrice: {
         type: Number,
         required: true
@@ -39,7 +59,7 @@ const orderSchema = new Schema({
     },
     address: {
         type: Schema.Types.ObjectId,
-        ref: 'Address', 
+        ref: 'Address',
         required: true
     },
     user: { 
@@ -53,7 +73,7 @@ const orderSchema = new Schema({
     status: {
         type: String,
         required: true,
-        enum: ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled', 'Return Request', 'Return Denied', 'Returned']
+        enum: ['Pending', 'Placed', 'Processing', 'Shipped', 'Delivered', 'Cancelled', 'Return Request', 'Return Denied', 'Returned']
     },
     createdOn: {
         type: Date,
@@ -66,7 +86,19 @@ const orderSchema = new Schema({
     },
     paymentMethod: { 
         type: String,
-        required: true
+        required: true,
+        enum: ['COD', 'razorpay']
+    },
+    paymentStatus: {
+        type: String,
+        enum: ['Pending', 'Paid', 'Failed'],
+        default: 'Pending'
+    },
+    razorpayPaymentId: {
+        type: String
+    },
+    paymentError: {
+        type: String
     },
     cancelReason: {
         type: String
@@ -82,6 +114,15 @@ const orderSchema = new Schema({
         type: String,
         enum: ['Pending', 'Approved', 'Denied', null],
         default: null
+    },
+    returnRequestDate: {
+        type: Date
+    },
+    returnDate: {
+        type: Date
+    },
+    returnDenyReason: {
+        type: String
     }
 });
 

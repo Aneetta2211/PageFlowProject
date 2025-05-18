@@ -306,162 +306,244 @@
     </div>
 
     <script>
-        document.getElementById('searchInput').addEventListener('input', function(e) {
-            const searchTerm = e.target.value.toLowerCase().trim();
-            const orderCards = document.querySelectorAll('.order-card');
-            orderCards.forEach(card => {
-                const orderID = card.dataset.orderId.toLowerCase();
-                card.style.display = orderID.includes(searchTerm) ? '' : 'none';
-            });
+    document.getElementById('searchInput').addEventListener('input', function(e) {
+    const searchTerm = e.target.value.toLowerCase().trim();
+    const orderCards = document.querySelectorAll('.order-card');
+    orderCards.forEach(card => {
+        const orderID = card.dataset.orderId.toLowerCase();
+        card.style.display = orderID.includes(searchTerm) ? '' : 'none';
+    });
+});
+
+function openCancelModal(orderID) {
+    console.log('Opening cancel modal with orderID:', orderID);
+    if (!orderID) {
+        console.error('No orderID provided to openCancelModal');
+        Swal.fire({
+            title: 'Error!',
+            text: 'Invalid order ID. Please try again.',
+            icon: 'error',
+            confirmButtonColor: '#3085d6'
+        });
+        return;
+    }
+    const cancelOrderInput = document.getElementById('cancelOrderID');
+    if (!cancelOrderInput) {
+        console.error('cancelOrderID input element not found in DOM');
+        Swal.fire({
+            title: 'Error!',
+            text: 'Internal error: Cancel modal not properly initialized.',
+            icon: 'error',
+            confirmButtonColor: '#3085d6'
+        });
+        return;
+    }
+    cancelOrderInput.value = orderID;
+    console.log('Set cancelOrderID input value to:', cancelOrderInput.value);
+    document.getElementById('cancelModal').style.display = 'block';
+}
+
+function closeCancelModal() {
+    console.log('Closing cancel modal');
+    document.getElementById('cancelModal').style.display = 'none';
+    const cancelOrderInput = document.getElementById('cancelReason');
+    if (cancelOrderInput) cancelOrderInput.value = '';
+}
+
+function openReturnModal(orderID) {
+    console.log('Opening return modal with orderID:', orderID);
+    if (!orderID) {
+        console.error('No orderID provided to openReturnModal');
+        Swal.fire({
+            title: 'Error!',
+            text: 'Invalid order ID. Please try again.',
+            icon: 'error',
+            confirmButtonColor: '#3085d6'
+        });
+        return;
+    }
+    document.getElementById('returnOrderID').value = orderID;
+    document.getElementById('returnModal').style.display = 'block';
+}
+
+function closeReturnModal() {
+    console.log('Closing return modal');
+    document.getElementById('returnModal').style.display = 'none';
+    const returnReasonInput = document.getElementById('returnReason');
+    if (returnReasonInput) returnReasonInput.value = '';
+}
+
+async function confirmCancelOrder() {
+    const orderId = document.getElementById('cancelOrderID')?.value;
+    const reason = document.getElementById('cancelReason')?.value || '';
+    console.log('Attempting to cancel order:', { orderId, reason });
+
+    if (!orderId) {
+        console.error('No orderId found in cancelOrderID input');
+        await Swal.fire({
+            title: 'Error!',
+            text: 'Invalid order ID. Please try again.',
+            icon: 'error',
+            confirmButtonColor: '#3085d6'
+        });
+        closeCancelModal();
+        return;
+    }
+
+    const result = await Swal.fire({
+        title: 'Are you sure?',
+        text: 'Do you really want to cancel this order? This action cannot be undone.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, cancel it!',
+        cancelButtonText: 'No, keep it'
+    });
+
+    if (!result.isConfirmed) {
+        console.log('Cancellation aborted by user');
+        closeCancelModal();
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/orders/${orderId}/cancel`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({ reason })
         });
 
-        function openCancelModal(orderID) {
-            document.getElementById('cancelOrderID').value = orderID;
-            document.getElementById('cancelModal').style.display = 'block';
-        }
-        function closeCancelModal() {
-            document.getElementById('cancelModal').style.display = 'none';
-            document.getElementById('cancelReason').value = '';
-        }
-
-        function openReturnModal(orderID) {
-            document.getElementById('returnOrderID').value = orderID;
-            document.getElementById('returnModal').style.display = 'block';
-        }
-        function closeReturnModal() {
-            document.getElementById('returnModal').style.display = 'none';
-            document.getElementById('returnReason').value = '';
+        console.log('Fetch response status:', response.status);
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            console.error('Non-JSON response received:', text);
+            throw new Error('Server returned non-JSON response');
         }
 
-        async function confirmCancelOrder() {
-            const orderId = document.getElementById('cancelOrderID').value;
-            const reason = document.getElementById('cancelReason').value;
+        const data = await response.json();
+        console.log('Server response data:', data);
 
-            const result = await Swal.fire({
-                title: 'Are you sure?',
-                text: 'Do you really want to cancel this order? This action cannot be undone.',
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#d33',
-                cancelButtonColor: '#3085d6',
-                confirmButtonText: 'Yes, cancel it!',
-                cancelButtonText: 'No, keep it'
+        if (response.ok) {
+            await Swal.fire({
+                title: 'Cancelled!',
+                text: data.message || 'Order cancelled successfully.',
+                icon: 'success',
+                confirmButtonColor: '#3085d6'
             });
-
-            if (!result.isConfirmed) {
-                closeCancelModal();
-                return;
-            }
-
-            try {
-                const response = await fetch(`/api/orders/${orderId}/cancel`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ reason })
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok) {
-                    await Swal.fire({
-                        title: 'Cancelled!',
-                        text: data.message || 'Order cancelled successfully.',
-                        icon: 'success',
-                        confirmButtonColor: '#3085d6'
-                    });
-                    window.location.reload();
-                } else {
-                    await Swal.fire({
-                        title: 'Error!',
-                        text: data.error || 'Failed to cancel order.',
-                        icon: 'error',
-                        confirmButtonColor: '#3085d6'
-                    });
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                await Swal.fire({
-                    title: 'Error!',
-                    text: 'An error occurred while cancelling the order.',
-                    icon: 'error',
-                    confirmButtonColor: '#3085d6'
-                });
-            }
-            
-            closeCancelModal();
-        }
-
-        async function confirmReturnOrder() {
-            const orderId = document.getElementById('returnOrderID').value;
-            const reason = document.getElementById('returnReason').value;
-
-            if (!reason.trim()) {
-                await Swal.fire({
-                    title: 'Missing Reason!',
-                    text: 'Please provide a reason for the return.',
-                    icon: 'warning',
-                    confirmButtonColor: '#3085d6'
-                });
-                return;
-            }
-
-            const result = await Swal.fire({
-                title: 'Confirm Return',
-                text: 'Are you sure you want to submit this return request?',
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#f97316',
-                cancelButtonColor: '#3085d6',
-                confirmButtonText: 'Yes, submit it!',
-                cancelButtonText: 'No, cancel'
+            window.location.reload();
+        } else {
+            await Swal.fire({
+                title: 'Error!',
+                text: data.error || 'Failed to cancel order.',
+                icon: 'error',
+                confirmButtonColor: '#3085d6'
             });
-
-            if (!result.isConfirmed) {
-                closeReturnModal();
-                return;
-            }
-
-            try {
-                const response = await fetch(`/api/orders/${orderId}/return`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ reason })
-                });
-                
-                const data = await response.json();
-                
-                if (response.ok) {
-                    await Swal.fire({
-                        title: 'Return Submitted!',
-                        text: data.message || 'Return request submitted successfully.',
-                        icon: 'success',
-                        confirmButtonColor: '#3085d6'
-                    });
-                    window.location.reload();
-                } else {
-                    await Swal.fire({
-                        title: 'Error!',
-                        text: data.error || 'Failed to process return.',
-                        icon: 'error',
-                        confirmButtonColor: '#3085d6'
-                    });
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                await Swal.fire({
-                    title: 'Error!',
-                    text: 'An error occurred while processing the return.',
-                    icon: 'error',
-                    confirmButtonColor: '#3085d6'
-                });
-            }
-            
-            closeReturnModal();
         }
+    } catch (error) {
+        console.error('Error cancelling order:', error);
+        await Swal.fire({
+            title: 'Error!',
+            text: `An error occurred while cancelling the order: ${error.message}`,
+            icon: 'error',
+            confirmButtonColor: '#3085d6'
+        });
+    }
+
+    closeCancelModal();
+}
+
+async function confirmReturnOrder() {
+    const orderId = document.getElementById('returnOrderID')?.value;
+    const reason = document.getElementById('returnReason')?.value;
+    console.log('Attempting to submit return for order:', { orderId, reason });
+
+    if (!orderId) {
+        console.error('No orderId found in returnOrderID input');
+        await Swal.fire({
+            title: 'Error!',
+            text: 'Invalid order ID. Please try again.',
+            icon: 'error',
+            confirmButtonColor: '#3085d6'
+        });
+        return;
+    }
+
+    if (!reason?.trim()) {
+        await Swal.fire({
+            title: 'Missing Reason!',
+            text: 'Please provide a reason for the return.',
+            icon: 'warning',
+            confirmButtonColor: '#3085d6'
+        });
+        return;
+    }
+
+    const result = await Swal.fire({
+        title: 'Confirm Return',
+        text: 'Are you sure you want to submit this return request?',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#f97316',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, submit it!',
+        cancelButtonText: 'No, cancel'
+    });
+
+    if (!result.isConfirmed) {
+        console.log('Return request aborted by user');
+        closeReturnModal();
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/orders/${orderId}/return`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({ reason })
+        });
+
+        console.log('Fetch response status:', response.status);
+        const data = await response.json();
+        console.log('Server response data:', data);
+
+        if (response.ok) {
+            await Swal.fire({
+                title: 'Return Submitted!',
+                text: data.message || 'Return request submitted successfully.',
+                icon: 'success',
+                confirmButtonColor: '#3085d6'
+            });
+            window.location.reload();
+        } else {
+            await Swal.fire({
+                title: 'Error!',
+                text: data.error || 'Failed to process return.',
+                icon: 'error',
+                confirmButtonColor: '#3085d6'
+            });
+        }
+    } catch (error) {
+        console.error('Error processing return:', error);
+        await Swal.fire({
+            title: 'Error!',
+            text: `An error occurred while processing the return: ${error.message}`,
+            icon: 'error',
+            confirmButtonColor: '#3085d6'
+        });
+    }
+
+    closeReturnModal();
+}
     </script>
 </body>
 </html>

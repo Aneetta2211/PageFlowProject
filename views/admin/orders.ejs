@@ -81,6 +81,7 @@
             <li><a href="/admin/add-product"><i class="fa fa-plus"></i> Add Products</a></li>
             <li><a href="/admin/products"><i class="fa fa-box"></i> Products</a></li>
             <li><a href="/admin/orders" class="active"><i class="fa fa-shopping-cart"></i> Orders</a></li>
+             <li><a href="/admin/coupons"><i class="fa fa-tag"></i> Coupons</a></li>
         </ul>
     </div>
 
@@ -124,40 +125,49 @@
                         <th>Order ID</th>
                         <th>Date</th>
                         <th>User</th>
+                        <th>Phone</th>
                         <th>Status</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody id="orderTable">
-                    <% orders.forEach(order => { %>
-                        <tr>
-                            <td><%= order.orderId %></td>
-                            <td><%= new Date(order.orderDate).toLocaleDateString() %></td>
-                            <td><%= order.user.name %> (<%= order.user.email %>)</td>
-                            <td>
-                                <span class="status-<%= order.status.toLowerCase().replace(' ', '-') %>">
-                                    <%= order.status %>
-                                </span>
-                            </td>
-                            <td>
-                                <a href="/admin/orders/details/<%= order.orderId %>" class="btn btn-info btn-sm">View</a>
-                                <% if (order.returnRequested && order.returnStatus === 'Pending') { %>
-    <button class="btn btn-warning btn-sm verify-return" data-order-id="<%= order.orderId %>">Verify Return</button>
-<% } %>
-                            </td>
-                        </tr>
-                    <% }) %>
-                </tbody>
+    <% orders.forEach(order => { %>
+        <tr>
+            <td><%= order.orderId %></td>
+            <td><%= new Date(order.createdOn).toLocaleDateString() %></td>
+            <td><%= order.user ? order.user.name : 'N/A' %> 
+                (<%= order.user ? order.user.email : 'N/A' %>)</td>
+            <td><%= order.address && order.address.phone ? order.address.phone : 'N/A' %></td>
+            <td>
+                <span class="status-<%= order.status.toLowerCase().replace(' ', '-') %>">
+                    <%= order.status %>
+                </span>
+            </td>
+            <td>
+                <a href="/admin/orders/details/<%= order.orderId %>" class="btn btn-info btn-sm">View</a>
+                <% if (order.returnRequested && order.returnStatus === 'Pending') { %>
+                    <button class="btn btn-warning btn-sm verify-return" data-order-id="<%= order.orderId %>">Verify Return</button>
+                <% } %>
+            </td>
+        </tr>
+    <% }) %>
+</tbody>
             </table>
         </div>
 
         <nav>
             <ul class="pagination">
+                <li class="page-item <%= currentPage === 1 ? 'disabled' : '' %>">
+                    <a class="page-link" href="/admin/orders?page=<%= currentPage - 1 %>">Previous</a>
+                </li>
                 <% for (let i = 1; i <= totalPages; i++) { %>
                     <li class="page-item <%= i === currentPage ? 'active' : '' %>">
                         <a class="page-link" href="/admin/orders?page=<%= i %>"><%= i %></a>
                     </li>
                 <% } %>
+                <li class="page-item <%= currentPage === totalPages ? 'disabled' : '' %>">
+                    <a class="page-link" href="/admin/orders?page=<%= currentPage + 1 %>">Next</a>
+                </li>
             </ul>
         </nav>
     </div>
@@ -170,7 +180,8 @@
             rows.forEach(row => {
                 const orderId = row.cells[0].textContent.toLowerCase();
                 const user = row.cells[2].textContent.toLowerCase();
-                row.style.display = orderId.includes(search) || user.includes(search) ? '' : 'none';
+                const phone = row.cells[3].textContent.toLowerCase();
+                row.style.display = orderId.includes(search) || user.includes(search) || phone.includes(search) ? '' : 'none';
             });
         });
 
@@ -187,7 +198,7 @@
             const status = this.value;
             const rows = document.querySelectorAll('#orderTable tr');
             rows.forEach(row => {
-                const rowStatus = row.cells[3].textContent.trim();
+                const rowStatus = row.cells[4].textContent.trim();
                 row.style.display = status === '' || rowStatus === status ? '' : 'none';
             });
         });

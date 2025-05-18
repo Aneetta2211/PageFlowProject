@@ -270,21 +270,26 @@
                                 <tr>
                                     <td>
                                         <%= item.productId ? item.productId.productName : 'Unknown Product' %>
+                                        <% if (item.isOutOfStock) { %>
+                                            <div class="out-of-stock">Out of Stock</div>
+                                        <% } else if (item.isInvalid) { %>
+                                            <div class="out-of-stock">Unavailable</div>
+                                        <% } %>
                                     </td>
                                     <td>₹<%= item.price.toFixed(2) %></td>
                                     <td>
                                         <div class="quantity-control">
                                             <button 
                                                 onclick="updateQuantity('<%= item.productId._id %>', 'decrement')"
-                                                <%= item.quantity <= 1 ? 'disabled' : '' %>
+                                                <%= item.quantity <= 1 || item.isOutOfStock || item.isInvalid ? 'disabled' : '' %>
                                             >-</button>
                                             <span><%= item.quantity %></span>
                                             <button 
                                                 onclick="updateQuantity('<%= item.productId._id %>', 'increment')"
-                                                <%= (item.quantity >= item.productId.stock) ? 'disabled' : '' %>
+                                                <%= (item.quantity >= item.productId.stock || item.isOutOfStock || item.isInvalid) ? 'disabled' : '' %>
                                             >+</button>
                                         </div>
-                                        <% if (item.quantity >= item.productId.stock) { %>
+                                        <% if (item.quantity >= item.productId.stock && !item.isOutOfStock && !item.isInvalid) { %>
                                             <div class="text-xs text-red-500 mt-1" data-stock="<%= item.productId.stock %>">Max stock reached</div>
                                         <% } %>
                                     </td>
@@ -325,12 +330,11 @@
                     </div>
 
                     <div class="flex justify-end p-4">
-                        <% if (cart.items.some(item => !item.productId || item.productId.stock <= 0 || item.productId.isBlocked || (item.productId.category && item.productId.category.isBlocked) || !item.productId.isListed)) { %>
-                        <% } %>
-                        <button class="checkout-btn" onclick="proceedToCheckout()">
-                          <i class="fas fa-credit-card mr-2"></i> Proceed to Checkout
+                        <button class="checkout-btn" onclick="proceedToCheckout()"
+                            <%= !hasValidItems ? 'disabled' : '' %>>
+                            <i class="fas fa-credit-card mr-2"></i> Proceed to Checkout
                         </button>
-                      </div>
+                    </div>
                 </div>
             <% } else { %>
                 <div class="empty-cart">
@@ -352,9 +356,9 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ productId, action })
                 });
-    
+
                 const result = await response.json();
-    
+
                 if (result.success) {
                     // Update UI
                     updateCartUI(productId, result.newQuantity, result.newTotalPrice);
@@ -362,6 +366,17 @@
                     updateButtonStates(productId, result.newQuantity);
                     // Update total
                     updateCartTotal(result.total);
+
+                    // Show SweetAlert if quantity reaches 10
+                    if (action === 'increment' && result.newQuantity >= 10) {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Limit Reached',
+                            text: 'You have reached the maximum quantity limit of 10.',
+                            confirmButtonText: 'OK',
+                            confirmButtonColor: '#3b82f6'
+                        });
+                    }
                 } else {
                     Swal.fire({
                         icon: 'error',
@@ -394,61 +409,61 @@
                 });
             }
         }
-    
+
         function updateCartUI(productId, newQuantity, newTotalPrice) {
             const row = document.querySelector(`tr td button[onclick*="updateQuantity('${productId}'"]`).closest('tr');
             if (!row) return;
-    
+
             // Update quantity
             const quantitySpan = row.querySelector('.quantity-control span');
             if (quantitySpan) {
                 quantitySpan.textContent = newQuantity;
             }
-    
+
             // Update total price for the item
             const totalPriceCell = row.cells[3];
             if (totalPriceCell) {
                 totalPriceCell.textContent = `₹${newTotalPrice.toFixed(2)}`;
             }
-    
+
             // Update stock message
             const stockMessage = row.querySelector('.text-xs.text-red-500');
             if (stockMessage) {
                 stockMessage.style.display = newQuantity >= parseInt(stockMessage.dataset.stock || Infinity) ? 'block' : 'none';
             }
         }
-    
+
         function updateButtonStates(productId, newQuantity) {
             const row = document.querySelector(`tr td button[onclick*="updateQuantity('${productId}'"]`).closest('tr');
             if (!row) return;
-    
+
             const decrementBtn = row.querySelector(`button[onclick="updateQuantity('${productId}', 'decrement')"]`);
             const incrementBtn = row.querySelector(`button[onclick="updateQuantity('${productId}', 'increment')"]`);
-    
+
             if (decrementBtn) {
                 decrementBtn.disabled = newQuantity <= 1;
             }
-    
+
             if (incrementBtn) {
                 const stock = parseInt(row.querySelector('.text-xs.text-red-500')?.dataset.stock || 10);
                 incrementBtn.disabled = newQuantity >= stock || newQuantity >= 10;
             }
         }
-    
+
         async function removeFromCart(productId) {
             try {
                 const response = await fetch(`/cart/${productId}`, {
                     method: 'DELETE'
                 });
                 const result = await response.json();
-    
+
                 if (result.success) {
                     // Remove the row
                     const row = document.querySelector(`tr td button[onclick="removeFromCart('${productId}')"]`).closest('tr');
                     if (row) {
                         row.remove();
                     }
-    
+
                     // Check if cart is empty
                     const tableBody = document.querySelector('.cart-table tbody');
                     if (tableBody.children.length === 0) {
@@ -462,7 +477,7 @@
                             </div>
                         `;
                     }
-    
+
                     // Update total
                     updateCartTotal(result.total);
                     updateCheckoutButton();
@@ -498,14 +513,14 @@
                 });
             }
         }
-    
+
         function updateCartTotal(total) {
             const totalElement = document.querySelector('.summary-table tr:last-child td:last-child');
             if (totalElement) {
                 totalElement.textContent = `₹${total.toFixed(2)}`;
             }
         }
-    
+
         function updateCheckoutButton() {
             const checkoutBtn = document.querySelector('.checkout-btn');
             const tableBody = document.querySelector('.cart-table tbody');
@@ -513,7 +528,7 @@
                 checkoutBtn.disabled = true;
             }
         }
-    
+
         document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.cart-table tbody tr').forEach(row => {
                 const decrementBtn = row.querySelector('button[onclick*="decrement"]');
@@ -521,7 +536,7 @@
                 const quantity = parseInt(row.querySelector('.quantity-control span').textContent);
                 const stockMessage = row.querySelector('.text-xs.text-red-500');
                 const stock = stockMessage ? parseInt(stockMessage.dataset.stock || 10) : 10;
-    
+
                 if (decrementBtn) {
                     decrementBtn.disabled = quantity <= 1;
                 }
@@ -530,7 +545,7 @@
                 }
             });
         });
-    
+
         function proceedToCheckout() {
             window.location.href = '/checkout';
         }

@@ -271,7 +271,7 @@ const unblockProduct = async (req, res) => {
 
     res.json({ success: true, message: "Product restored successfully" });
   } catch (error) {
-    console.error("Error unblocking product:", error);
+    console.error("Error unblocking product:", error); 
     res.json({ success: false, message: "Failed to restore product" });
   }
 };

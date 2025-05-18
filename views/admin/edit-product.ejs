@@ -250,6 +250,7 @@
         <li><a href="/admin/add-product"><i class="fa fa-plus"></i> Add Products</a></li>
         <li><a href="/admin/products" class="active"><i class="fa fa-box"></i> Products</a></li>
         <li><a href="/admin/orders"><i class="fa fa-shopping-cart"></i> Orders</a></li>
+         <li><a href="/admin/coupons"><i class="fa fa-tag"></i> Coupons</a></li>
         <li><a href="/admin/logout"><i class="fa fa-sign-out-alt"></i> Logout</a></li>
       </ul>
     </div>
@@ -304,7 +305,7 @@
                 </select>
                 <div id="isBlocked-error" class="error-message"></div>
               </div>
-              <div class="col-12">
+              <!-- <div class="col-12">
                 <div class="mb-3">
                   <label class="form-label">Current Offers</label>
                   <p>Category Offer: <%= product.categoryOffer %>%</p>
@@ -312,8 +313,8 @@
                   <p><strong>Effective Offer: <%= product.totalOffer %>% (<%= product.totalOffer > 0 ? (product.categoryOffer > product.productOffer ? 'Category' : 'Product') : 'None' %>)</strong></p>
                   <p><strong>Final Price After Offer: ₹<%= product.discountedPrice %></strong></p>
                 </div>
-              </div>
-              <div class="col-12">
+              </div> -->
+              <!-- <div class="col-12">
                 <div class="mb-3">
                   <label class="form-label">Set Product Offer</label>
                   <div class="input-group">
@@ -325,7 +326,7 @@
                   <small class="text-muted">Enter a percentage between 0-100</small>
                   <div id="offerMessage" class="mt-2"></div>
                 </div>
-              </div>
+              </div> -->
               <div class="col-12">
                 <div class="image-upload-area" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
                   <label class="form-label d-block">Product Images (Drag or Click to Upload, Exactly 3 Required)</label>

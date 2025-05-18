@@ -22,40 +22,60 @@ const getCart = async (req, res) => {
                 user: req.user,
                 total: 0,
                 discount: 0,
+                hasValidItems: false,
                 currentPage: 'cart'
             });
         }
 
         let total = 0;
         let totalDiscount = 0;
+        let hasValidItems = false;
 
         cart.items = cart.items.map(item => {
             const product = item.productId;
-            const originalPrice = product.price;
+            let isOutOfStock = false;
+            let isInvalid = false;
+
+            // Check if product exists and is valid
+            if (!product || product.isBlocked || product.status !== 'Available' || 
+                (product.category && !product.category.isListed) || product.quantity <= 0) {
+                isInvalid = true;
+                isOutOfStock = product && product.quantity <= 0;
+            } else {
+                hasValidItems = true; // At least one valid item exists
+            }
+
+            const originalPrice = product ? (product.salesPrice > 0 ? product.salesPrice : product.regularPrice) : item.price;
             let salePrice = originalPrice;
             let itemDiscount = 0;
 
-            const categoryOffer = product.category && product.category.offer 
-                ? product.category.offer.discountPercentage || 0 
-                : 0;
+            if (!isInvalid) {
+                const categoryOffer = product.category && product.category.offer 
+                    ? product.category.offer.discountPercentage || 0 
+                    : 0;
 
-            const productOffer = product.offer 
-                ? product.offer.discountPercentage || 0 
-                : 0;
+                const productOffer = product.offer 
+                    ? product.offer.discountPercentage || 0 
+                    : 0;
 
-            const maxDiscountPercentage = Math.max(categoryOffer, productOffer);
-            
-            if (maxDiscountPercentage > 0) {
-                itemDiscount = (originalPrice * maxDiscountPercentage) / 100;
-                salePrice = originalPrice - itemDiscount;
+                const maxDiscountPercentage = Math.max(categoryOffer, productOffer);
+                
+                if (maxDiscountPercentage > 0) {
+                    itemDiscount = (originalPrice * maxDiscountPercentage) / 100;
+                    salePrice = originalPrice - itemDiscount;
+                }
             }
 
             item.salePrice = salePrice;
             item.discount = itemDiscount;
             item.totalPrice = salePrice * item.quantity;
+            item.isOutOfStock = isOutOfStock;
+            item.isInvalid = isInvalid;
 
-            total += item.totalPrice;
-            totalDiscount += itemDiscount * item.quantity;
+            if (!isInvalid) {
+                total += item.totalPrice;
+                totalDiscount += itemDiscount * item.quantity;
+            }
 
             return item;
         });
@@ -67,6 +87,7 @@ const getCart = async (req, res) => {
             user: req.user,
             total,
             discount: totalDiscount,
+            hasValidItems,
             currentPage: 'cart'
         });
     } catch (error) {
@@ -76,12 +97,12 @@ const getCart = async (req, res) => {
             user: req.user,
             total: 0,
             discount: 0,
+            hasValidItems: false,
             error: 'Error loading your cart. Please try again later.',
             currentPage: 'cart'
         });
     }
 };
-
 const addToCart = async (req, res) => {
     try {
         const userId = req.user?._id;
@@ -311,7 +332,6 @@ const updateCartItemQuantity = async (req, res) => {
                     message: 'Maximum quantity limit reached (10)'
                 });
             }
-
             cartItem.quantity += 1;
         } else { 
             if (cartItem.quantity <= 1) {

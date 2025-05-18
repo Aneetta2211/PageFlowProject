@@ -407,6 +407,15 @@
       transform: scale(1.2);
       color: red;
     }
+
+    .filter-item a.active {
+    color: #007bff;
+    font-weight: bold;
+    background-color: #e6f0fa;
+    padding: 5px 10px;
+    border-radius: 5px;
+    display: inline-block;
+}
 </style>
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 
@@ -460,19 +469,20 @@
       <div class="product-list-container">
         <aside class="sidebar">
           <div class="filter-section">
-            <div class="filter-title">Categories</div>
-            <div class="category-brand-container">
-              <ul>
-                <% category.forEach(cat => { %>
-                  <li class="filter-item">
-                    <a href="/loadShoppingPage?category=<%= cat._id %>&sort=<%= sort %>&query=<%= query %>&price=<%= price %>">
-                      <%= cat.name %>
+    <div class="filter-title">Categories</div>
+    <div class="category-brand-container">
+        <ul>
+            <% category.forEach(cat => { %>
+                <li class="filter-item">
+                    <a href="/loadShoppingPage?category=<%= cat._id %>&sort=<%= sort %>&query=<%= query %>&price=<%= price %>"
+                       class="<%= selectedCategory === cat._id.toString() ? 'active' : '' %>">
+                        <%= cat.name %>
                     </a>
-                  </li>
-                <% }) %>
-              </ul>
-            </div>
-          </div>
+                </li>
+            <% }) %>
+        </ul>
+    </div>
+</div>
           <div class="price-filter">
             <div class="filter-title">Filter by Price</div>
             <div class="price-options">

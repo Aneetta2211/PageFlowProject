@@ -2,7 +2,7 @@ const User = require("../../models/userSchema");
 const Address = require("../../models/addressSchema");
 const nodemailer = require('nodemailer');
 const bcrypt = require('bcrypt');
-require('dotenv').config();
+const env = require('dotenv').config();
 const session = require('express-session');
 const fs = require('fs');
 const path = require('path');
