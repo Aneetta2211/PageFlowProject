@@ -508,9 +508,9 @@
           <% } else { %>
             <% products.forEach(product => { %>
               <div class="product-card">
-                <% if (product.totalOffer > 0) { %>
-                  <span class="offer-badge"><%= product.totalOffer %>% OFF (<%= product.offerType === 'category' ? 'Category' : 'Product' %>)</span>
-                <% } %>
+               <% if (product.totalOffer > 0) { %>
+    <span class="offer-badge"><%= product.totalOffer %>% OFF (<%= product.offerType === 'category' ? 'Category' : 'Product' %>)</span>
+<% } %>
                 <span class="wishlist-btn" 
                   onclick="addToWishlist('<%= product._id %>')"
                   data-product-id="<%= product._id %>"

@@ -36,15 +36,24 @@ const couponSchema = new mongoose.Schema({
     type: Boolean,
     default: true
   },
+  maxUsagePerUser: {
+    type: Number,
+    default: 10, // Allow 10 uses per user
+    min: 1
+  },
   usage: [
     {
       userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
       },
+      productId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'product' // Track product
+      },
       usageCount: {
         type: Number,
-        default: 0,
+        default: 1, // Increment for each use per product
         min: 0
       }
     }

@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -70,14 +69,13 @@
         <h2>Coupons</h2>
         <div class="card p-4">
             <form id="couponForm">
-
                 <div class="mb-3">
-    <label for="isActive" class="form-label">Status</label>
-    <select class="form-control" id="isActive" required>
-        <option value="true">Active</option>
-        <option value="false">Inactive</option>
-    </select>
-</div>
+                    <label for="isActive" class="form-label">Status</label>
+                    <select class="form-control" id="isActive" required>
+                        <option value="true">Active</option>
+                        <option value="false">Inactive</option>
+                    </select>
+                </div>
                 <div class="mb-3">
                     <label for="couponCode" class="form-label">Coupon Code</label>
                     <input type="text" class="form-control" id="couponCode" placeholder="Enter coupon code" required>
@@ -200,213 +198,325 @@
         <% } %>
     </div>
 
-   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@10/dist/sweetalert2.min.js"></script>
-<script>
-  // Toggle Active Status
-  async function toggleActive(id) {
-    const toggleBtn = document.getElementById(`toggle-${id}`);
-    const statusSpan = document.getElementById(`status-${id}`);
-    const isDeactivating = toggleBtn.textContent === "Deactivate";
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@10/dist/sweetalert2.min.js"></script>
+    <script>
+        // Validate Coupon Form
+        function validateCouponForm(formData) {
+            const code = formData.code.trim();
+            const discountType = formData.discountType;
+            const discount = parseFloat(formData.discount);
+            const minPurchase = parseFloat(formData.minPurchase) || 0;
+            const maxDiscount = parseFloat(formData.maxDiscount) || 0;
+            const expiryDate = new Date(formData.expiryDate);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
 
-    const result = await Swal.fire({
-      title: `Are you sure?`,
-      text: `This will ${isDeactivating ? "deactivate" : "activate"} the coupon!`,
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonText: `Yes, ${isDeactivating ? "deactivate" : "activate"} it!`,
-      cancelButtonText: "No, cancel",
-    });
+            // Validate Coupon Code
+            if (!code || code.length < 3 || code.length > 20 || !/^[a-zA-Z0-9]+$/.test(code)) {
+                Swal.fire({
+                    icon: "error",
+                    title: "Invalid Coupon Code",
+                    text: "Coupon code must be 3-20 alphanumeric characters.",
+                    confirmButtonText: "OK",
+                });
+                return false;
+            }
 
-    if (result.isConfirmed) {
-      try {
-        const response = await fetch(`/admin/coupons/toggle/${id}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-        });
-        const data = await response.json();
-        if (data.success) {
-          toggleBtn.textContent = isDeactivating ? "Activate" : "Deactivate";
-          toggleBtn.classList.toggle("btn-danger", !isDeactivating);
-          toggleBtn.classList.toggle("btn-success", isDeactivating);
-          statusSpan.textContent = isDeactivating ? "Inactive" : "Active";
-          statusSpan.classList.toggle("bg-success", !isDeactivating);
-          statusSpan.classList.toggle("bg-danger", isDeactivating);
-          Swal.fire({
-            icon: "success",
-            title: "Success",
-            text: `Coupon ${isDeactivating ? "deactivated" : "activated"} successfully!`,
-            confirmButtonText: "OK",
-          });
-        } else {
-          Swal.fire({
-            icon: "error",
-            title: "Error",
-            text: data.message || `Error ${isDeactivating ? "deactivating" : "activating"} coupon`,
-            confirmButtonText: "OK",
-          });
+            // Validate Discount Type
+            if (!["percentage", "fixed"].includes(discountType)) {
+                Swal.fire({
+                    icon: "error",
+                    title: "Invalid Discount Type",
+                    text: "Discount type must be Percentage or Fixed Amount.",
+                    confirmButtonText: "OK",
+                });
+                return false;
+            }
+
+            // Validate Discount
+            if (isNaN(discount) || discount <= 0) {
+                Swal.fire({
+                    icon: "error",
+                    title: "Invalid Discount",
+                    text: "Discount must be a positive number.",
+                    confirmButtonText: "OK",
+                });
+                return false;
+            }
+            if (discountType === "percentage" && (discount > 100 || discount < 1)) {
+                Swal.fire({
+                    icon: "error",
+                    title: "Invalid Discount",
+                    text: "Percentage discount must be between 1% and 100%.",
+                    confirmButtonText: "OK",
+                });
+                return false;
+            }
+            if (discountType === "fixed" && discount > 10000) {
+                Swal.fire({
+                    icon: "error",
+                    title: "Invalid Discount",
+                    text: "Fixed discount cannot exceed ₹10,000.",
+                    confirmButtonText: "OK",
+                });
+                return false;
+            }
+
+            // Validate Minimum Purchase
+            if (isNaN(minPurchase) || minPurchase < 0) {
+                Swal.fire({
+                    icon: "error",
+                    title: "Invalid Minimum Purchase",
+                    text: "Minimum purchase must be a non-negative number.",
+                    confirmButtonText: "OK",
+                });
+                return false;
+            }
+
+            // Validate Maximum Discount
+            if (isNaN(maxDiscount) || maxDiscount < 0) {
+                Swal.fire({
+                    icon: "error",
+                    title: "Invalid Maximum Discount",
+                    text: "Maximum discount must be a non-negative number.",
+                    confirmButtonText: "OK",
+                });
+                return false;
+            }
+            if (discountType === "percentage" && maxDiscount > 10000) {
+                Swal.fire({
+                    icon: "error",
+                    title: "Invalid Maximum Discount",
+                    text: "Maximum discount for percentage coupons cannot exceed ₹10,000.",
+                    confirmButtonText: "OK",
+                });
+                return false;
+            }
+
+            // Validate Expiry Date
+            if (isNaN(expiryDate.getTime()) || expiryDate < today) {
+                Swal.fire({
+                    icon: "error",
+                    title: "Invalid Expiry Date",
+                    text: "Expiry date must be a valid date and not in the past.",
+                    confirmButtonText: "OK",
+                });
+                return false;
+            }
+
+            return true;
         }
-      } catch (error) {
-        console.error(`Error ${isDeactivating ? "deactivating" : "activating"} coupon:`, error);
-        Swal.fire({
-          icon: "error",
-          title: "Error",
-          text: `Error ${isDeactivating ? "deactivating" : "activating"} coupon`,
-          confirmButtonText: "OK",
-        });
-      }
-    }
-  }
 
-  // Handle Form Submission for Adding/Editing Coupon
-  document.getElementById("couponForm").addEventListener("submit", async function (e) {
-    e.preventDefault();
-    const couponId = document.getElementById("couponForm").dataset.couponId || null;
-    const url = couponId ? `/admin/coupons/edit/${couponId}` : "/admin/coupons/add";
-    const method = couponId ? "PUT" : "POST";
-    const isEditing = !!couponId;
+        // Toggle Active Status
+        async function toggleActive(id) {
+            const toggleBtn = document.getElementById(`toggle-${id}`);
+            const statusSpan = document.getElementById(`status-${id}`);
+            const isDeactivating = toggleBtn.textContent === "Deactivate";
 
-    const formData = {
-      code: document.getElementById("couponCode").value,
-      discountType: document.getElementById("discountType").value,
-      discount: parseFloat(document.getElementById("discount").value),
-      minPurchase: parseFloat(document.getElementById("minPurchase").value) || 0,
-      maxDiscount: parseFloat(document.getElementById("maxDiscount").value) || 0,
-      expiryDate: document.getElementById("expiryDate").value,
-      isActive: document.getElementById("isActive").value === "true",
-    };
+            const result = await Swal.fire({
+                title: `Are you sure?`,
+                text: `This will ${isDeactivating ? "deactivate" : "activate"} the coupon!`,
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonText: `Yes, ${isDeactivating ? "deactivate" : "activate"} it!`,
+                cancelButtonText: "No, cancel",
+            });
 
-    console.log('Submitting coupon form:', { url, method, formData }); // Debug form data
-
-    try {
-      const response = await fetch(url, {
-        method: method,
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json", // Ensure server returns JSON
-        },
-        body: JSON.stringify(formData),
-      });
-
-      let data;
-      const contentType = response.headers.get("content-type");
-      if (contentType && contentType.includes("application/json")) {
-        data = await response.json();
-      } else {
-        const text = await response.text();
-        console.error('Non-JSON response:', text);
-        throw new Error(`Expected JSON but received HTML or other content: ${text.slice(0, 100)}...`);
-      }
-
-      if (data.success) {
-        Swal.fire({
-          icon: "success",
-          title: "Success",
-          text: isEditing ? "Coupon updated successfully!" : "Coupon added successfully!",
-          confirmButtonText: "OK",
-        }).then(() => {
-          window.location.reload();
-        });
-      } else {
-        Swal.fire({
-          icon: "error",
-          title: "Error",
-          text: data.message || (isEditing ? "Error updating coupon" : "Error adding coupon"),
-          confirmButtonText: "OK",
-        });
-      }
-    } catch (error) {
-      console.error("Error saving coupon:", error);
-      Swal.fire({
-        icon: "error",
-        title: "Error",
-        text: `Error ${isEditing ? "updating" : "adding"} coupon: ${error.message}`,
-        confirmButtonText: "OK",
-      });
-    }
-  });
-
-  // Clear Form
-  document.getElementById("clearForm").addEventListener("click", function () {
-    document.getElementById("couponForm").reset();
-    document.getElementById("couponForm").dataset.couponId = "";
-    document.getElementById("couponCode").readOnly = false;
-    document.getElementById("couponForm").querySelector("button[type='submit']").textContent = "Create Coupon";
-    document.getElementById("isActiveGroup").style.display = "none"; // Hide isActive field
-  });
-
-  // Handle Search
-  document.getElementById("searchButton").addEventListener("click", function () {
-    const searchQuery = document.getElementById("searchInput").value;
-    window.location.href = `/admin/coupons?page=1&search=${encodeURIComponent(searchQuery)}`;
-  });
-
-  // Clear Search
-  document.getElementById("clearSearch").addEventListener("click", function () {
-    window.location.href = "/admin/coupons?page=1";
-  });
-
-  // Edit Coupon
-  function editCoupon(button) {
-    const couponId = button.dataset.id;
-    document.getElementById("couponForm").dataset.couponId = couponId;
-    document.getElementById("couponCode").value = button.dataset.code;
-    document.getElementById("discountType").value = button.dataset.discountType;
-    document.getElementById("discount").value = button.dataset.discount;
-    document.getElementById("minPurchase").value = button.dataset.minPurchase || "";
-    document.getElementById("maxDiscount").value = button.dataset.maxDiscount || "";
-    document.getElementById("expiryDate").value = button.dataset.expiryDate;
-    document.getElementById("isActive").value = button.dataset.isActive;
-    document.getElementById("isActiveGroup").style.display = "block"; // Show isActive field
-    document.getElementById("couponForm").querySelector("button[type='submit']").textContent = "Save Changes";
-  }
-
-  // Delete Coupon
-  async function deleteCoupon(id) {
-    const result = await Swal.fire({
-      title: "Are you sure?",
-      text: "This will delete the coupon permanently!",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonText: "Yes, delete it!",
-      cancelButtonText: "No, cancel",
-    });
-
-    if (result.isConfirmed) {
-      try {
-        const response = await fetch(`/admin/coupons/delete/${id}`, {
-          method: "DELETE",
-          headers: { "Content-Type": "application/json" },
-        });
-        const data = await response.json();
-        if (data.success) {
-          Swal.fire({
-            icon: "success",
-            title: "Success",
-            text: "Coupon deleted successfully!",
-            confirmButtonText: "OK",
-          }).then(() => {
-            window.location.reload();
-          });
-        } else {
-          Swal.fire({
-            icon: "error",
-            title: "Error",
-            text: data.message || "Error deleting coupon",
-            confirmButtonText: "OK",
-          });
+            if (result.isConfirmed) {
+                try {
+                    const response = await fetch(`/admin/coupons/toggle/${id}`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        toggleBtn.textContent = isDeactivating ? "Activate" : "Deactivate";
+                        toggleBtn.classList.toggle("btn-danger", !isDeactivating);
+                        toggleBtn.classList.toggle("btn-success", isDeactivating);
+                        statusSpan.textContent = isDeactivating ? "Inactive" : "Active";
+                        statusSpan.classList.toggle("bg-success", !isDeactivating);
+                        statusSpan.classList.toggle("bg-danger", isDeactivating);
+                        Swal.fire({
+                            icon: "success",
+                            title: "Success",
+                            text: `Coupon ${isDeactivating ? "deactivated" : "activated"} successfully!`,
+                            confirmButtonText: "OK",
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: "error",
+                            title: "Error",
+                            text: data.message || `Error ${isDeactivating ? "deactivating" : "activating"} coupon`,
+                            confirmButtonText: "OK",
+                        });
+                    }
+                } catch (error) {
+                    console.error(`Error ${isDeactivating ? "deactivating" : "activating"} coupon:`, error);
+                    Swal.fire({
+                        icon: "error",
+                        title: "Error",
+                        text: `Error ${isDeactivating ? "deactivating" : "activating"} coupon`,
+                        confirmButtonText: "OK",
+                    });
+                }
+            }
         }
-      } catch (error) {
-        console.error("Error deleting coupon:", error);
-        Swal.fire({
-          icon: "error",
-          title: "Error",
-          text: "Error deleting coupon",
-          confirmButtonText: "OK",
+
+        // Handle Form Submission for Adding/Editing Coupon
+        document.getElementById("couponForm").addEventListener("submit", async function (e) {
+            e.preventDefault();
+            const couponId = document.getElementById("couponForm").dataset.couponId || null;
+            const url = couponId ? `/admin/coupons/edit/${couponId}` : "/admin/coupons/add";
+            const method = couponId ? "PUT" : "POST";
+            const isEditing = !!couponId;
+
+            const formData = {
+                code: document.getElementById("couponCode").value,
+                discountType: document.getElementById("discountType").value,
+                discount: parseFloat(document.getElementById("discount").value),
+                minPurchase: parseFloat(document.getElementById("minPurchase").value) || 0,
+                maxDiscount: parseFloat(document.getElementById("maxDiscount").value) || 0,
+                expiryDate: document.getElementById("expiryDate").value,
+                isActive: document.getElementById("isActive").value === "true",
+            };
+
+            // Validate form data
+            if (!validateCouponForm(formData)) {
+                return;
+            }
+
+            console.log('Submitting coupon form:', { url, method, formData });
+
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Accept": "application/json",
+                    },
+                    body: JSON.stringify(formData),
+                });
+
+                let data;
+                const contentType = response.headers.get("content-type");
+                if (contentType && contentType.includes("application/json")) {
+                    data = await response.json();
+                } else {
+                    const text = await response.text();
+                    console.error('Non-JSON response:', text);
+                    throw new Error(`Expected JSON but received HTML or other content: ${text.slice(0, 100)}...`);
+                }
+
+                if (data.success) {
+                    Swal.fire({
+                        icon: "success",
+                        title: "Success",
+                        text: isEditing ? "Coupon updated successfully!" : "Coupon added successfully!",
+                        confirmButtonText: "OK",
+                    }).then(() => {
+                        window.location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: "error",
+                        title: "Error",
+                        text: data.message || (isEditing ? "Error updating coupon" : "Error adding coupon"),
+                        confirmButtonText: "OK",
+                    });
+                }
+            } catch (error) {
+                console.error("Error saving coupon:", error);
+                Swal.fire({
+                    icon: "error",
+                    title: "Error",
+                    text: `Error ${isEditing ? "updating" : "adding"} coupon: ${error.message}`,
+                    confirmButtonText: "OK",
+                });
+            }
         });
-      }
-    }
-  }
-</script>
+
+        // Clear Form
+        document.getElementById("clearForm").addEventListener("click", function () {
+            document.getElementById("couponForm").reset();
+            document.getElementById("couponForm").dataset.couponId = "";
+            document.getElementById("couponCode").readOnly = false;
+            document.getElementById("couponForm").querySelector("button[type='submit']").textContent = "Create Coupon";
+            document.getElementById("isActive").parentElement.style.display = "none"; // Hide isActive field
+        });
+
+        // Handle Search
+        document.getElementById("searchButton").addEventListener("click", function () {
+            const searchQuery = document.getElementById("searchInput").value;
+            window.location.href = `/admin/coupons?page=1&search=${encodeURIComponent(searchQuery)}`;
+        });
+
+        // Clear Search
+        document.getElementById("clearSearch").addEventListener("click", function () {
+            window.location.href = "/admin/coupons?page=1";
+        });
+
+        // Edit Coupon
+        function editCoupon(button) {
+            const couponId = button.dataset.id;
+            document.getElementById("couponForm").dataset.couponId = couponId;
+            document.getElementById("couponCode").value = button.dataset.code;
+            document.getElementById("discountType").value = button.dataset.discountType;
+            document.getElementById("discount").value = button.dataset.discount;
+            document.getElementById("minPurchase").value = button.dataset.minPurchase || "";
+            document.getElementById("maxDiscount").value = button.dataset.maxDiscount || "";
+            document.getElementById("expiryDate").value = button.dataset.expiryDate;
+            document.getElementById("isActive").value = button.dataset.isActive;
+            document.getElementById("isActive").parentElement.style.display = "block"; // Show isActive field
+            document.getElementById("couponForm").querySelector("button[type='submit']").textContent = "Save Changes";
+        }
+
+        // Delete Coupon
+        async function deleteCoupon(id) {
+            const result = await Swal.fire({
+                title: "Are you sure?",
+                text: "This will delete the coupon permanently!",
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonText: "Yes, delete it!",
+                cancelButtonText: "No, cancel",
+            });
+
+            if (result.isConfirmed) {
+                try {
+                    const response = await fetch(`/admin/coupons/delete/${id}`, {
+                        method: "DELETE",
+                        headers: { "Content-Type": "application/json" },
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        Swal.fire({
+                            icon: "success",
+                            title: "Success",
+                            text: "Coupon deleted successfully!",
+                            confirmButtonText: "OK",
+                        }).then(() => {
+                            window.location.reload();
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: "error",
+                            title: "Error",
+                            text: data.message || "Error deleting coupon",
+                            confirmButtonText: "OK",
+                        });
+                    }
+                } catch (error) {
+                    console.error("Error deleting coupon:", error);
+                    Swal.fire({
+                        icon: "error",
+                        title: "Error",
+                        text: "Error deleting coupon",
+                        confirmButtonText: "OK",
+                    });
+                }
+            }
+        }
+    </script>
 </body>
 </html>

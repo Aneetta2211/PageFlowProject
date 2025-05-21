@@ -83,7 +83,6 @@ const addOffer = async (req, res) => {
     try {
         const { categoryId, offerPercentage } = req.body;
 
-        
         const offer = parseInt(offerPercentage);
         if (isNaN(offer) || offer < 0 || offer > 100) {
             return res.json({ success: false, message: "Offer percentage must be between 0 and 100" });
@@ -97,9 +96,14 @@ const addOffer = async (req, res) => {
         category.categoryOffer = offer;
         await category.save();
 
-        
         const products = await Product.find({ category: categoryId });
         for (const product of products) {
+            // Skip if product is null or regularPrice is undefined
+            if (!product || product.regularPrice === undefined) {
+                console.warn(`Skipping product with ID ${product?._id || 'unknown'}: regularPrice is undefined`);
+                continue;
+            }
+
             const categoryOffer = category.categoryOffer || 0;
             const productOffer = product.productOffer || 0;
             const maxDiscountPercentage = Math.max(categoryOffer, productOffer);
@@ -135,9 +139,14 @@ const removeOffer = async (req, res) => {
         category.categoryOffer = 0;
         await category.save();
 
-       
         const products = await Product.find({ category: categoryId });
         for (const product of products) {
+            // Skip if product is null or regularPrice is undefined
+            if (!product || product.regularPrice === undefined) {
+                console.warn(`Skipping product with ID ${product?._id || 'unknown'}: regularPrice is undefined`);
+                continue;
+            }
+
             const categoryOffer = 0;
             const productOffer = product.productOffer || 0;
             const maxDiscountPercentage = Math.max(categoryOffer, productOffer);
@@ -158,7 +167,6 @@ const removeOffer = async (req, res) => {
         return res.json({ success: false, message: "Server error while removing offer" });
     }
 };
-
 const editCategoryPage = async (req, res) => {
     try {
         const category = await Category.findById(req.params.id);

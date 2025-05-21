@@ -88,6 +88,7 @@ router.post('/apply-coupon', userAuth, orderController.applyCoupon);
 router.post('/remove-coupon', userAuth, orderController.removeCoupon);
 
 
+
 // Cart Management
 router.get('/profile/cart', userAuth, cartController.getCart);
 router.post('/cart/add/:productId', userAuth, cartController.addToCart);

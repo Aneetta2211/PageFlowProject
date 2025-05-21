@@ -1,10 +1,13 @@
 
 const User=require("../../models/userSchema");
 const Product=require("../../models/productSchema")
+const Wallet=require("../../models/walletSchema")
+const { addToWallet } = require("../user/walletController");
 const env=require('dotenv').config();
 const bcrypt = require("bcryptjs");
 const nodemailer = require("nodemailer");
 const transporter = require("../../mailer"); 
+const shortid = require("shortid");
 
 
 const pageNotFound = async (req, res) => {
@@ -43,83 +46,195 @@ const loadSignup = async (req, res) => {
 
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
-const registerUser = async (req, res) => {
-    try {
-      const { firstName, lastName, email, phone, password, confirmPassword } = req.body;
-      const name = `${firstName} ${lastName}`.trim();
+// const registerUser = async (req, res) => {
+//     try {
+//       const { firstName, lastName, email, phone, password, confirmPassword } = req.body;
+//       const name = `${firstName} ${lastName}`.trim();
   
      
-      if (!name) {
-        console.log("Signup Error: Name is required");
-        return res.render("user/signup", { error: "Name is required" });
-      }
+//       if (!name) {
+//         console.log("Signup Error: Name is required");
+//         return res.render("user/signup", { error: "Name is required" });
+//       }
   
      
-      const existingUser = await User.findOne({ email });
-      if (existingUser) {
-        console.log("Signup Error: User already exists");
-        return res.render("user/signup", { error: "User already exists" });
-      }
+//       const existingUser = await User.findOne({ email });
+//       if (existingUser) {
+//         console.log("Signup Error: User already exists");
+//         return res.render("user/signup", { error: "User already exists" });
+//       }
   
 
-      if (phone) {
-        const phonePattern = /^\d{10}$/;
-        if (!phonePattern.test(phone)) {
-          console.log("Signup Error: Invalid phone number");
-          return res.render("user/signup", { error: "Phone number must be exactly 10 digits" });
-        }
-      }
+//       if (phone) {
+//         const phonePattern = /^\d{10}$/;
+//         if (!phonePattern.test(phone)) {
+//           console.log("Signup Error: Invalid phone number");
+//           return res.render("user/signup", { error: "Phone number must be exactly 10 digits" });
+//         }
+//       }
   
-      if (!password || !confirmPassword) {
-        console.log("Signup Error: Password is required");
-        return res.render("user/signup", { error: "Password and confirmation are required" });
-      }
-      if (password !== confirmPassword) {
-        console.log("Signup Error: Passwords do not match");
-        return res.render("user/signup", { error: "Passwords do not match" });
-      }
+//       if (!password || !confirmPassword) {
+//         console.log("Signup Error: Password is required");
+//         return res.render("user/signup", { error: "Password and confirmation are required" });
+//       }
+//       if (password !== confirmPassword) {
+//         console.log("Signup Error: Passwords do not match");
+//         return res.render("user/signup", { error: "Passwords do not match" });
+//       }
  
-      const hashedPassword = await bcrypt.hash(password, 10);
+//       const hashedPassword = await bcrypt.hash(password, 10);
   
     
-      const newUser = new User({
-        name,
-        email,
-        phone: phone || null,
-        password: hashedPassword,
-      });
-      await newUser.save();
+//       const newUser = new User({
+//         name,
+//         email,
+//         phone: phone || null,
+//         password: hashedPassword,
+//       });
+//       await newUser.save();
   
     
-      const otp = generateOTP();
-      req.session.otp = otp;
-      req.session.otpEmail = email;
-      req.session.otpExpires = Date.now() + 1* 60 * 1000;
+//       const otp = generateOTP();
+//       req.session.otp = otp;
+//       req.session.otpEmail = email;
+//       req.session.otpExpires = Date.now() + 1* 60 * 1000;
   
-      console.log("Generated OTP:", otp);
-      console.log("OTP Expiration Time:", new Date(req.session.otpExpires).toLocaleTimeString());
+//       console.log("Generated OTP:", otp);
+//       console.log("OTP Expiration Time:", new Date(req.session.otpExpires).toLocaleTimeString());
   
      
-      await transporter.sendMail({
-        from: `"PAGEFLOW Support" <${process.env.EMAIL}>`,
-        to: email,
-        subject: "Verify Your PageFlow Account",
-        text: `Your OTP for verification is: ${otp}. It will expire in 1 minutes.`,
-      });
+//       await transporter.sendMail({
+//         from: `"PAGEFLOW Support" <${process.env.EMAIL}>`,
+//         to: email,
+//         subject: "Verify Your PageFlow Account",
+//         text: `Your OTP for verification is: ${otp}. It will expire in 1 minutes.`,
+//       });
   
-      console.log("OTP sent successfully. Redirecting to OTP page...");
-      return res.render("user/verify-otp", {
-        error: null,
-        email,
-        otpExpires: req.session.otpExpires
-    });
+//       console.log("OTP sent successfully. Redirecting to OTP page...");
+//       return res.render("user/verify-otp", {
+//         error: null,
+//         email,
+//         otpExpires: req.session.otpExpires
+//     });
     
   
+//     } catch (error) {
+//       console.error("Signup Error:", error);
+//       return res.status(500).send("Internal Server Error");
+//     }
+//   };
+
+
+const registerUser = async (req, res) => {
+    try {
+        const { firstName, lastName, email, phone, password, confirmPassword, referralCode } = req.body;
+        const name = `${firstName} ${lastName}`.trim();
+
+        // Validate name
+        if (!name) {
+            console.log("Signup Error: Name is required");
+            return res.render("user/signup", { error: "Name is required" });
+        }
+
+        // Check if user already exists
+        const existingUser = await User.findOne({ email });
+        if (existingUser) {
+            console.log("Signup Error: User already exists");
+            return res.render("user/signup", { error: "User already exists" });
+        }
+
+        // Validate phone number if provided
+        if (phone) {
+            const phonePattern = /^\d{10}$/;
+            if (!phonePattern.test(phone)) {
+                console.log("Signup Error: Invalid phone number");
+                return res.render("user/signup", { error: "Phone number must be exactly 10 digits" });
+            }
+        }
+
+        // Validate passwords
+        if (!password || !confirmPassword) {
+            console.log("Signup Error: Password is required");
+            return res.render("user/signup", { error: "Password and confirmation are required" });
+        }
+        if (password !== confirmPassword) {
+            console.log("Signup Error: Passwords do not match");
+            return res.render("user/signup", { error: "Passwords do not match" });
+        }
+
+        // Hash password
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Create new user
+        const newUser = new User({
+            name,
+            email,
+            phone: phone || null,
+            password: hashedPassword,
+            referalCode: shortid.generate(), // Generate unique referral code
+        });
+
+        // Handle referral code logic
+        let referrer = null;
+        if (referralCode) {
+            referrer = await User.findOne({ referalCode: referralCode });
+            if (!referrer) {
+                console.log("Signup Error: Invalid referral code");
+                return res.render("user/signup", { error: "Invalid referral code" });
+            }
+        }
+
+        // Save the new user
+        await newUser.save();
+
+        // If referral code was used, credit wallets
+        if (referrer) {
+            // Credit ₹50 to new user's wallet
+            await addToWallet({
+                userId: newUser._id,
+                amount: 50,
+                description: `Referral bonus for signing up with code ${referralCode}`,
+            });
+
+            // Credit ₹50 to referrer's wallet
+            await addToWallet({
+                userId: referrer._id,
+                amount: 50,
+                description: `Referral bonus for referring ${newUser.email}`,
+            });
+
+            // Add new user to referrer's redeemedUsers
+            referrer.redeemedUsers.push(newUser._id);
+            await referrer.save();
+        }
+
+        // Generate and send OTP
+        const otp = generateOTP();
+        req.session.otp = otp;
+        req.session.otpEmail = email;
+        req.session.otpExpires = Date.now() + 1 * 60 * 1000;
+
+        console.log("Generated OTP:", otp);
+        console.log("OTP Expiration Time:", new Date(req.session.otpExpires).toLocaleTimeString());
+
+        await transporter.sendMail({
+            from: `"PAGEFLOW Support" <${process.env.EMAIL}>`,
+            to: email,
+            subject: "Verify Your PageFlow Account",
+            text: `Your OTP for verification is: ${otp}. It will expire in 1 minute.`,
+        });
+
+        console.log("OTP sent successfully. Redirecting to OTP page...");
+        return res.render("user/verify-otp", {
+            error: null,
+            email,
+            otpExpires: req.session.otpExpires,
+        });
     } catch (error) {
-      console.error("Signup Error:", error);
-      return res.status(500).send("Internal Server Error");
+        console.error("Signup Error:", error);
+        return res.status(500).send("Internal Server Error");
     }
-  };
+};
 
 
 const verifyOTP = async (req, res) => {

@@ -5,20 +5,50 @@ const Order = require('../../models/orderSchema');
 
 const processedRequestIds = new Set();
 
+// const loadWalletPage = async (req, res) => {
+//     try {
+//         const user = req.session.user; 
+//         if (!user) {
+//             return res.status(401).json({ success: false, error: 'User not authenticated' });
+//         }
+
+//         const wallet = await Wallet.findOne({ user: user.id });
+//         const transactions = wallet 
+//             ? wallet.transactions.sort((a, b) => new Date(b.date) - new Date(a.date))
+//             : [];
+        
+//         res.render('user/wallet', {
+//             user: user,
+//             wallet: wallet || { balance: 0, transactions: [] },
+//             transactions: transactions
+//         });
+//     } catch (error) {
+//         console.error('Error loading wallet page:', error);
+//         res.status(500).json({ success: false, error: 'Failed to load wallet page' });
+//     }
+// };
+
+
 const loadWalletPage = async (req, res) => {
     try {
-        const user = req.session.user; 
-        if (!user) {
+        const userId = req.session.user?.id; // Get user ID from session
+        if (!userId) {
             return res.status(401).json({ success: false, error: 'User not authenticated' });
         }
 
-        const wallet = await Wallet.findOne({ user: user.id });
-        const transactions = wallet 
+        // Fetch full user document from database
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ success: false, error: 'User not found' });
+        }
+
+        const wallet = await Wallet.findOne({ user: userId });
+        const transactions = wallet
             ? wallet.transactions.sort((a, b) => new Date(b.date) - new Date(a.date))
             : [];
-        
+
         res.render('user/wallet', {
-            user: user,
+            user, // Pass the full user document
             wallet: wallet || { balance: 0, transactions: [] },
             transactions: transactions
         });
@@ -27,7 +57,6 @@ const loadWalletPage = async (req, res) => {
         res.status(500).json({ success: false, error: 'Failed to load wallet page' });
     }
 };
-
 
 const addToWallet = async ({ userId, amount, description, type = "credit" }) => {
     try {
