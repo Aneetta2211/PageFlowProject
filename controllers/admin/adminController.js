@@ -66,10 +66,10 @@ const loadDashboard = async (req, res) => {
     try {
         console.log("Loading dashboard for user:", req.session.admin);
 
-        // Get filter parameters from query
+       
         const { filterType = 'daily', startDate, endDate } = req.query;
 
-        // Build date filter based on filterType
+        
         let dateFilter = {};
         const now = new Date();
         
@@ -112,7 +112,7 @@ const loadDashboard = async (req, res) => {
             };
         }
 
-        // Fetch orders with populated user and product data
+        
         const orders = await Order.find({
             ...dateFilter,
             status: { $in: ['Placed', 'Processing', 'Shipped', 'Delivered'] }
@@ -120,12 +120,12 @@ const loadDashboard = async (req, res) => {
             .populate('orderedItems.product user')
             .sort({ createdOn: -1 });
 
-        // Fetch total users and products
+        
         const totalUsers = await User.countDocuments({ isAdmin: false });
         const totalProducts = await Product.countDocuments();
         console.log("Total products:", totalProducts);
 
-        // Calculate sales data
+       
         let totalOrders = orders.length;
         let totalAmount = 0;
         let totalDiscount = 0;
@@ -137,7 +137,7 @@ const loadDashboard = async (req, res) => {
             if (order.couponApplied) totalCoupons++;
         });
 
-        // Format orders for the table in dashboard.ejs
+        
         const formattedOrders = orders.map(order => ({
             orderId: order.orderId,
             customerName: order.user ? order.user.name : 'Unknown',
@@ -149,7 +149,7 @@ const loadDashboard = async (req, res) => {
             date: order.createdOn
         }));
 
-        // Prepare salesData for the template
+        
         const salesData = {
             orders: formattedOrders,
             totalOrders,
@@ -158,7 +158,7 @@ const loadDashboard = async (req, res) => {
             totalCoupons
         };
 
-        // Fetch recent orders (last 5 orders)
+        
         const recentOrders = await Order.find({
             status: { $in: ['Placed', 'Processing', 'Shipped', 'Delivered'] }
         })
@@ -173,10 +173,10 @@ const loadDashboard = async (req, res) => {
             salesData,
             totalUsers,
             totalProducts,
-            totalUsersGrowth: 5.3, // Placeholder
-            totalProductsGrowth: 7.1, // Placeholder
-            totalOrdersGrowth: 3.2, // Placeholder
-            totalRevenueGrowth: 8.5, // Placeholder
+            totalUsersGrowth: 5.3, 
+            totalProductsGrowth: 7.1,
+            totalOrdersGrowth: 3.2, 
+            totalRevenueGrowth: 8.5, 
             recentOrders,
             filterType,
             startDate: startDate || dateFilter.createdOn?.$gte?.toISOString().split('T')[0],
@@ -221,7 +221,7 @@ const getSalesReport = async (req, res) => {
     try {
         const { filterType, startDate, endDate } = req.query;
 
-        // Build date filter based on filterType
+        
         let dateFilter = {};
         const now = new Date();
         
@@ -264,19 +264,19 @@ const getSalesReport = async (req, res) => {
             };
         }
 
-        // Fetch orders with populated user and product data
+        
         const orders = await Order.find(dateFilter)
-            .populate('user', 'name') // Populate user name
-            .populate('orderedItems.product', 'productName') // Populate product name
-            .sort({ createdOn: -1 }); // Sort by date descending
+            .populate('user', 'name')
+            .populate('orderedItems.product', 'productName') 
+            .sort({ createdOn: -1 }); 
 
-        // Calculate summary stats
+       
         const totalOrders = orders.length;
         const totalAmount = orders.reduce((sum, order) => sum + order.finalAmount, 0);
         const totalDiscount = orders.reduce((sum, order) => sum + (order.discount || 0), 0);
         const totalCoupons = orders.filter(order => order.couponApplied).length;
 
-        // Prepare salesData for the template
+        
         const salesData = {
             orders,
             totalOrders,
@@ -309,7 +309,7 @@ const downloadReport = async (req, res) => {
         const { format, filterType, startDate, endDate } = req.query;
         let start, end;
 
-        // Set date range based on filter type
+        
         const now = new Date();
         switch (filterType) {
             case 'daily':
@@ -343,13 +343,13 @@ const downloadReport = async (req, res) => {
                 end = new Date();
         }
 
-        // Fetch orders
+        
         const orders = await Order.find({
             createdOn: { $gte: start, $lte: end },
             status: { $in: ['Placed', 'Processing', 'Shipped', 'Delivered'] }
         }).populate('orderedItems.product user');
 
-        // Calculate summary
+        
         let totalOrders = orders.length;
         let totalAmount = 0;
         let totalDiscount = 0;
@@ -416,7 +416,7 @@ const downloadReport = async (req, res) => {
                 });
             });
 
-            // Add summary
+            
             worksheet.addRow({});
             worksheet.addRow({ orderId: 'Total Orders', amount: totalOrders });
             worksheet.addRow({ orderId: 'Total Amount', amount: totalAmount.toFixed(2) });

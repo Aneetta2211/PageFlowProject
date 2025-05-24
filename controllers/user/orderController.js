@@ -12,7 +12,7 @@ const Wallet = require('../../models/walletSchema');
 const Coupon=require('../../models/couponSchema')
 const { addToWallet } = require('./walletController');
 
-// Validate Razorpay credentials at initialization
+
 if (!process.env.RAZORPAY_ID || !process.env.RAZORPAY_KEY_SECRET) {
     console.error('Razorpay credentials are missing. Please set RAZORPAY_ID and RAZORPAY_KEY_SECRET in environment variables.');
     throw new Error('Razorpay credentials (RAZORPAY_ID or RAZORPAY_KEY_SECRET) are missing in environment variables');
@@ -23,15 +23,15 @@ const razorpay = new Razorpay({
     key_secret: process.env.RAZORPAY_KEY_SECRET
 });
 
-// Helper function to generate sequential order ID in OR-XXXX format
+
 const generateOrderId = async () => {
     try {
         const count = await Order.countDocuments();
-        const newId = `OR-${String(count + 1).padStart(4, '0')}`; // e.g., OR-0001
-        // Ensure the generated ID is unique
+        const newId = `OR-${String(count + 1).padStart(4, '0')}`; 
+        
         const existingOrder = await Order.findOne({ orderId: newId });
         if (existingOrder) {
-            // If ID exists, recursively try again (rare case)
+         
             return await generateOrderId();
         }
         return newId;
@@ -125,7 +125,7 @@ const cancelOrder = async (req, res) => {
 
         console.log('Attempting to cancel order:', { orderID, userId: user._id, reason });
 
-        // Validate orderID format (OR-XXXX)
+        
         const orderIdRegex = /^OR-\d{4}$/;
         if (!orderIdRegex.test(orderID)) {
             console.warn('Invalid orderID format:', orderID);
@@ -135,7 +135,7 @@ const cancelOrder = async (req, res) => {
             });
         }
 
-        // Find order with matching orderId and user
+        
         const order = await Order.findOne({ 
             orderId: orderID,
             user: user._id
@@ -149,7 +149,7 @@ const cancelOrder = async (req, res) => {
             });
         }
 
-        // Check order status
+        
         if (['Cancelled', 'Delivered', 'Returned'].includes(order.status)) {
             console.log('Order cannot be cancelled:', { orderID, status: order.status });
             return res.status(400).json({ 
@@ -158,14 +158,14 @@ const cancelOrder = async (req, res) => {
             });
         }
 
-        // Calculate refund amount considering per-item discounts
+        
         const refundAmount = order.orderedItems.reduce((sum, item) => {
             const itemTotal = item.price * item.quantity;
             const itemDiscount = item.discountApplied || 0;
             return sum + (itemTotal - itemDiscount);
         }, 0);
 
-        // Move all orderedItems to cancelledItems
+        
         order.cancelledItems = order.cancelledItems || [];
         for (const item of order.orderedItems) {
             order.cancelledItems.push({
@@ -176,13 +176,13 @@ const cancelOrder = async (req, res) => {
                 cancelReason: reason || 'No reason provided',
                 cancelledAt: new Date()
             });
-            // Restore product stock
+            
             await Product.findByIdAndUpdate(item.product._id, {
                 $inc: { quantity: item.quantity }
             });
         }
 
-        // Refund to wallet
+        
         if (refundAmount > 0) {
             await addToWallet({
                 userId: order.user,
@@ -192,7 +192,7 @@ const cancelOrder = async (req, res) => {
             console.log(`Refunded ₹${refundAmount.toFixed(2)} to wallet for cancelled order ${orderID}`);
         }
 
-        // Clear orderedItems and update order status
+        
         order.orderedItems = [];
         order.status = 'Cancelled';
         order.cancelReason = reason || 'No reason provided';
@@ -226,7 +226,7 @@ const cancelOrderItem = async (req, res) => {
 
         console.log('Attempting to cancel item:', { orderID, productID, userId: user._id, reason });
 
-        // Validate inputs
+       
         if (!orderID || !productID) {
             console.warn('Missing orderID or productID:', { orderID, productID });
             return res.status(400).json({ 
@@ -235,7 +235,7 @@ const cancelOrderItem = async (req, res) => {
             });
         }
 
-        // Validate orderID format (OR-XXXX)
+        
         const orderIdRegex = /^OR-\d{4}$/;
         if (!orderIdRegex.test(orderID)) {
             console.warn('Invalid orderID format:', orderID);
@@ -245,7 +245,7 @@ const cancelOrderItem = async (req, res) => {
             });
         }
 
-        // Validate productID format (MongoDB ObjectId)
+        
         if (!mongoose.Types.ObjectId.isValid(productID)) {
             console.warn('Invalid productID format:', productID);
             return res.status(400).json({ 
@@ -254,7 +254,7 @@ const cancelOrderItem = async (req, res) => {
             });
         }
 
-        // Find the order by orderId and user
+        
         const order = await Order.findOne({ 
             orderId: orderID,
             user: user._id
@@ -270,7 +270,7 @@ const cancelOrderItem = async (req, res) => {
 
         console.log('Order found:', { orderId: order.orderId, status: order.status, itemCount: order.orderedItems.length });
 
-        // Check order status
+        
         if (['Cancelled', 'Delivered', 'Returned'].includes(order.status)) {
             console.log('Cannot cancel items in order:', { orderID, status: order.status });
             return res.status(400).json({ 
@@ -279,7 +279,6 @@ const cancelOrderItem = async (req, res) => {
             });
         }
 
-        // Find the item to cancel
         const itemIndex = order.orderedItems.findIndex(
             item => item.product && item.product._id.toString() === productID
         );
@@ -299,7 +298,7 @@ const cancelOrderItem = async (req, res) => {
 
         console.log('Item to cancel:', { productID, quantity: item.quantity, price: item.price, discountApplied: itemDiscount, refundAmount });
 
-        // Move item to cancelledItems
+      
         order.cancelledItems = order.cancelledItems || [];
         order.cancelledItems.push({
             product: item.product._id,
@@ -310,10 +309,10 @@ const cancelOrderItem = async (req, res) => {
             cancelledAt: new Date()
         });
 
-        // Remove item from orderedItems
+       
         order.orderedItems.splice(itemIndex, 1);
 
-        // Restore product stock
+        
         const productUpdate = await Product.findByIdAndUpdate(item.product._id, {
             $inc: { quantity: item.quantity }
         }, { new: true });
@@ -326,19 +325,19 @@ const cancelOrderItem = async (req, res) => {
             });
         }
 
-        // Recalculate totals
+       
         order.totalPrice = order.orderedItems.reduce((sum, item) => {
             return sum + (item.price * item.quantity);
         }, 0);
 
-        // Recalculate discount proportionally
+       
         const originalItemTotal = itemTotal - itemDiscount;
         const originalTotalPrice = order.totalPrice + originalItemTotal;
         const discountFactor = order.discount && originalTotalPrice > 0 ? order.discount / originalTotalPrice : 0;
         order.discount = order.totalPrice * discountFactor;
         order.finalAmount = order.totalPrice - order.discount;
 
-        // Update discountApplied for remaining items
+       
         if (order.orderedItems.length > 0 && discountFactor > 0) {
             order.orderedItems.forEach(item => {
                 const itemTotal = item.price * item.quantity;
@@ -350,7 +349,7 @@ const cancelOrderItem = async (req, res) => {
             });
         }
 
-        // Refund to wallet
+        
         if (refundAmount > 0) {
             try {
                 await addToWallet({
@@ -368,7 +367,7 @@ const cancelOrderItem = async (req, res) => {
             }
         }
 
-        // Cancel entire order if no items remain
+        
         if (order.orderedItems.length === 0) {
             order.status = 'Cancelled';
             order.cancelReason = reason || 'All items cancelled';
@@ -408,7 +407,7 @@ const returnOrder = async (req, res) => {
         const { reason } = req.body;
         const user = req.user;
 
-        // Validate orderID format (OR-XXXX)
+        
         const orderIdRegex = /^OR-\d{4}$/;
         if (!orderIdRegex.test(orderID)) {
             console.warn('Invalid orderID format:', orderID);
@@ -477,7 +476,7 @@ const downloadInvoice = async (req, res) => {
         const { orderID } = req.params;
         const user = req.user;
 
-        // Validate orderID format (OR-XXXX)
+        
         const orderIdRegex = /^OR-\d{4}$/;
         if (!orderIdRegex.test(orderID)) {
             console.warn('Invalid orderID format:', orderID);
@@ -624,201 +623,6 @@ const getOrderDetails = async (req, res) => {
 };
 
 
-
-// const renderCheckout = async (req, res) => {
-//   try {
-//     const userId = req.session.user?.id;
-//     console.log("renderCheckout: User ID from session:", userId);
-
-//     if (!userId) {
-//       return res.redirect("/login?error=Please log in to proceed to checkout");
-//     }
-
-//     const cart = await Cart.findOne({ userId }).populate({
-//       path: "items.productId",
-//       populate: { path: "category", model: "category" },
-//     });
-
-//     if (!cart || cart.items.length === 0) {
-//       return res.redirect(
-//         "/profile/cart?error=Your cart is empty. Add products before checkout."
-//       );
-//     }
-
-//     const invalidItems = cart.items.filter(
-//       (item) =>
-//         !item.productId ||
-//         item.productId.quantity <= 0 ||
-//         item.productId.isBlocked ||
-//         (item.productId.category && !item.productId.category.isListed) ||
-//         item.productId.status !== "Available"
-//     );
-
-//     cart.items = cart.items.filter(
-//       (item) =>
-//         item.productId &&
-//         item.productId.quantity > 0 &&
-//         !item.productId.isBlocked &&
-//         !(item.productId.category && !item.productId.category.isListed) &&
-//         item.productId.status === "Available"
-//     );
-
-//     if (cart.items.length === 0) {
-//       let errorMessage =
-//         "All items in your cart are unavailable. Please add valid items to proceed.";
-//       if (invalidItems.some((item) => item.productId && item.productId.quantity <= 0)) {
-//         errorMessage =
-//           "All items in your cart are out of stock or unavailable. Please remove them and add valid items to proceed.";
-//       }
-//       return res.redirect(`/profile/cart?error=${encodeURIComponent(errorMessage)}`);
-//     }
-
-//     // Calculate subtotal and collect product IDs
-//     let subtotal = 0;
-//     const cartProductIds = cart.items.map((item) => item.productId._id.toString());
-//     cart.items.forEach((item) => {
-//       const price =
-//         item.productId.salesPrice > 0
-//           ? item.productId.salesPrice
-//           : item.productId.regularPrice;
-//       subtotal += price * item.quantity;
-//     });
-
-//     // Use saved discount and total if available, otherwise calculate
-//     const shipping = 0.00;
-//     const discount = cart.discount || 0;
-//     const total = cart.total !== undefined && cart.total !== null ? cart.total : subtotal - discount;
-
-//     // Update cart only if values have changed
-//     if (
-//       cart.subtotal !== subtotal ||
-//       cart.discount !== discount ||
-//       cart.total !== total
-//     ) {
-//       cart.subtotal = subtotal;
-//       cart.discount = discount;
-//       cart.total = total;
-//       cart.shipping = shipping;
-//       cart.taxes = 0.00;
-//       await cart.save();
-//     }
-
-//     let addressDoc = await Address.findOne({ userId });
-//     let addresses = addressDoc || { address: [] };
-
-//     if (addresses.address.length > 0) {
-//       addresses.address = addresses.address.sort((a, b) => {
-//         return b.isDefault - a.isDefault;
-//       });
-//     }
-
-//     // Fetch all active, non-expired coupons
-//     const coupons = await Coupon.find({
-//       isActive: true,
-//       expiryDate: { $gte: new Date() },
-//     }).lean();
-
-//     console.log("renderCheckout: All coupons fetched:", coupons);
-
-//     // Filter coupons: not used for cart products, under maxUsagePerUser, meets minPurchase
-//     const eligibleCoupons = coupons.filter((coupon) => {
-//       // Skip if a coupon is already applied
-//       if (cart.appliedCoupon && cart.appliedCoupon !== coupon.code) {
-//         console.log(`Coupon ${coupon.code}: Skipped (another coupon already applied: ${cart.appliedCoupon})`);
-//         return false;
-//       }
-
-//       // Check total usage for this user
-//       const userUsage = coupon.usage.filter(
-//         (entry) => entry.userId.toString() === userId.toString()
-//       );
-//       const totalUserUsage = userUsage.reduce((sum, entry) => sum + (entry.usageCount || 1), 0);
-//       const maxUsagePerUser = coupon.maxUsagePerUser || 10;
-//       const usageLimitReached = totalUserUsage >= maxUsagePerUser;
-
-//       // Check if coupon was used for any product in the cart
-//       const usedForCartProducts = userUsage.some((entry) =>
-//         cartProductIds.includes(entry.productId?.toString())
-//       );
-
-//       const meetsMinPurchase = coupon.minPurchase <= subtotal;
-
-//       console.log(`Coupon ${coupon.code}:`, {
-//         totalUserUsage,
-//         maxUsagePerUser,
-//         usedForCartProducts,
-//         meetsMinPurchase,
-//         minPurchase: coupon.minPurchase,
-//         subtotal,
-//       });
-
-//       return !usageLimitReached && !usedForCartProducts && meetsMinPurchase;
-//     });
-
-//     console.log("renderCheckout: Eligible coupons after filtering:", eligibleCoupons);
-
-//     // Calculate potential savings for each coupon and sort
-//     const sortedCoupons = eligibleCoupons
-//       .map((coupon) => {
-//         let potentialSavings = 0;
-//         if (coupon.discountType === "percentage") {
-//           potentialSavings = (subtotal * coupon.discount) / 100;
-//           if (coupon.maxDiscount > 0 && potentialSavings > coupon.maxDiscount) {
-//             potentialSavings = coupon.maxDiscount;
-//           }
-//         } else {
-//           potentialSavings = coupon.discount;
-//         }
-//         return { ...coupon, potentialSavings };
-//       })
-//       .sort((a, b) => {
-//         if (b.potentialSavings !== a.potentialSavings) {
-//           return b.potentialSavings - a.potentialSavings;
-//         }
-//         return new Date(a.expiryDate) - new Date(b.expiryDate);
-//       });
-
-//     console.log("renderCheckout: Sorted coupons:", sortedCoupons);
-
-//     const warningMessage =
-//       invalidItems.length > 0
-//         ? "Some items in your cart are out of stock or unavailable and will be ignored during checkout. You may remove them from your cart."
-//         : null;
-
-//     console.log("renderCheckout: Cart values before rendering:", {
-//       subtotal: cart.subtotal,
-//       discount: cart.discount,
-//       total: cart.total,
-//       appliedCoupon: cart.appliedCoupon,
-//     });
-
-//     res.render("user/checkout", {
-//       title: "Checkout",
-//       cart: {
-//         items: cart.items,
-//         subtotal,
-//         shipping,
-//         taxes: 0.00,
-//         discount: cart.discount || 0,
-//         total: cart.total,
-//         appliedCoupon: cart.appliedCoupon,
-//       },
-//       addresses,
-//       coupons: sortedCoupons,
-//       user: req.session.user,
-//       currentPage: "checkout",
-//       success: req.query.success,
-//       warning: warningMessage,
-//       razorpayKeyId: process.env.RAZORPAY_ID,
-//     });
-//   } catch (error) {
-//     console.error("Error rendering checkout:", error);
-//     res.redirect(
-//       "/profile/cart?error=Something went wrong. Please try again later."
-//     );
-//   }
-// };
-
 const renderCheckout = async (req, res) => {
     try {
         const userId = req.session.user?.id;
@@ -907,14 +711,14 @@ const renderCheckout = async (req, res) => {
             });
         }
 
-        // Fetch all active, non-expired coupons
+       
         const coupons = await Coupon.find({
             isActive: true,
             expiryDate: { $gte: new Date() },
         }).lean();
         console.log("renderCheckout: All coupons fetched:", coupons.length, coupons.map(c => c.code));
 
-        // Prepare coupons with eligibility status
+       
         const couponsWithStatus = coupons.map((coupon) => {
             const userUsage = coupon.usage.filter(
                 (entry) => entry.userId && entry.userId.toString() === userId.toString()
@@ -962,10 +766,10 @@ const renderCheckout = async (req, res) => {
             };
         });
 
-        // Sort coupons by eligibility and potential savings
+        
         const sortedCoupons = couponsWithStatus.sort((a, b) => {
             if (a.isEligible !== b.isEligible) {
-                return b.isEligible - a.isEligible; // Eligible coupons first
+                return b.isEligible - a.isEligible; 
             }
             if (b.potentialSavings !== a.potentialSavings) {
                 return b.potentialSavings - a.potentialSavings;
@@ -1004,7 +808,7 @@ const renderCheckout = async (req, res) => {
                 appliedCoupon: cart.appliedCoupon,
             },
             addresses,
-            coupons: sortedCoupons, // Pass all coupons with eligibility status
+            coupons: sortedCoupons, 
             user: req.session.user,
             currentPage: "checkout",
             success: req.query.success,

@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const Category = require("../../models/categorySchema");
-const Product = require("../../models/productSchema"); // Ensure Product model is imported
+const Product = require("../../models/productSchema"); 
 
 const categoryInfo = async (req, res) => {
     try {
@@ -98,7 +98,7 @@ const addOffer = async (req, res) => {
 
         const products = await Product.find({ category: categoryId });
         for (const product of products) {
-            // Skip if product is null or regularPrice is undefined
+           
             if (!product || product.regularPrice === undefined) {
                 console.warn(`Skipping product with ID ${product?._id || 'unknown'}: regularPrice is undefined`);
                 continue;
@@ -141,7 +141,7 @@ const removeOffer = async (req, res) => {
 
         const products = await Product.find({ category: categoryId });
         for (const product of products) {
-            // Skip if product is null or regularPrice is undefined
+            
             if (!product || product.regularPrice === undefined) {
                 console.warn(`Skipping product with ID ${product?._id || 'unknown'}: regularPrice is undefined`);
                 continue;

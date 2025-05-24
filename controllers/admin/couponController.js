@@ -24,12 +24,12 @@ const couponInfo = async (req, res) => {
       .limit(limit)
       .lean();
 
-    // Ensure startDate and expiryDate are valid Dates
+   
     const formattedCoupons = couponData.map(coupon => {
       return {
         ...coupon,
-        startDate: coupon.startDate ? new Date(coupon.startDate) : new Date(), // Fallback to current date
-        expiryDate: coupon.expiryDate ? new Date(coupon.expiryDate) : new Date(), // Fallback to current date
+        startDate: coupon.startDate ? new Date(coupon.startDate) : new Date(), 
+        expiryDate: coupon.expiryDate ? new Date(coupon.expiryDate) : new Date(), 
       };
     });
 
@@ -69,25 +69,25 @@ const addCoupon = async (req, res) => {
 
     const { code, discountType, discount, minPurchase, maxDiscount, startDate, expiryDate } = req.body;
 
-    // Validate required fields
+    
     if (!code || !discountType || !discount || !startDate || !expiryDate) {
       console.log('addCoupon: Missing required fields:', { code, discountType, discount, startDate, expiryDate });
       return res.status(400).json({ success: false, message: 'All required fields (code, discountType, discount, startDate, expiryDate) must be provided' });
     }
 
-    // Validate coupon code
+    
     if (code.length < 3 || code.length > 20 || !/^[a-zA-Z0-9]+$/.test(code)) {
       console.log('addCoupon: Invalid coupon code:', code);
       return res.status(400).json({ success: false, message: 'Coupon code must be 3-20 alphanumeric characters' });
     }
 
-    // Validate discount type
+    
     if (!['percentage', 'fixed'].includes(discountType)) {
       console.log('addCoupon: Invalid discountType:', discountType);
       return res.status(400).json({ success: false, message: 'Discount type must be "percentage" or "fixed"' });
     }
 
-    // Validate discount
+   
     const discountValue = parseFloat(discount);
     if (isNaN(discountValue) || discountValue <= 0) {
       console.log('addCoupon: Invalid discount:', discount);
@@ -102,14 +102,14 @@ const addCoupon = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Fixed discount cannot exceed ₹10,000' });
     }
 
-    // Validate minimum purchase
+    
     const minPurchaseValue = parseFloat(minPurchase) || 0;
     if (isNaN(minPurchaseValue) || minPurchaseValue < 0) {
       console.log('addCoupon: Invalid minPurchase:', minPurchase);
       return res.status(400).json({ success: false, message: 'Minimum purchase must be a non-negative number' });
     }
 
-    // Validate maximum discount
+   
     const maxDiscountValue = parseFloat(maxDiscount) || 0;
     if (isNaN(maxDiscountValue) || maxDiscountValue < 0) {
       console.log('addCoupon: Invalid maxDiscount:', maxDiscount);
@@ -120,7 +120,7 @@ const addCoupon = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Maximum discount for percentage coupons cannot exceed ₹10,000' });
     }
 
-    // Validate start date
+    
     const parsedStartDate = new Date(startDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -129,20 +129,20 @@ const addCoupon = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Start date must be a valid date' });
     }
 
-    // Validate expiry date
+    
     const parsedExpiryDate = new Date(expiryDate);
     if (isNaN(parsedExpiryDate.getTime()) || parsedExpiryDate < today) {
       console.log('addCoupon: Invalid expiryDate:', expiryDate);
       return res.status(400).json({ success: false, message: 'Expiry date must be a valid date and not in the past' });
     }
 
-    // Validate startDate <= expiryDate
+    
     if (parsedStartDate > parsedExpiryDate) {
       console.log('addCoupon: startDate after expiryDate:', { startDate, expiryDate });
       return res.status(400).json({ success: false, message: 'Start date must be before or equal to expiry date' });
     }
 
-    // Check for existing coupon
+   
     const existingCoupon = await Coupon.findOne({
       code: code.toUpperCase(),
     });
@@ -182,31 +182,31 @@ const editCoupon = async (req, res) => {
     console.log('editCoupon: Request params:', req.params);
     console.log('editCoupon: Request body:', req.body);
 
-    // Validate coupon ID
+   
     if (!mongoose.Types.ObjectId.isValid(id)) {
       console.log('editCoupon: Invalid coupon ID:', id);
       return res.status(400).json({ success: false, message: 'Invalid coupon ID' });
     }
 
-    // Validate required fields
+   
     if (!code || !discountType || !discount || !startDate || !expiryDate) {
       console.log('editCoupon: Missing required fields:', { code, discountType, discount, startDate, expiryDate });
       return res.status(400).json({ success: false, message: 'All required fields (code, discountType, discount, startDate, expiryDate) must be provided' });
     }
 
-    // Validate coupon code
+    
     if (code.length < 3 || code.length > 20 || !/^[a-zA-Z0-9]+$/.test(code)) {
       console.log('editCoupon: Invalid coupon code:', code);
       return res.status(400).json({ success: false, message: 'Coupon code must be 3-20 alphanumeric characters' });
     }
 
-    // Validate discount type
+    
     if (!['percentage', 'fixed'].includes(discountType)) {
       console.log('editCoupon: Invalid discount type:', discountType);
       return res.status(400).json({ success: false, message: 'Discount type must be "percentage" or "fixed"' });
     }
 
-    // Validate discount
+    
     const discountValue = parseFloat(discount);
     if (isNaN(discountValue) || discountValue <= 0) {
       console.log('editCoupon: Invalid discount:', discount);
@@ -221,14 +221,14 @@ const editCoupon = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Fixed discount cannot exceed ₹10,000' });
     }
 
-    // Validate minimum purchase
+    
     const minPurchaseValue = parseFloat(minPurchase) || 0;
     if (isNaN(minPurchaseValue) || minPurchaseValue < 0) {
       console.log('editCoupon: Invalid minPurchase:', minPurchase);
       return res.status(400).json({ success: false, message: 'Minimum purchase must be a non-negative number' });
     }
 
-    // Validate maximum discount
+   
     const maxDiscountValue = parseFloat(maxDiscount) || 0;
     if (isNaN(maxDiscountValue) || maxDiscountValue < 0) {
       console.log('editCoupon: Invalid maxDiscount:', maxDiscount);
@@ -239,7 +239,7 @@ const editCoupon = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Maximum discount for percentage coupons cannot exceed ₹10,000' });
     }
 
-    // Validate start date
+    
     const parsedStartDate = new Date(startDate);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -248,20 +248,20 @@ const editCoupon = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Start date must be a valid date' });
     }
 
-    // Validate expiry date
+   
     const parsedExpiryDate = new Date(expiryDate);
     if (isNaN(parsedExpiryDate.getTime()) || parsedExpiryDate < today) {
       console.log('editCoupon: Invalid expiryDate:', expiryDate);
       return res.status(400).json({ success: false, message: 'Expiry date must be a valid date and not in the past' });
     }
 
-    // Validate startDate <= expiryDate
+   
     if (parsedStartDate > parsedExpiryDate) {
       console.log('editCoupon: startDate after expiryDate:', { startDate, expiryDate });
       return res.status(400).json({ success: false, message: 'Start date must be before or equal to expiry date' });
     }
 
-    // Validate isActive
+    
     if (isActive !== true && isActive !== false && isActive !== 'true' && isActive !== 'false') {
       console.log('editCoupon: Invalid isActive:', isActive);
       return res.status(400).json({ success: false, message: 'Status must be true or false' });

@@ -210,7 +210,7 @@ const addToCart = async (req, res) => {
 
         await cart.save();
 
-        // Remove from wishlist
+        
         let wishlist = await Wishlist.findOne({ userId });
         if (wishlist) {
             wishlist.products = wishlist.products.filter(item => 

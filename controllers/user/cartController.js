@@ -36,13 +36,13 @@ const getCart = async (req, res) => {
             let isOutOfStock = false;
             let isInvalid = false;
 
-            // Check if product exists and is valid
+            
             if (!product || product.isBlocked || product.status !== 'Available' || 
                 (product.category && !product.category.isListed) || product.quantity <= 0) {
                 isInvalid = true;
                 isOutOfStock = product && product.quantity <= 0;
             } else {
-                hasValidItems = true; // At least one valid item exists
+                hasValidItems = true; 
             }
 
             const originalPrice = product ? (product.salesPrice > 0 ? product.salesPrice : product.regularPrice) : item.price;

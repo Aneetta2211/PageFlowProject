@@ -208,7 +208,7 @@ const getProfilePage = async (req, res) => {
             return res.redirect('/login?error=User not found');
         }
         
-        // Ensure profileImage has correct path
+        
         if (user.profileImage && !user.profileImage.startsWith('/uploads/profile/') && 
             user.profileImage !== '/images/default-profile.png') {
             user.profileImage = `/uploads/profile/${path.basename(user.profileImage)}`;
@@ -244,7 +244,7 @@ const getEditProfilePage = async (req, res) => {
             return res.redirect('/login?error=User not found');
         }
         
-        // Ensure profileImage has correct path
+       
         if (user.profileImage && !user.profileImage.startsWith('/uploads/profile/') && 
             user.profileImage !== '/images/default-profile.png') {
             user.profileImage = `/uploads/profile/${path.basename(user.profileImage)}`;
@@ -300,7 +300,7 @@ const sendOtpForEmail = async (req, res) => {
         req.session.emailChange = {
             newEmail: email,
             otp: otp.toString(),
-            expires: Date.now() + 120 * 1000 // 2 minute expiry
+            expires: Date.now() + 120 * 1000 
         };
         
         await new Promise((resolve, reject) => {
@@ -422,7 +422,7 @@ const resendOtp = async (req, res) => {
         req.session.emailChange = {
             newEmail: email,
             otp: otp.toString(),
-            expires: Date.now() + 120 * 1000 // 2 minute expiry
+            expires: Date.now() + 120 * 1000 
         };
         
         await new Promise((resolve, reject) => {
@@ -468,7 +468,7 @@ const updateProfile = async (req, res) => {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
         
-        // Handle profile image
+        
         let imageUpdated = false;
         const uploadDir = path.normalize(path.join(__dirname, '../../public/uploads/profile'));
         
@@ -599,10 +599,10 @@ const deleteProfileImage = async (req, res) => {
             user.profileImage = '/images/default-profile.png';
             await user.save();
             
-            // Update session
+           
             req.session.user.profileImage = user.profileImage;
             
-            // Force session save
+            
             await new Promise((resolve, reject) => {
                 req.session.save(err => {
                     if (err) {
@@ -648,11 +648,11 @@ const getAddressesPage = async (req, res) => {
         const addressDoc = await Address.findOne({ userId });
         console.log("Address data:", addressDoc);
         
-        // Sort addresses to put default address first
+       
         let sortedAddresses = addressDoc?.address || [];
         if (sortedAddresses.length > 0) {
             sortedAddresses = sortedAddresses.sort((a, b) => {
-                return b.isDefault - a.isDefault; // True (1) comes before False (0)
+                return b.isDefault - a.isDefault; 
             });
         }
 
@@ -827,7 +827,7 @@ const updateAddress = async (req, res) => {
             return res.redirect(`/profile/addresses/edit/${addressId}?error=Invalid alternate phone number`);
         }
 
-        // If setting as default, unset other defaults
+        
         if (isDefault === 'on' || isDefault === true) {
             await Address.findOneAndUpdate(
                 { userId },
@@ -915,20 +915,20 @@ const setDefaultAddress = async (req, res) => {
             return res.status(400).json({ success: false, message: 'Invalid address ID' });
         }
 
-        // Check if the address exists
+        
         const addressDoc = await Address.findOne({ userId, "address._id": addressId });
         if (!addressDoc) {
             console.log('Address not found for ID:', addressId);
             return res.status(404).json({ success: false, message: 'Address not found' });
         }
 
-        // Unset all other addresses' isDefault
+        
         await Address.findOneAndUpdate(
             { userId },
             { $set: { "address.$[].isDefault": false } }
         );
 
-        // Set the specified address as default
+        
         const updatedAddressDoc = await Address.findOneAndUpdate(
             { userId, "address._id": addressId },
             { $set: { "address.$.isDefault": true } },

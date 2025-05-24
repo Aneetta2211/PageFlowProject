@@ -67,28 +67,26 @@ router.post('/profile/addresses/add', userAuth, profileController.addAddress);
 router.get('/profile/addresses/edit/:id', userAuth, profileController.getEditAddressPage);
 router.post('/profile/addresses/edit/:id', userAuth, profileController.updateAddress);
 router.delete('/profile/addresses/delete/:id', userAuth, profileController.deleteAddress);
-router.post('/profile/addresses/set-default/:id', userAuth, profileController.setDefaultAddress); // Added route
+router.post('/profile/addresses/set-default/:id', userAuth, profileController.setDefaultAddress); 
 
 // Order Management
 router.get("/profile/orders", userAuth, orderController.getOrdersPage);
 router.get("/orders/:orderID", userAuth, orderController.getOrderDetails);
-// router.post("/api/orders/:orderID/cancel", userAuth, orderController.cancelOrder);
 router.post("/api/orders/:orderID/return", userAuth, orderController.returnOrder);
 router.get("/api/orders/:orderID/invoice", userAuth, orderController.downloadInvoice);
 router.get('/checkout', userAuth, orderController.renderCheckout);
 router.post('/order/place', userAuth, orderController.placeOrder);
 router.post("/api/orders/:orderID/cancel", userAuth, orderController.cancelOrder);
 router.post("/api/orders/:orderID/cancel-item/:productID", userAuth, orderController.cancelOrderItem);
+
 //razorpay management
-// router.post('/order/place', userAuth,orderController.placeOrder);
 router.post('/verify-payment', userAuth,orderController.verifyPayment);
 router.post('/payment-failed',userAuth, orderController.paymentFailed);
 router.post('/retry-payment', userAuth,orderController.retryPayment);
+
 //coupon mangement
 router.post('/apply-coupon', userAuth, orderController.applyCoupon); 
 router.post('/remove-coupon', userAuth, orderController.removeCoupon);
-
-
 
 // Cart Management
 router.get('/profile/cart', userAuth, cartController.getCart);
