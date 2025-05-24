@@ -1,11 +1,13 @@
+
+
+
 // const mongoose = require("mongoose");
 // const { Schema } = mongoose;
-// const { v4: uuidv4 } = require('uuid');
 
 // const orderSchema = new Schema({
 //     orderId: {
 //         type: String,
-//         default: () => uuidv4(),
+//         required: true,
 //         unique: true
 //     },
 //     orderedItems: [{
@@ -84,6 +86,10 @@
 //         type: Boolean,
 //         default: false
 //     },
+//     appliedCoupon: {
+//         type: String,
+//         default: null
+//     },
 //     paymentMethod: { 
 //         type: String,
 //         required: true,
@@ -153,6 +159,10 @@ const orderSchema = new Schema({
         price: {
             type: Number,
             default: 0
+        },
+        discountApplied: { // New field to track discount per item
+            type: Number,
+            default: 0
         }
     }],
     cancelledItems: [{
@@ -166,6 +176,10 @@ const orderSchema = new Schema({
             required: true
         },
         price: {
+            type: Number,
+            default: 0
+        },
+        discountApplied: { // Track discount for cancelled items
             type: Number,
             default: 0
         },

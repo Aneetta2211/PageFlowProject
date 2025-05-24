@@ -125,9 +125,9 @@ const cancelOrder = async (req, res) => {
 
         console.log('Attempting to cancel order:', { orderID, userId: user._id, reason });
 
-        // Validate orderID format (UUID)
-        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-        if (!uuidRegex.test(orderID)) {
+        // Validate orderID format (OR-XXXX)
+        const orderIdRegex = /^OR-\d{4}$/;
+        if (!orderIdRegex.test(orderID)) {
             console.warn('Invalid orderID format:', orderID);
             return res.status(400).json({ 
                 success: false,
@@ -135,24 +135,14 @@ const cancelOrder = async (req, res) => {
             });
         }
 
-        // Find user's address document
-        const addressDoc = await Address.findOne({ userId: user._id });
-        if (!addressDoc) {
-            console.warn('Address document not found for user:', user._id);
-            return res.status(404).json({ 
-                success: false,
-                error: 'Address not found for user' 
-            });
-        }
-
-        // Find order with matching orderId and address
+        // Find order with matching orderId and user
         const order = await Order.findOne({ 
             orderId: orderID,
-            address: { $in: addressDoc.address.map(addr => addr._id) }
+            user: user._id
         }).populate('orderedItems.product');
 
         if (!order) {
-            console.warn('Order not found:', { orderID, userId: user._id, addressIds: addressDoc.address.map(addr => addr._id) });
+            console.warn('Order not found:', { orderID, userId: user._id });
             return res.status(404).json({ 
                 success: false,
                 error: 'Order not found or does not belong to user' 
@@ -168,9 +158,11 @@ const cancelOrder = async (req, res) => {
             });
         }
 
-        // Calculate refund amount
+        // Calculate refund amount considering per-item discounts
         const refundAmount = order.orderedItems.reduce((sum, item) => {
-            return sum + (item.price * item.quantity);
+            const itemTotal = item.price * item.quantity;
+            const itemDiscount = item.discountApplied || 0;
+            return sum + (itemTotal - itemDiscount);
         }, 0);
 
         // Move all orderedItems to cancelledItems
@@ -180,6 +172,7 @@ const cancelOrder = async (req, res) => {
                 product: item.product._id,
                 quantity: item.quantity,
                 price: item.price,
+                discountApplied: item.discountApplied || 0,
                 cancelReason: reason || 'No reason provided',
                 cancelledAt: new Date()
             });
@@ -196,13 +189,16 @@ const cancelOrder = async (req, res) => {
                 amount: refundAmount,
                 description: `Refund for cancelled order #${orderID}`
             });
-            console.log(`Refunded ₹${refundAmount} to wallet for cancelled order ${orderID}`);
+            console.log(`Refunded ₹${refundAmount.toFixed(2)} to wallet for cancelled order ${orderID}`);
         }
 
         // Clear orderedItems and update order status
         order.orderedItems = [];
         order.status = 'Cancelled';
         order.cancelReason = reason || 'No reason provided';
+        order.totalPrice = 0;
+        order.discount = 0;
+        order.finalAmount = 0;
         await order.save();
 
         console.log('Order cancelled successfully:', { orderID, cancelledItems: order.cancelledItems, refundAmount });
@@ -228,36 +224,80 @@ const cancelOrderItem = async (req, res) => {
         const { reason } = req.body;
         const user = req.user;
 
-        const addressDoc = await Address.findOne({ userId: user._id });
-        if (!addressDoc) {
-            return res.status(404).json({ error: 'Address not found' });
+        console.log('Attempting to cancel item:', { orderID, productID, userId: user._id, reason });
+
+        // Validate inputs
+        if (!orderID || !productID) {
+            console.warn('Missing orderID or productID:', { orderID, productID });
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Order ID and Product ID are required' 
+            });
         }
 
+        // Validate orderID format (OR-XXXX)
+        const orderIdRegex = /^OR-\d{4}$/;
+        if (!orderIdRegex.test(orderID)) {
+            console.warn('Invalid orderID format:', orderID);
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Invalid order ID format' 
+            });
+        }
+
+        // Validate productID format (MongoDB ObjectId)
+        if (!mongoose.Types.ObjectId.isValid(productID)) {
+            console.warn('Invalid productID format:', productID);
+            return res.status(400).json({ 
+                success: false, 
+                error: 'Invalid Product ID format' 
+            });
+        }
+
+        // Find the order by orderId and user
         const order = await Order.findOne({ 
             orderId: orderID,
-            address: { $in: addressDoc.address.map(addr => addr._id) }
+            user: user._id
         }).populate('orderedItems.product');
 
         if (!order) {
-            return res.status(404).json({ error: 'Order not found' });
+            console.warn('Order not found:', { orderID, userId: user._id });
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Order not found or does not belong to user' 
+            });
         }
 
+        console.log('Order found:', { orderId: order.orderId, status: order.status, itemCount: order.orderedItems.length });
+
+        // Check order status
         if (['Cancelled', 'Delivered', 'Returned'].includes(order.status)) {
+            console.log('Cannot cancel items in order:', { orderID, status: order.status });
             return res.status(400).json({ 
+                success: false, 
                 error: `Cannot cancel items in ${order.status} state` 
             });
         }
 
+        // Find the item to cancel
         const itemIndex = order.orderedItems.findIndex(
-            item => item.product._id.toString() === productID
+            item => item.product && item.product._id.toString() === productID
         );
 
         if (itemIndex === -1) {
-            return res.status(404).json({ error: 'Item not found in order' });
+            console.warn('Item not found in order:', { orderID, productID });
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Item not found in order' 
+            });
         }
 
         const item = order.orderedItems[itemIndex];
-        const refundAmount = item.price * item.quantity;
+        const itemTotal = item.price * item.quantity;
+        const itemDiscount = item.discountApplied || 0;
+        const refundAmount = itemTotal - itemDiscount;
+
+        console.log('Item to cancel:', { productID, quantity: item.quantity, price: item.price, discountApplied: itemDiscount, refundAmount });
 
         // Move item to cancelledItems
         order.cancelledItems = order.cancelledItems || [];
@@ -265,6 +305,7 @@ const cancelOrderItem = async (req, res) => {
             product: item.product._id,
             quantity: item.quantity,
             price: item.price,
+            discountApplied: itemDiscount,
             cancelReason: reason || 'No reason provided',
             cancelledAt: new Date()
         });
@@ -273,51 +314,109 @@ const cancelOrderItem = async (req, res) => {
         order.orderedItems.splice(itemIndex, 1);
 
         // Restore product stock
-        await Product.findByIdAndUpdate(item.product._id, {
+        const productUpdate = await Product.findByIdAndUpdate(item.product._id, {
             $inc: { quantity: item.quantity }
-        });
+        }, { new: true });
+
+        if (!productUpdate) {
+            console.warn('Product not found for stock update:', item.product._id);
+            return res.status(404).json({ 
+                success: false, 
+                error: 'Product not found for stock update' 
+            });
+        }
 
         // Recalculate totals
-        order.totalPrice = order.orderedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        order.totalPrice = order.orderedItems.reduce((sum, item) => {
+            return sum + (item.price * item.quantity);
+        }, 0);
+
+        // Recalculate discount proportionally
+        const originalItemTotal = itemTotal - itemDiscount;
+        const originalTotalPrice = order.totalPrice + originalItemTotal;
+        const discountFactor = order.discount && originalTotalPrice > 0 ? order.discount / originalTotalPrice : 0;
+        order.discount = order.totalPrice * discountFactor;
         order.finalAmount = order.totalPrice - order.discount;
+
+        // Update discountApplied for remaining items
+        if (order.orderedItems.length > 0 && discountFactor > 0) {
+            order.orderedItems.forEach(item => {
+                const itemTotal = item.price * item.quantity;
+                item.discountApplied = itemTotal * discountFactor;
+            });
+        } else {
+            order.orderedItems.forEach(item => {
+                item.discountApplied = 0;
+            });
+        }
 
         // Refund to wallet
         if (refundAmount > 0) {
-            await addToWallet({
-                userId: order.user,
-                amount: refundAmount,
-                description: `Refund for cancelled item in order #${orderID}`
-            });
-            console.log(`Refunded ₹${refundAmount} to wallet for cancelled item in order ${orderID}`);
+            try {
+                await addToWallet({
+                    userId: order.user,
+                    amount: refundAmount,
+                    description: `Refund for cancelled item in order #${orderID}`
+                });
+                console.log(`Refunded ₹${refundAmount.toFixed(2)} to wallet for cancelled item in order ${orderID}`);
+            } catch (walletError) {
+                console.error('Error adding to wallet:', walletError);
+                return res.status(500).json({ 
+                    success: false, 
+                    error: 'Failed to process refund to wallet' 
+                });
+            }
         }
 
-        // If no items remain, cancel the entire order
+        // Cancel entire order if no items remain
         if (order.orderedItems.length === 0) {
             order.status = 'Cancelled';
             order.cancelReason = reason || 'All items cancelled';
+            order.totalPrice = 0;
+            order.discount = 0;
+            order.finalAmount = 0;
         }
 
         await order.save();
 
-        res.json({ 
+        console.log('Item cancelled successfully:', { 
+            orderID, 
+            productID, 
+            refundAmount: refundAmount.toFixed(2),
+            newTotalPrice: order.totalPrice,
+            newDiscount: order.discount,
+            newFinalAmount: order.finalAmount
+        });
+
+        return res.status(200).json({ 
             success: true, 
             message: `Item cancelled successfully. ₹${refundAmount.toFixed(2)} refunded to wallet.`,
             orderId: order.orderId
         });
     } catch (error) {
         console.error('Error cancelling order item:', error);
-        res.status(500).json({ 
+        return res.status(500).json({ 
+            success: false,
             error: 'Failed to cancel item',
-            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+            details: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
         });
     }
 };
-
 const returnOrder = async (req, res) => {
     try {
         const { orderID } = req.params;
         const { reason } = req.body;
         const user = req.user;
+
+        // Validate orderID format (OR-XXXX)
+        const orderIdRegex = /^OR-\d{4}$/;
+        if (!orderIdRegex.test(orderID)) {
+            console.warn('Invalid orderID format:', orderID);
+            return res.status(400).json({ 
+                success: false,
+                error: 'Invalid order ID format' 
+            });
+        }
 
         if (!reason) {
             return res.status(400).json({ 
@@ -377,6 +476,16 @@ const downloadInvoice = async (req, res) => {
     try {
         const { orderID } = req.params;
         const user = req.user;
+
+        // Validate orderID format (OR-XXXX)
+        const orderIdRegex = /^OR-\d{4}$/;
+        if (!orderIdRegex.test(orderID)) {
+            console.warn('Invalid orderID format:', orderID);
+            return res.status(400).json({ 
+                success: false,
+                error: 'Invalid order ID format' 
+            });
+        }
 
         const order = await Order.findOne({ orderId: orderID, user: user._id })
             .populate({
@@ -452,7 +561,6 @@ const downloadInvoice = async (req, res) => {
         res.status(500).send('Error generating invoice');
     }
 };
-
 const getOrderDetails = async (req, res) => {
     try {
         console.log("Fetching order details for order ID:", req.params.orderID);
@@ -516,160 +624,6 @@ const getOrderDetails = async (req, res) => {
 };
 
 
-
-
-
-// const renderCheckout = async (req, res) => {
-//     try {
-//         const userId = req.session.user?.id;
-//         console.log('renderCheckout: User ID from session:', userId); // Debug userId
-
-//         if (!userId) {
-//             return res.redirect('/login?error=Please log in to proceed to checkout');
-//         }
-
-//         const cart = await Cart.findOne({ userId })
-//             .populate({
-//                 path: 'items.productId',
-//                 populate: { path: 'category', model: 'category' },
-//             });
-
-//         if (!cart || cart.items.length === 0) {
-//             return res.redirect(
-//                 '/profile/cart?error=Your cart is empty. Add products before checkout.'
-//             );
-//         }
-
-//         const invalidItems = cart.items.filter(
-//             (item) =>
-//                 !item.productId ||
-//                 item.productId.quantity <= 0 ||
-//                 item.productId.isBlocked ||
-//                 (item.productId.category && !item.productId.category.isListed) ||
-//                 item.productId.status !== 'Available'
-//         );
-
-//         cart.items = cart.items.filter(
-//             (item) =>
-//                 item.productId &&
-//                 item.productId.quantity > 0 &&
-//                 !item.productId.isBlocked &&
-//                 !(item.productId.category && !item.productId.category.isListed) &&
-//                 item.productId.status === 'Available'
-//         );
-
-//         if (cart.items.length === 0) {
-//             let errorMessage = 'All items in your cart are unavailable. Please add valid items to proceed.';
-//             if (invalidItems.some(item => item.productId && item.productId.quantity <= 0)) {
-//                 errorMessage = 'All items in your cart are out of stock or unavailable. Please remove them and add valid items to proceed.';
-//             }
-//             return res.redirect(`/profile/cart?error=${encodeURIComponent(errorMessage)}`);
-//         }
-
-//         // Calculate subtotal only for validation or if needed
-//         let subtotal = 0;
-//         cart.items.forEach((item) => {
-//             const price =
-//                 item.productId.salesPrice > 0
-//                     ? item.productId.salesPrice
-//                     : item.productId.regularPrice;
-//             subtotal += price * item.quantity;
-//         });
-
-//         // Use the saved discount and total from the cart, unless they are not set
-//         const shipping = 0.00;
-//         const discount = cart.discount || 0;
-//         const total = cart.total !== undefined && cart.total !== null ? cart.total : subtotal - discount;
-
-//         // Only update subtotal and save if necessary
-//         cart.subtotal = subtotal;
-//         cart.shipping = shipping;
-//         cart.taxes = 0.00;
-//         // Do NOT overwrite cart.discount or cart.total unless they are invalid
-//         if (cart.total !== total) {
-//             cart.total = total;
-//             await cart.save();
-//         }
-
-//         let addressDoc = await Address.findOne({ userId });
-//         let addresses = addressDoc || { address: [] };
-
-//         if (addresses.address.length > 0) {
-//             addresses.address = addresses.address.sort((a, b) => {
-//                 return b.isDefault - a.isDefault;
-//             });
-//         }
-
-//         // Fetch all active, non-expired coupons
-//         const coupons = await Coupon.find({
-//             isActive: true,
-//             expiryDate: { $gte: new Date() }
-//         }).lean();
-
-//         console.log('renderCheckout: Fetched coupons:', coupons); // Debug raw coupons
-
-//         // Filter out coupons already used by the user
-//         const eligibleCoupons = coupons.filter(coupon => !coupon.usedBy.includes(userId));
-
-//         console.log('renderCheckout: Eligible coupons after filtering usedBy:', eligibleCoupons); // Debug filtered coupons
-
-//         // Calculate potential savings for each coupon and sort
-//         const sortedCoupons = eligibleCoupons.map(coupon => {
-//             let potentialSavings = 0;
-//             if (coupon.discountType === 'percentage') {
-//                 potentialSavings = (subtotal * coupon.discount) / 100;
-//                 if (coupon.maxDiscount > 0 && potentialSavings > coupon.maxDiscount) {
-//                     potentialSavings = coupon.maxDiscount;
-//                 }
-//             } else {
-//                 potentialSavings = coupon.discount;
-//             }
-//             return { ...coupon, potentialSavings };
-//         }).sort((a, b) => {
-//             if (b.potentialSavings !== a.potentialSavings) {
-//                 return b.potentialSavings - a.potentialSavings;
-//             }
-//             return new Date(a.expiryDate) - new Date(b.expiryDate);
-//         });
-
-//         console.log('renderCheckout: Sorted coupons:', sortedCoupons); // Debug sorted coupons
-
-//         const warningMessage = invalidItems.length > 0
-//             ? 'Some items in your cart are out of stock or unavailable and will be ignored during checkout. You may remove them from your cart.'
-//             : null;
-
-//         // Debug cart values before rendering
-//         console.log('renderCheckout: Cart values before rendering:', {
-//             subtotal: cart.subtotal,
-//             discount: cart.discount,
-//             total: cart.total,
-//             appliedCoupon: cart.appliedCoupon
-//         });
-
-//         res.render('user/checkout', {
-//             title: 'Checkout',
-//             cart: {
-//                 items: cart.items,
-//                 subtotal,
-//                 shipping,
-//                 taxes: 0.00,
-//                 discount: cart.discount || 0, // Ensure discount is passed
-//                 total: cart.total, // Use the saved total
-//                 appliedCoupon: cart.appliedCoupon
-//             },
-//             addresses,
-//             coupons: sortedCoupons,
-//             user: req.session.user,
-//             currentPage: 'checkout',
-//             success: req.query.success,
-//             warning: warningMessage,
-//             razorpayKeyId: process.env.RAZORPAY_ID
-//         });
-//     } catch (error) {
-//         console.error('Error rendering checkout:', error);
-//         res.redirect('/profile/cart?error=Something went wrong. Please try again later.');
-//     }
-// };
 
 const renderCheckout = async (req, res) => {
   try {
@@ -869,7 +823,7 @@ const renderCheckout = async (req, res) => {
 const placeOrder = async (req, res) => {
     try {
         const { selectedAddressId, paymentMethod, finalAmount } = req.body;
-        const userId = req.session.user?.id; // Use session-based authentication
+        const userId = req.session.user?.id;
 
         if (!selectedAddressId) {
             return res.status(400).json({
@@ -932,13 +886,21 @@ const placeOrder = async (req, res) => {
             });
         }
 
-        const orderedItems = validItems.map(item => ({
-            product: item.productId._id,
-            quantity: item.quantity,
-            price: item.productId.salesPrice > 0 
+        // Distribute discount proportionally across items
+        const discountFactor = discount && subtotal > 0 ? discount / subtotal : 0;
+        const orderedItems = validItems.map(item => {
+            const price = item.productId.salesPrice > 0 
                 ? item.productId.salesPrice 
-                : item.productId.regularPrice
-        }));
+                : item.productId.regularPrice;
+            const itemTotal = price * item.quantity;
+            const itemDiscount = itemTotal * discountFactor;
+            return {
+                product: item.productId._id,
+                quantity: item.quantity,
+                price: price,
+                discountApplied: itemDiscount
+            };
+        });
 
         const addressDoc = await Address.findOne({ 
             userId,
@@ -955,22 +917,22 @@ const placeOrder = async (req, res) => {
         // Generate new order ID
         const orderId = await generateOrderId();
 
-       const order = new Order({
-    orderId,
-    orderedItems,
-    totalPrice: subtotal,
-    discount,
-    finalAmount: calculatedFinalAmount,
-    address: selectedAddressId,
-    user: userId,
-    invoiceDate: new Date(),
-    status: paymentMethod === 'COD' ? 'Placed' : 'Pending',
-    paymentStatus: paymentMethod === 'COD' ? 'Paid' : 'Pending',
-    createdOn: new Date(),
-    paymentMethod,
-    appliedCoupon: cart.appliedCoupon,
-    couponApplied: !!cart.appliedCoupon // Set couponApplied to true if a coupon is applied
-});
+        const order = new Order({
+            orderId,
+            orderedItems,
+            totalPrice: subtotal,
+            discount,
+            finalAmount: calculatedFinalAmount,
+            address: selectedAddressId,
+            user: userId,
+            invoiceDate: new Date(),
+            status: paymentMethod === 'COD' ? 'Placed' : 'Pending',
+            paymentStatus: paymentMethod === 'COD' ? 'Paid' : 'Pending',
+            createdOn: new Date(),
+            paymentMethod,
+            appliedCoupon: cart.appliedCoupon,
+            couponApplied: !!cart.appliedCoupon
+        });
 
         await order.save();
 
@@ -1021,7 +983,6 @@ const placeOrder = async (req, res) => {
         });
     }
 };
-
 const verifyPayment = async (req, res) => {
     try {
         const { orderId, razorpay_payment_id, razorpay_order_id, razorpay_signature } = req.body;

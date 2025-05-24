@@ -277,59 +277,65 @@
                     <div class="table-responsive">
                         <table class="table table-striped">
                             <thead>
-                                <tr>
-                                    <th scope="col"><b>Product Name</b></th>
-                                    <th scope="col"><b>Image</b></th>
-                                    <th scope="col"><b>Category</b></th>
-                                    <th scope="col"><b>Sale Price</b></th>
-                                    <th scope="col"><b>Quantity</b></th>
-                                    <th scope="col"><b>Status</b></th>
-                                    <th scope="col"><b>Actions</b></th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <% products.forEach(function(product) { %>
-                                    <tr id="product-row-<%= product._id %>">
-                                        <td><%= product.productName || 'N/A' %></td>
-                                        <td>
-                                            <% if (product.productImage && product.productImage.length> 0) { %>
-                                                <img src="<%= product.productImage[0] %>"
-                                                    alt="<%= product.productName %>"
-                                                    style="width: 50px; height: auto;">
-                                            <% } else { %>
-                                                No Image
-                                            <% } %>
-                                        </td>
-                                        <td><%= product.category ? product.category.name : 'N/A' %></td>
-                                        <td><%= product.salesPrice || 'N/A' %></td>
-                                        <td><%= product.quantity || '0' %></td>
-                                        <td id="action-<%= product._id %>">
-                                            <% if (product.isBlocked) { %>
-                                                <span class="badge bg-danger">Deleted</span>
-                                            <% } else { %>
-                                                <span class="badge bg-success">Active</span>
-                                            <% } %>
-                                        </td>
-                                        <td class="action-buttons">
-                                            <button class="btn btn-edit">
-                                                <a href="/admin/edit-product/<%= product._id %>"
-                                                    class="text-white" style="text-decoration: none;">Edit</a>
-                                            </button>
-                                            <% if (product.isBlocked) { %>
-                                                <button class="btn btn-restore"
-                                                    onclick="return restoreProduct('<%= product._id %>');">
-                                                    Restore
-                                                </button>
-                                            <% } else { %>
-                                                <button class="btn btn-delete"
-                                                    onclick="return deleteProduct('<%= product._id %>');">
-                                                    Delete
-                                                </button>
-                                            <% } %>
-                                        </td>
-                                    </tr>
-                                <% }); %>
-                            </tbody>
+    <tr>
+        <th scope="col"><b>Product Name</b></th>
+        <th scope="col"><b>Image</b></th>
+        <th scope="col"><b>Category</b></th>
+        <th scope="col"><b>Regular Price</b></th>
+        <th scope="col"><b>Sale Price</b></th>
+        <th scope="col"><b>Product Offer</b></th>
+        <th scope="col"><b>Effective Offer</b></th>
+        <th scope="col"><b>Quantity</b></th>
+        <th scope="col"><b>Status</b></th>
+        <th scope="col"><b>Actions</b></th>
+    </tr>
+</thead>
+<tbody>
+    <% products.forEach(function(product) { %>
+        <tr id="product-row-<%= product._id %>">
+            <td><%= product.productName || 'N/A' %></td>
+            <td>
+                <% if (product.productImage && product.productImage.length > 0) { %>
+                    <img src="<%= product.productImage[0] %>"
+                         alt="<%= product.productName %>"
+                         style="width: 50px; height: auto;">
+                <% } else { %>
+                    No Image
+                <% } %>
+            </td>
+            <td><%= product.category ? product.category.name : 'N/A' %></td>
+            <td><%= product.regularPrice || 'N/A' %></td>
+            <td><%= product.salesPrice || 'N/A' %></td>
+            <td><%= product.productOffer || '0' %>%</td>
+            <td><%= product.totalOffer || '0' %>% (<%= product.offerType || 'none' %>)</td>
+            <td><%= product.quantity || '0' %></td>
+            <td id="action-<%= product._id %>">
+                <% if (product.isBlocked) { %>
+                    <span class="badge bg-danger">Deleted</span>
+                <% } else { %>
+                    <span class="badge bg-success">Active</span>
+                <% } %>
+            </td>
+            <td class="action-buttons">
+                <button class="btn btn-edit">
+                    <a href="/admin/edit-product/<%= product._id %>"
+                       class="text-white" style="text-decoration: none;">Edit</a>
+                </button>
+                <% if (product.isBlocked) { %>
+                    <button class="btn btn-restore"
+                            onclick="return restoreProduct('<%= product._id %>');">
+                        Restore
+                    </button>
+                <% } else { %>
+                    <button class="btn btn-delete"
+                            onclick="return deleteProduct('<%= product._id %>');">
+                        Delete
+                    </button>
+                <% } %>
+            </td>
+        </tr>
+    <% }); %>
+</tbody>
                         </table>
                     </div>
                 <% } else { %>

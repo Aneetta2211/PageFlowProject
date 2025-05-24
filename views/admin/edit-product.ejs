@@ -229,14 +229,14 @@
     }
 
     .offer-success {
-      color: #28a745;
-      font-weight: 500;
-    }
+  color: green;
+  font-weight: bold;
+}
+.offer-error {
+  color: red;
+  font-weight: bold;
+}
 
-    .offer-error {
-      color: #dc3545;
-      font-weight: 500;
-    }
   </style>
 </head>
 <body>
@@ -305,28 +305,27 @@
                 </select>
                 <div id="isBlocked-error" class="error-message"></div>
               </div>
-              <!-- <div class="col-12">
-                <div class="mb-3">
-                  <label class="form-label">Current Offers</label>
-                  <p>Category Offer: <%= product.categoryOffer %>%</p>
-                  <p>Product Offer: <%= product.productOffer %>%</p>
-                  <p><strong>Effective Offer: <%= product.totalOffer %>% (<%= product.totalOffer > 0 ? (product.categoryOffer > product.productOffer ? 'Category' : 'Product') : 'None' %>)</strong></p>
-                  <p><strong>Final Price After Offer: ₹<%= product.discountedPrice %></strong></p>
-                </div>
-              </div> -->
-              <!-- <div class="col-12">
-                <div class="mb-3">
-                  <label class="form-label">Set Product Offer</label>
-                  <div class="input-group">
-                    <input type="number" class="form-control" id="productOfferInput" min="0" max="100" value="<%= product.productOffer %>">
-                    <span class="input-group-text">%</span>
-                    <button type="button" class="btn btn-success" id="applyOfferBtn">Apply Offer</button>
-                    <button type="button" class="btn btn-danger" id="removeOfferBtn">Remove Offer</button>
-                  </div>
-                  <small class="text-muted">Enter a percentage between 0-100</small>
-                  <div id="offerMessage" class="mt-2"></div>
-                </div>
-              </div> -->
+            <div class="col-12">
+    <div class="mb-3">
+        <label class="form-label">Product Offer</label>
+        <p>Current Product Offer: <%= product.productOffer %>%</p>
+        <p><strong>Effective Offer: <%= product.totalOffer %>% (<%= product.offerType %>)</strong></p>
+        <p><strong>Final Price After Offer: ₹<%= product.discountedPrice %></strong></p>
+    </div>
+</div>
+<div class="col-12">
+    <div class="mb-3">
+        <label class="form-label">Set Product Offer</label>
+        <div class="input-group">
+            <input type="number" class="form-control" id="productOfferInput" name="productOffer" min="0" max="100" value="<%= product.productOffer %>" step="1">
+            <span class="input-group-text">%</span>
+            <button type="button" class="btn btn-success" id="applyOfferBtn">Apply Offer</button>
+            <button type="button" class="btn btn-danger" id="removeOfferBtn">Remove Offer</button>
+        </div>
+        <small class="text-muted">Enter a percentage between 0-100</small>
+        <div id="offerMessage" class="mt-2"></div>
+    </div>
+</div>
               <div class="col-12">
                 <div class="image-upload-area" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
                   <label class="form-label d-block">Product Images (Drag or Click to Upload, Exactly 3 Required)</label>
@@ -732,231 +731,200 @@
     }
 
     // Product offer functionality
-    document.getElementById('applyOfferBtn').addEventListener('click', async function() {
-      console.log('Apply Offer button clicked');
-      const button = this;
-      const offerInput = document.getElementById('productOfferInput');
-      const offerMessage = document.getElementById('offerMessage');
-      const productId = '<%= product._id %>';
-      const offerPercentage = parseInt(offerInput.value);
+   document.getElementById('applyOfferBtn').addEventListener('click', async function() {
+  console.log('Apply Offer button clicked');
+  const button = this;
+  const offerInput = document.getElementById('productOfferInput');
+  const offerMessage = document.getElementById('offerMessage');
+  const productId = '<%= product._id %>';
+  const offerPercentage = parseInt(offerInput.value);
 
-      console.log('Product ID:', productId, 'Offer Percentage:', offerPercentage);
+  console.log('Product ID:', productId, 'Offer Percentage:', offerPercentage);
 
-      // Disable button to prevent multiple clicks
-      button.disabled = true;
-      offerMessage.textContent = '';
-      offerMessage.className = '';
+  button.disabled = true;
+  offerMessage.textContent = '';
+  offerMessage.className = '';
 
-      // Validate productId
-      if (!productId || productId === 'undefined') {
-        console.error('Invalid product ID:', productId);
-        offerMessage.textContent = 'Invalid product ID';
-        offerMessage.className = 'offer-error';
-        button.disabled = false;
-        return;
-      }
+  if (!productId || productId === 'undefined') {
+    console.error('Invalid product ID:', productId);
+    offerMessage.textContent = 'Invalid product ID';
+    offerMessage.className = 'offer-error';
+    button.disabled = false;
+    return;
+  }
 
-      // Validate offer percentage
-      if (isNaN(offerPercentage) || offerPercentage < 0 || offerPercentage > 100) {
-        console.error('Invalid offer percentage:', offerPercentage);
-        offerMessage.textContent = 'Please enter a valid percentage between 0 and 100';
-        offerMessage.className = 'offer-error';
-        button.disabled = false;
-        return;
-      }
+  if (isNaN(offerPercentage) || offerPercentage < 0 || offerPercentage > 100) {
+    console.error('Invalid offer percentage:', offerPercentage);
+    offerMessage.textContent = 'Please enter a valid percentage between 0 and 100';
+    offerMessage.className = 'offer-error';
+    button.disabled = false;
+    return;
+  }
 
-      try {
-        const response = await fetch('/products/add-offer', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            productId: productId,
-            offerPercentage: offerPercentage
-          })
-        });
-
-        console.log('Response status:', response.status);
-
-        // Handle session expiration
-        if (response.status === 401) {
-          console.warn('Session expired. Redirecting to login.');
-          offerMessage.textContent = 'Session expired. Please log in again.';
-          offerMessage.className = 'offer-error';
-          setTimeout(() => {
-            window.location.href = '/admin/login';
-          }, 2000);
-          button.disabled = false;
-          return;
-        }
-
-        // Check for non-JSON responses
-        const contentType = response.headers.get('content-type');
-        if (!response.ok) {
-          console.error('Request failed with status:', response.status);
-          if (contentType && contentType.includes('text/html')) {
-            console.error('Received HTML response instead of JSON');
-            offerMessage.textContent = 'Unexpected server response. Please try again.';
-            offerMessage.className = 'offer-error';
-            button.disabled = false;
-            return;
-          }
-          const errorData = await response.json();
-          console.error('Error response:', errorData);
-          throw new Error(errorData.message || 'Failed to apply offer');
-        }
-
-        if (!contentType || !contentType.includes('application/json')) {
-          console.error('Unexpected response format:', contentType);
-          throw new Error('Unexpected response format');
-        }
-
-        const result = await response.json();
-        console.log('Offer application response:', result);
-
-        if (result.success) {
-          // Update UI with new offer details
-          const productOfferElement = document.querySelector('p:nth-of-type(2)');
-          const effectiveOfferElement = document.querySelector('p:nth-of-type(3) strong');
-          const finalPriceElement = document.querySelector('p:nth-of-type(4) strong');
-
-          if (productOfferElement && effectiveOfferElement && finalPriceElement) {
-            productOfferElement.textContent = `Product Offer: ${result.productOffer}%`;
-            effectiveOfferElement.textContent = 
-              `Effective Offer: ${result.totalOffer}% (${result.offerType})`;
-            finalPriceElement.textContent = 
-              `Final Price After Offer: ₹${result.salesPrice}`;
-            document.getElementById('salesPrice').value = result.salesPrice;
-            document.getElementById('productOfferInput').value = result.productOffer;
-            
-            offerMessage.textContent = result.message;
-            offerMessage.className = 'offer-success';
-            console.log('UI updated successfully');
-          } else {
-            console.error('DOM elements for offer update not found');
-            offerMessage.textContent = 'Offer applied, but UI update failed';
-            offerMessage.className = 'offer-error';
-          }
-        } else {
-          console.error('Offer application failed:', result.message);
-          throw new Error(result.message || 'Failed to apply offer');
-        }
-      } catch (error) {
-        console.error('Error applying offer:', error);
-        offerMessage.textContent = error.message || 'An error occurred while applying the offer';
-        offerMessage.className = 'offer-error';
-      } finally {
-        button.disabled = false;
-      }
+  try {
+    const response = await fetch('/admin/products/add-offer', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        productId: productId,
+        offerPercentage: offerPercentage
+      })
     });
 
-    document.getElementById('removeOfferBtn').addEventListener('click', async function() {
-      console.log('Remove Offer button clicked');
-      const button = this;
-      const offerMessage = document.getElementById('offerMessage');
-      const productId = '<%= product._id %>';
+    console.log('Response status:', response.status);
 
-      console.log('Product ID:', productId);
-
-      // Disable button to prevent multiple clicks
-      button.disabled = true;
-      offerMessage.textContent = '';
-      offerMessage.className = '';
-
-      // Validate productId
-      if (!productId || productId === 'undefined') {
-        console.error('Invalid product ID:', productId);
-        offerMessage.textContent = 'Invalid product ID';
+    const contentType = response.headers.get('content-type');
+    if (!response.ok) {
+      console.error('Request failed with status:', response.status);
+      if (contentType && contentType.includes('text/html')) {
+        console.error('Received HTML response, likely a login page. Session may have expired.');
+        offerMessage.textContent = 'Session expired. Redirecting to login...';
         offerMessage.className = 'offer-error';
+        setTimeout(() => {
+          window.location.href = '/admin/login';
+        }, 2000);
         button.disabled = false;
         return;
       }
+      const errorData = await response.json();
+      console.error('Error response:', errorData);
+      throw new Error(errorData.message || 'Failed to apply offer');
+    }
 
-      try {
-        const response = await fetch('/products/remove-offer', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            productId: productId
-          })
-        });
+    if (!contentType || !contentType.includes('application/json')) {
+      console.error('Unexpected response format:', contentType);
+      throw new Error('Unexpected response format');
+    }
 
-        console.log('Response status:', response.status);
+    const result = await response.json();
+    console.log('Offer application response:', result);
 
-        // Handle session expiration
-        if (response.status === 401) {
-          console.warn('Session expired. Redirecting to login.');
-          offerMessage.textContent = 'Session expired. Please log in again.';
-          offerMessage.className = 'offer-error';
-          setTimeout(() => {
-            window.location.href = '/admin/login';
-          }, 2000);
-          button.disabled = false;
-          return;
-        }
+    if (result.success) {
+      const productOfferElement = document.querySelector('p:nth-of-type(1)');
+      const effectiveOfferElement = document.querySelector('p:nth-of-type(2) strong');
+      const finalPriceElement = document.querySelector('p:nth-of-type(3) strong');
 
-        // Check for non-JSON responses
-        const contentType = response.headers.get('content-type');
-        if (!response.ok) {
-          console.error('Request failed with status:', response.status);
-          if (contentType && contentType.includes('text/html')) {
-            console.error('Received HTML response instead of JSON');
-            offerMessage.textContent = 'Unexpected server response. Please try again.';
-            offerMessage.className = 'offer-error';
-            button.disabled = false;
-            return;
-          }
-          const errorData = await response.json();
-          console.error('Error response:', errorData);
-          throw new Error(errorData.message || 'Failed to remove offer');
-        }
-
-        if (!contentType || !contentType.includes('application/json')) {
-          console.error('Unexpected response format:', contentType);
-          throw new Error('Unexpected response format');
-        }
-
-        const result = await response.json();
-        console.log('Offer removal response:', result);
-
-        if (result.success) {
-          // Update UI with new offer details
-          const productOfferElement = document.querySelector('p:nth-of-type(2)');
-          const effectiveOfferElement = document.querySelector('p:nth-of-type(3) strong');
-          const finalPriceElement = document.querySelector('p:nth-of-type(4) strong');
-
-          if (productOfferElement && effectiveOfferElement && finalPriceElement) {
-            document.getElementById('productOfferInput').value = '0';
-            productOfferElement.textContent = 'Product Offer: 0%';
-            effectiveOfferElement.textContent = 
-              `Effective Offer: ${result.totalOffer}% (${result.offerType})`;
-            finalPriceElement.textContent = 
-              `Final Price After Offer: ₹${result.salesPrice}`;
-            document.getElementById('salesPrice').value = result.salesPrice;
-            
-            offerMessage.textContent = result.message;
-            offerMessage.className = 'offer-success';
-            console.log('UI updated successfully');
-          } else {
-            console.error('DOM elements for offer update not found');
-            offerMessage.textContent = 'Offer removed, but UI update failed';
-            offerMessage.className = 'offer-error';
-          }
-        } else {
-          console.error('Offer removal failed:', result.message);
-          throw new Error(result.message || 'Failed to remove offer');
-        }
-      } catch (error) {
-        console.error('Error removing offer:', error);
-        offerMessage.textContent = error.message || 'An error occurred while removing the offer';
+      if (productOfferElement && effectiveOfferElement && finalPriceElement) {
+        productOfferElement.textContent = `Current Product Offer: ${result.productOffer}%`;
+        effectiveOfferElement.textContent = `Effective Offer: ${result.totalOffer}% (${result.offerType})`;
+        finalPriceElement.textContent = `Final Price After Offer: ₹${result.salesPrice}`;
+        document.getElementById('salesPrice').value = result.salesPrice;
+        document.getElementById('productOfferInput').value = result.productOffer;
+        
+        offerMessage.textContent = result.message;
+        offerMessage.className = 'offer-success';
+        console.log('UI updated successfully');
+      } else {
+        console.error('DOM elements for offer update not found');
+        offerMessage.textContent = 'Offer applied, but UI update failed';
         offerMessage.className = 'offer-error';
-      } finally {
-        button.disabled = false;
       }
+    } else {
+      console.error('Offer application failed:', result.message);
+      throw new Error(result.message || 'Failed to apply offer');
+    }
+  } catch (error) {
+    console.error('Error applying offer:', error);
+    offerMessage.textContent = error.message || 'An error occurred while applying the offer';
+    offerMessage.className = 'offer-error';
+  } finally {
+    button.disabled = false;
+  }
+});
+
+document.getElementById('removeOfferBtn').addEventListener('click', async function() {
+  console.log('Remove Offer button clicked');
+  const button = this;
+  const offerMessage = document.getElementById('offerMessage');
+  const productId = '<%= product._id %>';
+
+  console.log('Product ID:', productId);
+
+  button.disabled = true;
+  offerMessage.textContent = '';
+  offerMessage.className = '';
+
+  if (!productId || productId === 'undefined') {
+    console.error('Invalid product ID:', productId);
+    offerMessage.textContent = 'Invalid product ID';
+    offerMessage.className = 'offer-error';
+    button.disabled = false;
+    return;
+  }
+
+  try {
+    const response = await fetch('/admin/products/remove-offer', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        productId: productId
+      })
     });
+
+    console.log('Response status:', response.status);
+
+    const contentType = response.headers.get('content-type');
+    if (!response.ok) {
+      console.error('Request failed with status:', response.status);
+      if (contentType && contentType.includes('text/html')) {
+        console.error('Received HTML response, likely a login page. Session may have expired.');
+        offerMessage.textContent = 'Session expired. Redirecting to login...';
+        offerMessage.className = 'offer-error';
+        setTimeout(() => {
+          window.location.href = '/admin/login';
+        }, 2000);
+        button.disabled = false;
+        return;
+      }
+      const errorData = await response.json();
+      console.error('Error response:', errorData);
+      throw new Error(errorData.message || 'Failed to remove offer');
+    }
+
+    if (!contentType || !contentType.includes('application/json')) {
+      console.error('Unexpected response format:', contentType);
+      throw new Error('Unexpected response format');
+    }
+
+    const result = await response.json();
+    console.log('Offer removal response:', result);
+
+    if (result.success) {
+      const productOfferElement = document.querySelector('p:nth-of-type(1)');
+      const effectiveOfferElement = document.querySelector('p:nth-of-type(2) strong');
+      const finalPriceElement = document.querySelector('p:nth-of-type(3) strong');
+
+      if (productOfferElement && effectiveOfferElement && finalPriceElement) {
+        document.getElementById('productOfferInput').value = '0';
+        productOfferElement.textContent = 'Current Product Offer: 0%';
+        effectiveOfferElement.textContent = `Effective Offer: ${result.totalOffer}% (${result.offerType})`;
+        finalPriceElement.textContent = `Final Price After Offer: ₹${result.salesPrice}`;
+        document.getElementById('salesPrice').value = result.salesPrice;
+        
+        offerMessage.textContent = result.message;
+        offerMessage.className = 'offer-success';
+        console.log('UI updated successfully');
+      } else {
+        console.error('DOM elements for offer update not found');
+        offerMessage.textContent = 'Offer removed, but UI update failed';
+        offerMessage.className = 'offer-error';
+      }
+    } else {
+      console.error('Offer removal failed:', result.message);
+      throw new Error(result.message || 'Failed to remove offer');
+    }
+  } catch (error) {
+    console.error('Error removing offer:', error);
+    offerMessage.textContent = error.message || 'An error occurred while removing the offer';
+    offerMessage.className = 'offer-error';
+  } finally {
+    button.disabled = false;
+  }
+});
 
     updateThumbnails();
   </script>

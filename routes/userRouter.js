@@ -72,14 +72,15 @@ router.post('/profile/addresses/set-default/:id', userAuth, profileController.se
 // Order Management
 router.get("/profile/orders", userAuth, orderController.getOrdersPage);
 router.get("/orders/:orderID", userAuth, orderController.getOrderDetails);
-router.post("/api/orders/:orderID/cancel", userAuth, orderController.cancelOrder);
+// router.post("/api/orders/:orderID/cancel", userAuth, orderController.cancelOrder);
 router.post("/api/orders/:orderID/return", userAuth, orderController.returnOrder);
 router.get("/api/orders/:orderID/invoice", userAuth, orderController.downloadInvoice);
 router.get('/checkout', userAuth, orderController.renderCheckout);
 router.post('/order/place', userAuth, orderController.placeOrder);
-router.post('/orders/:orderID/cancel-item/:productID', userAuth, orderController.cancelOrderItem);
+router.post("/api/orders/:orderID/cancel", userAuth, orderController.cancelOrder);
+router.post("/api/orders/:orderID/cancel-item/:productID", userAuth, orderController.cancelOrderItem);
 //razorpay management
-router.post('/order/place', userAuth,orderController.placeOrder);
+// router.post('/order/place', userAuth,orderController.placeOrder);
 router.post('/verify-payment', userAuth,orderController.verifyPayment);
 router.post('/payment-failed',userAuth, orderController.paymentFailed);
 router.post('/retry-payment', userAuth,orderController.retryPayment);

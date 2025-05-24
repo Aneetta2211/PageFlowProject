@@ -115,6 +115,12 @@
                             <input type="number" class="form-control" id="quantity" name="quantity" placeholder="0" min="0" required>
                             <div id="quantity-error" class="error-message"></div>
                         </div>
+                        <!-- Add this after the quantity input -->
+<div class="col-md-4">
+    <label for="productOffer" class="form-label">Product Offer (%)</label>
+    <input type="number" class="form-control" id="productOffer" name="productOffer" placeholder="0" min="0" max="100" step="1" value="0">
+    <div id="productOffer-error" class="error-message"></div>
+</div>
                         <div class="col-12">
                             <div class="image-upload-area" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
                                 <label class="form-label d-block">Product Images (Drag or Click to Upload, Min 3)</label>
@@ -207,6 +213,11 @@
             errorId: 'quantity-error', 
             message: 'Quantity must be a positive integer' 
         },
+      {
+    id: 'productOffer',
+    errorId: 'productOffer-error',
+    message: 'Product offer must be between 0 and 100'
+}
     ];
 
     fields.forEach(field => {
@@ -286,8 +297,19 @@
                 document.getElementById('quantity').style.borderColor = '';
                 document.getElementById('quantity').dataset.stockStatus = 'in-stock';
             }
+            
         }
+       else if (field.id === 'productOffer') {
+    const numValue = parseInt(value);
+    if (isNaN(numValue) || numValue < 0 || numValue > 100) {
+        errorElement.textContent = field.message;
+        isValid = false;
+    } else {
+        errorElement.textContent = '';
+    }
+}
     });
+    
  
     const minImages = 3;
     if (croppedImages.length < minImages) {

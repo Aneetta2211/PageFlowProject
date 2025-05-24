@@ -40,12 +40,60 @@ const getProductAddPage = async (req, res) => {
   }
 };
 
-const addProduct = async (req, res) => {
-  try {
-    const { productName, category, description, regularPrice, quantity } = req.body;
-    const images = req.files ? req.files.map(file => `/uploads/products/${file.filename}`) : [];
+// const addProduct = async (req, res) => {
+//   try {
+//     const { productName, category, description, regularPrice, quantity } = req.body;
+//     const images = req.files ? req.files.map(file => `/uploads/products/${file.filename}`) : [];
 
    
+//     if (!productName || !category || !description || !regularPrice || 
+//         quantity === undefined || quantity === null || !images.length) {
+//       throw new Error("All required fields must be provided");
+//     }
+
+//     if (images.length > 4) {
+//       throw new Error("Cannot upload more than 4 images");
+//     }
+
+//     const categoryData = await Category.findById(category);
+//     if (!categoryData) {
+//       throw new Error("Category not found");
+//     }
+    
+   
+//     const regularPriceNum = parseFloat(regularPrice);
+//     const pricing = calculateProductPricing({ regularPrice: regularPriceNum }, categoryData);
+
+//     const newProduct = new Product({
+//       productName,
+//       category,
+//       description,
+//       regularPrice: regularPriceNum,
+//       salesPrice: pricing.salesPrice,
+//       quantity: parseInt(quantity),
+//       productImage: images,
+//       productOffer: 0,
+//       totalOffer: pricing.totalOffer,
+//       offerType: pricing.offerType,
+//       status: parseInt(quantity) === 0 ? "out of stock" : "Available"
+//     });
+
+//     const savedProduct = await newProduct.save();
+//     console.log("Product saved:", savedProduct);
+
+//     req.session.successMessage = "Product added successfully!";
+//     res.redirect("/admin/products");
+//   } catch (error) {
+//     console.error("Error adding product:", error.message);
+//     res.redirect("/pageerror");
+//   }
+// };
+
+const addProduct = async (req, res) => {
+  try {
+    const { productName, category, description, regularPrice, quantity, productOffer } = req.body;
+    const images = req.files ? req.files.map(file => `/uploads/products/${file.filename}`) : [];
+
     if (!productName || !category || !description || !regularPrice || 
         quantity === undefined || quantity === null || !images.length) {
       throw new Error("All required fields must be provided");
@@ -59,10 +107,17 @@ const addProduct = async (req, res) => {
     if (!categoryData) {
       throw new Error("Category not found");
     }
-    
-   
+
     const regularPriceNum = parseFloat(regularPrice);
-    const pricing = calculateProductPricing({ regularPrice: regularPriceNum }, categoryData);
+    const productOfferNum = parseInt(productOffer) || 0; // Ensure productOffer is a number
+    if (isNaN(productOfferNum) || productOfferNum < 0 || productOfferNum > 100) {
+      throw new Error("Product offer must be between 0 and 100");
+    }
+
+    const pricing = calculateProductPricing(
+      { regularPrice: regularPriceNum, productOffer: productOfferNum },
+      categoryData
+    );
 
     const newProduct = new Product({
       productName,
@@ -72,7 +127,7 @@ const addProduct = async (req, res) => {
       salesPrice: pricing.salesPrice,
       quantity: parseInt(quantity),
       productImage: images,
-      productOffer: 0,
+      productOffer: productOfferNum,
       totalOffer: pricing.totalOffer,
       offerType: pricing.offerType,
       status: parseInt(quantity) === 0 ? "out of stock" : "Available"
@@ -172,10 +227,75 @@ const getEditProductPage = async (req, res) => {
   }
 };
 
+// const updateProduct = async (req, res) => {
+//   try {
+//     const productId = req.params.id;
+//     const { productName, category, description, regularPrice, quantity, isBlocked, existingImages, removedImages } = req.body;
+//     const newImages = req.files ? req.files.map(file => `/uploads/products/${file.filename}`) : [];
+
+//     const product = await Product.findById(productId).populate('category');
+//     if (!product) {
+//       throw new Error("Product not found");
+//     }
+
+   
+//     let currentImages = Array.isArray(existingImages) ? existingImages : existingImages ? [existingImages] : [];
+//     const imagesToRemove = Array.isArray(removedImages) ? removedImages : removedImages ? [removedImages] : [];
+//     currentImages = currentImages.filter(img => !imagesToRemove.includes(img));
+
+//     const updatedImages = [...currentImages, ...newImages];
+//     if (updatedImages.length < 3) {
+//       req.session.warningMessage = "You must have at least 3 product images.";
+//       return res.redirect(`/admin/products/edit/${productId}`);
+//     }
+
+
+//     const categoryData = await Category.findById(category);
+//     if (!categoryData) {
+//       throw new Error("Category not found");
+//     }
+    
+   
+//     const pricing = calculateProductPricing(
+//       { 
+//         regularPrice: parseFloat(regularPrice), 
+//         productOffer: product.productOffer 
+//       }, 
+//       categoryData
+//     );
+
+//     const updateData = {
+//       productName,
+//       category,
+//       description,
+//       regularPrice: parseFloat(regularPrice),
+//       salesPrice: pricing.salesPrice,
+//       quantity: parseInt(quantity),
+//       isBlocked: isBlocked === 'true',
+//       productImage: updatedImages,
+//       totalOffer: pricing.totalOffer,
+//       offerType: pricing.offerType,
+//       status: parseInt(quantity) === 0 ? "out of stock" : "Available",
+//     };
+
+//     const updatedProduct = await Product.findByIdAndUpdate(productId, updateData, { new: true });
+//     if (!updatedProduct) {
+//       throw new Error("Product not found");
+//     }
+
+//     req.session.successMessage = "Product updated successfully!";
+//     res.redirect("/admin/products");
+//   } catch (error) {
+//     console.error("Error updating product:", error);
+//     res.redirect("/pageerror");
+//   }
+// };
+
+
 const updateProduct = async (req, res) => {
   try {
     const productId = req.params.id;
-    const { productName, category, description, regularPrice, quantity, isBlocked, existingImages, removedImages } = req.body;
+    const { productName, category, description, regularPrice, quantity, isBlocked, existingImages, removedImages, productOffer } = req.body;
     const newImages = req.files ? req.files.map(file => `/uploads/products/${file.filename}`) : [];
 
     const product = await Product.findById(productId).populate('category');
@@ -183,7 +303,6 @@ const updateProduct = async (req, res) => {
       throw new Error("Product not found");
     }
 
-   
     let currentImages = Array.isArray(existingImages) ? existingImages : existingImages ? [existingImages] : [];
     const imagesToRemove = Array.isArray(removedImages) ? removedImages : removedImages ? [removedImages] : [];
     currentImages = currentImages.filter(img => !imagesToRemove.includes(img));
@@ -194,17 +313,20 @@ const updateProduct = async (req, res) => {
       return res.redirect(`/admin/products/edit/${productId}`);
     }
 
-
     const categoryData = await Category.findById(category);
     if (!categoryData) {
       throw new Error("Category not found");
     }
-    
-   
+
+    const productOfferNum = parseInt(productOffer) || 0;
+    if (isNaN(productOfferNum) || productOfferNum < 0 || productOfferNum > 100) {
+      throw new Error("Product offer must be between 0 and 100");
+    }
+
     const pricing = calculateProductPricing(
       { 
         regularPrice: parseFloat(regularPrice), 
-        productOffer: product.productOffer 
+        productOffer: productOfferNum 
       }, 
       categoryData
     );
@@ -218,6 +340,7 @@ const updateProduct = async (req, res) => {
       quantity: parseInt(quantity),
       isBlocked: isBlocked === 'true',
       productImage: updatedImages,
+      productOffer: productOfferNum,
       totalOffer: pricing.totalOffer,
       offerType: pricing.offerType,
       status: parseInt(quantity) === 0 ? "out of stock" : "Available",
@@ -235,6 +358,7 @@ const updateProduct = async (req, res) => {
     res.redirect("/pageerror");
   }
 };
+
 
 const blockProduct = async (req, res) => {
   try {
@@ -307,92 +431,156 @@ const loadProfile = async (req, res) => {
 };
 
 
+// const manageProductOffer = async (req, res, action) => {
+//   try {
+//     const { productId, offerPercentage } = req.body;
+//     console.log(`Processing ${action} offer for product: ${productId}, Offer: ${offerPercentage}`);
+
+   
+//     if (!mongoose.Types.ObjectId.isValid(productId)) {
+//       console.error(`Invalid productId: ${productId}`);
+//       return res.status(400).json({ 
+//         success: false, 
+//         message: "Invalid product ID" 
+//       });
+//     }
+
+//     const product = await Product.findById(productId).populate('category');
+//     if (!product) {
+//       console.error(`Product not found: ${productId}`);
+//       return res.status(404).json({ 
+//         success: false, 
+//         message: "Product not found" 
+//       });
+//     }
+
+   
+//     if (!product.category) {
+//       console.error(`Category not found for product: ${productId}`);
+//       return res.status(400).json({ 
+//         success: false, 
+//         message: "Product category not found" 
+//       });
+//     }
+
+//     let offer = 0;
+//     if (action === 'add') {
+//       offer = parseInt(offerPercentage);
+//       if (isNaN(offer) || offer < 0 || offer > 100) {
+//         console.error(`Invalid offer percentage: ${offerPercentage}`);
+//         return res.status(400).json({ 
+//           success: false, 
+//           message: "Offer percentage must be between 0 and 100" 
+//         });
+//       }
+//     }
+
+   
+//     product.productOffer = action === 'add' ? offer : 0;
+    
+   
+//     const pricing = calculateProductPricing(product, product.category);
+
+    
+//     product.salesPrice = pricing.salesPrice;
+//     product.totalOffer = pricing.totalOffer;
+//     product.offerType = pricing.offerType;
+
+    
+//     try {
+//       await product.save();
+//       console.log(`Product offer ${action === 'add' ? 'applied' : 'removed'} successfully: ${productId}`);
+//     } catch (saveError) {
+//       console.error(`Error saving product: ${saveError.message}`);
+//       return res.status(500).json({ 
+//         success: false, 
+//         message: "Failed to save product offer" 
+//       });
+//     }
+
+//     return res.json({
+//       success: true,
+//       productOffer: product.productOffer,
+//       categoryOffer: pricing.categoryOffer,
+//       totalOffer: pricing.totalOffer,
+//       offerType: pricing.offerType,
+//       salesPrice: pricing.salesPrice,
+//       message: action === 'add' 
+//         ? "Product offer applied successfully" 
+//         : "Product offer removed successfully"
+//     });
+//   } catch (error) {
+//     console.error(`Error ${action === 'add' ? 'adding' : 'removing'} product offer:`, error);
+//     return res.status(500).json({ 
+//       success: false, 
+//       message: "Server error while processing offer" 
+//     });
+//   }
+// };
+
 const manageProductOffer = async (req, res, action) => {
   try {
     const { productId, offerPercentage } = req.body;
-    console.log(`Processing ${action} offer for product: ${productId}, Offer: ${offerPercentage}`);
+    console.log(`Processing ${action} offer for product: ${productId}, Offer: ${offerPercentage}, Session: ${req.session.admin ? 'present' : 'missing'}`);
 
-   
+    // Validate productId
     if (!mongoose.Types.ObjectId.isValid(productId)) {
       console.error(`Invalid productId: ${productId}`);
-      return res.status(400).json({ 
-        success: false, 
-        message: "Invalid product ID" 
-      });
+      return res.status(400).json({ success: false, message: 'Invalid product ID' });
     }
 
+    // Fetch product with category
     const product = await Product.findById(productId).populate('category');
     if (!product) {
       console.error(`Product not found: ${productId}`);
-      return res.status(404).json({ 
-        success: false, 
-        message: "Product not found" 
-      });
+      return res.status(404).json({ success: false, message: 'Product not found' });
     }
 
-   
     if (!product.category) {
       console.error(`Category not found for product: ${productId}`);
-      return res.status(400).json({ 
-        success: false, 
-        message: "Product category not found" 
-      });
+      return res.status(400).json({ success: false, message: 'Product category not found' });
     }
 
+    // Validate offer percentage for 'add' action
     let offer = 0;
     if (action === 'add') {
       offer = parseInt(offerPercentage);
       if (isNaN(offer) || offer < 0 || offer > 100) {
         console.error(`Invalid offer percentage: ${offerPercentage}`);
-        return res.status(400).json({ 
-          success: false, 
-          message: "Offer percentage must be between 0 and 100" 
-        });
+        return res.status(400).json({ success: false, message: 'Offer percentage must be between 0 and 100' });
       }
     }
 
-   
+    // Update product offer
     product.productOffer = action === 'add' ? offer : 0;
-    
-   
     const pricing = calculateProductPricing(product, product.category);
 
-    
+    // Update product fields
     product.salesPrice = pricing.salesPrice;
     product.totalOffer = pricing.totalOffer;
     product.offerType = pricing.offerType;
 
-    
-    try {
-      await product.save();
-      console.log(`Product offer ${action === 'add' ? 'applied' : 'removed'} successfully: ${productId}`);
-    } catch (saveError) {
-      console.error(`Error saving product: ${saveError.message}`);
-      return res.status(500).json({ 
-        success: false, 
-        message: "Failed to save product offer" 
-      });
-    }
+    // Save product
+    await product.save();
+    console.log(`Product offer ${action === 'add' ? 'applied' : 'removed'} successfully: ${productId}`);
 
+    // Return JSON response
     return res.json({
       success: true,
       productOffer: product.productOffer,
-      categoryOffer: pricing.categoryOffer,
       totalOffer: pricing.totalOffer,
       offerType: pricing.offerType,
       salesPrice: pricing.salesPrice,
-      message: action === 'add' 
-        ? "Product offer applied successfully" 
-        : "Product offer removed successfully"
+      message: action === 'add' ? 'Product offer applied successfully' : 'Product offer removed successfully'
     });
   } catch (error) {
-    console.error(`Error ${action === 'add' ? 'adding' : 'removing'} product offer:`, error);
-    return res.status(500).json({ 
-      success: false, 
-      message: "Server error while processing offer" 
-    });
+    console.error(`Error ${action === 'add' ? 'adding' : 'removing'} product offer:`, error.message);
+    return res.status(500).json({ success: false, message: 'Server error while processing offer' });
   }
 };
+
+
+
 
 const addProductOffer = async (req, res) => {
   return manageProductOffer(req, res, 'add');

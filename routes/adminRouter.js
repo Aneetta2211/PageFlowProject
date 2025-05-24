@@ -18,6 +18,8 @@ router.get("/login", adminController.loadLogin);
 router.post("/login", adminController.login);
 router.get("/", adminAuth, adminController.loadDashboard);
 router.get("/logout", adminController.logout);
+router.get('/sales-report',adminAuth, adminController.getSalesReport);
+router.get('/download-report',adminAuth, adminController.downloadReport);
 
 // Customer Management
 router.get("/customers", adminAuth, customerController.customerInfo);
