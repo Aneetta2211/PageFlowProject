@@ -100,6 +100,10 @@
                     <input type="number" class="form-control" id="maxDiscount" placeholder="Enter maximum discount amount" min="0">
                 </div>
                 <div class="mb-3">
+                    <label for="startDate" class="form-label">Start Date</label>
+                    <input type="date" class="form-control" id="startDate" required>
+                </div>
+                <div class="mb-3">
                     <label for="expiryDate" class="form-label">Expiry Date</label>
                     <input type="date" class="form-control" id="expiryDate" required>
                 </div>
@@ -129,6 +133,7 @@
                     <th>Discount</th>
                     <th>Min Purchase</th>
                     <th>Max Discount</th>
+                    <th>Start Date</th>
                     <th>Expiry Date</th>
                     <th>Status</th>
                     <th>Toggle</th>
@@ -144,6 +149,7 @@
                             <td><%= coupon.discountType === 'percentage' ? `${coupon.discount}%` : `₹${coupon.discount}` %></td>
                             <td>₹<%= coupon.minPurchase || 0 %></td>
                             <td><%= coupon.maxDiscount ? `₹${coupon.maxDiscount}` : '-' %></td>
+                            <td><%= new Date(coupon.startDate).toLocaleDateString() %></td>
                             <td><%= new Date(coupon.expiryDate).toLocaleDateString() %></td>
                             <td>
                                 <span id="status-<%= coupon._id %>" class="badge <%= coupon.isActive ? 'bg-success' : 'bg-danger' %>">
@@ -164,6 +170,7 @@
                                     data-discount="<%= coupon.discount %>"
                                     data-min-purchase="<%= coupon.minPurchase %>"
                                     data-max-discount="<%= coupon.maxDiscount %>"
+                                    data-start-date="<%= coupon.startDate.toISOString().split('T')[0] %>"
                                     data-expiry-date="<%= coupon.expiryDate.toISOString().split('T')[0] %>"
                                     data-is-active="<%= coupon.isActive %>"
                                     onclick="editCoupon(this)">
@@ -177,7 +184,7 @@
                     <% }) %>
                 <% } else { %>
                     <tr>
-                        <td colspan="9" class="text-center">No coupons found</td>
+                        <td colspan="10" class="text-center">No coupons found</td>
                     </tr>
                 <% } %>
             </tbody>
@@ -208,6 +215,7 @@
             const discount = parseFloat(formData.discount);
             const minPurchase = parseFloat(formData.minPurchase) || 0;
             const maxDiscount = parseFloat(formData.maxDiscount) || 0;
+            const startDate = new Date(formData.startDate);
             const expiryDate = new Date(formData.expiryDate);
             const today = new Date();
             today.setHours(0, 0, 0, 0);
@@ -294,12 +302,34 @@
                 return false;
             }
 
+            // Validate Start Date
+            if (isNaN(startDate.getTime())) {
+                Swal.fire({
+                    icon: "error",
+                    title: "Invalid Start Date",
+                    text: "Start date must be a valid date.",
+                    confirmButtonText: "OK",
+                });
+                return false;
+            }
+
             // Validate Expiry Date
             if (isNaN(expiryDate.getTime()) || expiryDate < today) {
                 Swal.fire({
                     icon: "error",
                     title: "Invalid Expiry Date",
                     text: "Expiry date must be a valid date and not in the past.",
+                    confirmButtonText: "OK",
+                });
+                return false;
+            }
+
+            // Validate startDate <= expiryDate
+            if (startDate > expiryDate) {
+                Swal.fire({
+                    icon: "error",
+                    title: "Invalid Date Range",
+                    text: "Start date must be before or equal to expiry date.",
                     confirmButtonText: "OK",
                 });
                 return false;
@@ -377,6 +407,7 @@
                 discount: parseFloat(document.getElementById("discount").value),
                 minPurchase: parseFloat(document.getElementById("minPurchase").value) || 0,
                 maxDiscount: parseFloat(document.getElementById("maxDiscount").value) || 0,
+                startDate: document.getElementById("startDate").value,
                 expiryDate: document.getElementById("expiryDate").value,
                 isActive: document.getElementById("isActive").value === "true",
             };
@@ -397,6 +428,9 @@
                     },
                     body: JSON.stringify(formData),
                 });
+
+                console.log('Response status:', response.status);
+                console.log('Response headers:', response.headers.get('content-type'));
 
                 let data;
                 const contentType = response.headers.get("content-type");
@@ -465,6 +499,7 @@
             document.getElementById("discount").value = button.dataset.discount;
             document.getElementById("minPurchase").value = button.dataset.minPurchase || "";
             document.getElementById("maxDiscount").value = button.dataset.maxDiscount || "";
+            document.getElementById("startDate").value = button.dataset.startDate;
             document.getElementById("expiryDate").value = button.dataset.expiryDate;
             document.getElementById("isActive").value = button.dataset.isActive;
             document.getElementById("isActive").parentElement.style.display = "block"; // Show isActive field
@@ -486,9 +521,38 @@
                 try {
                     const response = await fetch(`/admin/coupons/delete/${id}`, {
                         method: "DELETE",
-                        headers: { "Content-Type": "application/json" },
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Accept": "application/json",
+                            // Add CSRF token if required (replace 'csrfToken' with actual token value from server)
+                            // "X-CSRF-Token": csrfToken
+                        },
+                        credentials: "include" // Include cookies for session authentication
                     });
-                    const data = await response.json();
+
+                    // Check for authentication redirect
+                    if (response.status === 401 || response.redirected && response.url.includes("/admin/login")) {
+                        Swal.fire({
+                            icon: "error",
+                            title: "Session Expired",
+                            text: "Your session has expired. Please log in again.",
+                            confirmButtonText: "OK"
+                        }).then(() => {
+                            window.location.href = "/admin/login";
+                        });
+                        return;
+                    }
+
+                    let data;
+                    const contentType = response.headers.get("content-type");
+                    if (contentType && contentType.includes("application/json")) {
+                        data = await response.json();
+                    } else {
+                        const text = await response.text();
+                        console.error('Non-JSON response:', text);
+                        throw new Error(`Expected JSON but received HTML or other content: ${text.slice(0, 100)}...`);
+                    }
+
                     if (data.success) {
                         Swal.fire({
                             icon: "success",
@@ -511,7 +575,7 @@
                     Swal.fire({
                         icon: "error",
                         title: "Error",
-                        text: "Error deleting coupon",
+                        text: `Error deleting coupon: ${error.message}`,
                         confirmButtonText: "OK",
                     });
                 }

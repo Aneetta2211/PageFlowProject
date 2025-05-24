@@ -294,41 +294,44 @@
         </div>
         <a href="/profile/addresses/add?from=checkout" id="add-address-btn" class="mt-4 inline-block px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">+ Add New Address</a>
       </div>
-
-      <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+   <div class="bg-white p-6 rounded-lg shadow-md mb-6">
         <h2 class="text-xl font-semibold mb-4">Apply Coupon</h2>
-      <div class="coupon-section">
-  <h3 class="text-lg font-semibold mb-2">Apply Coupon</h3>
-  <div class="coupon-input-group">
-    <select id="coupon-code" class="border-gray-300 focus:border-blue-600 focus:ring focus:ring-blue-200 p-2 rounded max-h-40 overflow-y-auto w-64" <%= cart.appliedCoupon ? 'disabled' : '' %>>
-      <option value="">Select a coupon</option>
-      <% if (coupons && coupons.length > 0) { %>
-        <% coupons.forEach(coupon => { %>
-          <option value="<%= coupon.code %>">
-            <%= coupon.code %> - <%= coupon.discountType === 'percentage' ? `${coupon.discount}% off` : `₹${coupon.discount} off` %>
-            <% if (coupon.minPurchase > 0) { %>
-              (Min. ₹<%= coupon.minPurchase %>)
+        <div class="coupon-section">
+          <h3 class="text-lg font-semibold mb-2">Apply Coupon</h3>
+          <div class="coupon-input-group">
+            <select id="coupon-code" class="border-gray-300 focus:border-blue-600 focus:ring focus:ring-blue-200 p-2 rounded max-h-40 overflow-y-auto w-64" <%= cart.appliedCoupon ? 'disabled' : '' %>>
+              <option value="">Select a coupon</option>
+              <% if (coupons && coupons.length > 0) { %>
+                <% coupons.forEach(coupon => { %>
+                  <option 
+                    value="<%= coupon.code %>" 
+                    <%= !coupon.isEligible ? 'disabled' : '' %>
+                  >
+                    <%= coupon.code %> - <%= coupon.discountType === 'percentage' ? `${coupon.discount}% off` : `₹${coupon.discount} off` %>
+                    <% if (coupon.minPurchase > 0) { %>
+                      (Min. ₹<%= coupon.minPurchase %>)
+                    <% } %>
+                    <% if (coupon.maxDiscount > 0) { %>
+                      (Max ₹<%= coupon.maxDiscount %>)
+                    <% } %>
+                    (Expires: <%= new Date(coupon.expiryDate).toLocaleDateString() %>)
+                    <%= !coupon.isEligible ? ` - ${coupon.ineligibilityReason}` : '' %>
+                  </option>
+                <% }) %>
+              <% } else { %>
+                <option value="" disabled>No available coupons</option>
+              <% } %>
+            </select>
+            <button id="coupon-toggle-btn" class="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded" <%= cart.appliedCoupon ? '' : '' %>>
+              <%= cart.appliedCoupon ? 'Remove' : 'Apply' %>
+            </button>
+            <% if (cart.appliedCoupon) { %>
+              <div class="coupon-applied mt-2 flex items-center gap-2">
+                <span>Coupon "<%= cart.appliedCoupon %>" applied</span>
+              </div>
             <% } %>
-            <% if (coupon.maxDiscount > 0) { %>
-              (Max ₹<%= coupon.maxDiscount %>)
-            <% } %>
-            (Expires: <%= new Date(coupon.expiryDate).toLocaleDateString() %>)
-          </option>
-        <% }) %>
-      <% } else { %>
-        <option value="" disabled>No available coupons</option>
-      <% } %>
-    </select>
-    <button id="coupon-toggle-btn" class="bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded" <%= cart.appliedCoupon ? '' : '' %>>
-      <%= cart.appliedCoupon ? 'Remove' : 'Apply' %>
-    </button>
-    <% if (cart.appliedCoupon) { %>
-      <div class="coupon-applied mt-2 flex items-center gap-2">
-        <span>Coupon "<%= cart.appliedCoupon %>" applied</span>
-      </div>
-    <% } %>
-  </div>
-</div>
+          </div>
+        </div>
       </div>
 
       <div class="bg-white p-6 rounded-lg shadow-md mb-6">
@@ -625,96 +628,105 @@ if (couponToggleBtn) {
       });
     }
 
-    async function retryPayment(orderId) {
-      console.log("Initiating retry payment for order:", OrderId);
-      try {
+   async function retryPayment(orderId) {
+    console.log("Initiating retry payment for order:", orderId);
+    try {
         const response = await fetch("/retry-payment", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ orderId }),
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ orderId }),
         });
         const data = await response.json();
         console.log("Retry payment response:", data);
-        if (data.receipt) {
-          console.log("Receipt:", data.receipt, "Length:", data.receipt.length);
-        }
 
         if (data.success && data.razorpayOrderId) {
-          const options = {
-            key: "<%= razorpayKeyId %>",
-            amount: data.amount * 100,
-            currency: "INR",
-            name: "PageFlow",
-            description: "Retry Order Payment",
-            order_id: data.razorpayOrderId,
-            handler: async function (response) {
-              console.log("Razorpay payment response:", response);
-              try {
-                const verifyResponse = await fetch("/verify-payment", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    orderId,
-                    razorpay_payment_id: response.razorpay_payment_id,
-                    razorpay_order_id: response.razorpay_order_id,
-                    razorpay_signature: response.razorpay_signature,
-                  }),
-                });
-                const verifyData = await verifyResponse.json();
-                console.log("Payment verification response:", verifyData);
+            const options = {
+                key: "<%= razorpayKeyId %>",
+                amount: Math.round(data.amount * 100), // Use amount from server
+                currency: "INR",
+                name: "PageFlow",
+                description: "Retry Order Payment",
+                order_id: data.razorpayOrderId,
+                handler: async function (response) {
+                    console.log("Razorpay payment response:", response);
+                    try {
+                        const verifyResponse = await fetch("/verify-payment", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                orderId,
+                                razorpay_payment_id: response.razorpay_payment_id,
+                                razorpay_order_id: response.razorpay_order_id,
+                                razorpay_signature: response.razorpay_signature,
+                            }),
+                        });
+                        const verifyData = await verifyResponse.json();
+                        console.log("Payment verification response:", verifyData);
 
-                if (verifyData.success) {
-                  handleOrderSuccess(verifyData.orderId);
-                } else {
-                  console.warn("Payment verification failed:", verifyData.message);
-                  handleOrderFailure(orderId);
-                }
-              } catch (error) {
-                console.error("Error during payment verification:", error);
+                        if (verifyData.success) {
+                            handleOrderSuccess(verifyData.orderId);
+                        } else {
+                            console.warn("Payment verification failed:", verifyData.message);
+                            handleOrderFailure(orderId);
+                        }
+                    } catch (error) {
+                        console.error("Error during payment verification:", error);
+                        handleOrderFailure(orderId);
+                    }
+                },
+                prefill: {
+                    name: "<%= user.name %>",
+                    email: "<%= user.email %>",
+                    contact: "<%= user.phone %>",
+                },
+                theme: { color: "#3b82f6" },
+                modal: {
+                    ondismiss: async function () {
+                        console.log("Razorpay modal dismissed for order:", orderId);
+                        try {
+                            await fetch("/payment-failed", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                    orderId,
+                                    razorpay_order_id: data.razorpayOrderId,
+                                    razorpay_payment_id: null,
+                                    error: { description: "Payment modal closed" },
+                                }),
+                            });
+                            handleOrderFailure(orderId);
+                        } catch (error) {
+                            console.error("Error recording payment failure:", error);
+                            handleOrderFailure(orderId);
+                        }
+                    },
+                },
+            };
+
+            console.log("Opening Razorpay modal with options:", options);
+            const rzp1 = new Razorpay(options);
+            rzp1.on('payment.error', function (error) {
+                console.error("Razorpay payment error:", error);
                 handleOrderFailure(orderId);
-              }
-            },
-            prefill: {
-              name: "<%= user.name %>",
-              email: "<%= user.email %>",
-              contact: "<%= user.phone %>",
-            },
-            theme: { color: "#3b82f6" },
-            modal: {
-              ondismiss: async function () {
-                console.log("Razorpay modal dismissed for order:", orderId);
-                try {
-                  await fetch("/payment-failed", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      orderId,
-                      razorpay_order_id: data.razorpayOrderId,
-                      razorpay_payment_id: null,
-                      error: { description: "Payment modal closed" },
-                    }),
-                  });
-                  handleOrderFailure(orderId);
-                } catch (error) {
-                  console.error("Error recording payment failure:", error);
-                  handleOrderFailure(orderId);
-                }
-              },
-            },
-          };
-
-          console.log("Opening Razorpay modal with options:", options);
-          const rzp1 = new Razorpay(options);
-          rzp1.open();
+            });
+            rzp1.open();
         } else {
-          console.warn("Retry payment initiation failed:", data.message);
-          handleOrderFailure(orderId);
+            console.warn("Retry payment initiation failed:", data.message);
+            Swal.fire({
+                icon: "error",
+                title: "Error",
+                text: data.message || "Failed to initiate retry payment",
+            });
         }
-      } catch (error) {
+    } catch (error) {
         console.error("Error in retryPayment:", error);
-        handleOrderFailure(orderId);
-      }
+        Swal.fire({
+            icon: "error",
+            title: "Error",
+            text: "Failed to initiate retry payment",
+        });
     }
+}
 
    const placeOrderForm = document.getElementById("placeOrderForm");
 placeOrderForm.addEventListener("submit", async function (event) {
