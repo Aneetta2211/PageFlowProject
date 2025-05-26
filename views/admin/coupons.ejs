@@ -342,8 +342,9 @@
         async function toggleActive(id) {
             const toggleBtn = document.getElementById(`toggle-${id}`);
             const statusSpan = document.getElementById(`status-${id}`);
-            const isDeactivating = toggleBtn.textContent === "Deactivate";
+            const isDeactivating = toggleBtn.textContent.trim() === "Deactivate";
 
+            // Show confirmation dialog
             const result = await Swal.fire({
                 title: `Are you sure?`,
                 text: `This will ${isDeactivating ? "deactivate" : "activate"} the coupon!`,
@@ -353,43 +354,76 @@
                 cancelButtonText: "No, cancel",
             });
 
-            if (result.isConfirmed) {
-                try {
-                    const response = await fetch(`/admin/coupons/toggle/${id}`, {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                    });
-                    const data = await response.json();
-                    if (data.success) {
-                        toggleBtn.textContent = isDeactivating ? "Activate" : "Deactivate";
-                        toggleBtn.classList.toggle("btn-danger", !isDeactivating);
-                        toggleBtn.classList.toggle("btn-success", isDeactivating);
-                        statusSpan.textContent = isDeactivating ? "Inactive" : "Active";
-                        statusSpan.classList.toggle("bg-success", !isDeactivating);
-                        statusSpan.classList.toggle("bg-danger", isDeactivating);
-                        Swal.fire({
-                            icon: "success",
-                            title: "Success",
-                            text: `Coupon ${isDeactivating ? "deactivated" : "activated"} successfully!`,
-                            confirmButtonText: "OK",
-                        });
-                    } else {
-                        Swal.fire({
-                            icon: "error",
-                            title: "Error",
-                            text: data.message || `Error ${isDeactivating ? "deactivating" : "activating"} coupon`,
-                            confirmButtonText: "OK",
-                        });
-                    }
-                } catch (error) {
-                    console.error(`Error ${isDeactivating ? "deactivating" : "activating"} coupon:`, error);
+            if (!result.isConfirmed) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/admin/coupons/toggle/${id}`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Accept": "application/json",
+                    },
+                    credentials: "include" // Include cookies for session authentication
+                });
+
+                // Check for authentication redirect
+                if (response.status === 401 || response.redirected && response.url.includes("/admin/login")) {
                     Swal.fire({
                         icon: "error",
-                        title: "Error",
-                        text: `Error ${isDeactivating ? "deactivating" : "activating"} coupon`,
+                        title: "Session Expired",
+                        text: "Your session has expired. Please log in again.",
+                        confirmButtonText: "OK"
+                    }).then(() => {
+                        window.location.href = "/admin/login";
+                    });
+                    return;
+                }
+
+                const contentType = response.headers.get("content-type");
+                if (!contentType || !contentType.includes("application/json")) {
+                    const text = await response.text();
+                    console.error('Non-JSON response:', text);
+                    throw new Error(`Expected JSON but received HTML or other content: ${text.slice(0, 100)}...`);
+                }
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Update button text and classes
+                    toggleBtn.textContent = isDeactivating ? "Activate" : "Deactivate";
+                    toggleBtn.classList.remove(isDeactivating ? "btn-danger" : "btn-success");
+                    toggleBtn.classList.add(isDeactivating ? "btn-success" : "btn-danger");
+
+                    // Update status badge text and classes
+                    statusSpan.textContent = isDeactivating ? "Inactive" : "Active";
+                    statusSpan.classList.remove(isDeactivating ? "bg-success" : "bg-danger");
+                    statusSpan.classList.add(isDeactivating ? "bg-danger" : "bg-success");
+
+                    // Update the edit button's data-is-active attribute
+                    const editButton = document.querySelector(`.edit-coupon-btn[data-id="${id}"]`);
+                    if (editButton) {
+                        editButton.dataset.isActive = isDeactivating ? "false" : "true";
+                    }
+
+                    Swal.fire({
+                        icon: "success",
+                        title: "Success",
+                        text: `Coupon ${isDeactivating ? "deactivated" : "activated"} successfully!`,
                         confirmButtonText: "OK",
                     });
+                } else {
+                    throw new Error(data.message || `Error ${isDeactivating ? "deactivating" : "activating"} coupon`);
                 }
+            } catch (error) {
+                console.error(`Error ${isDeactivating ? "deactivating" : "activating"} coupon:`, error);
+                Swal.fire({
+                    icon: "error",
+                    title: "Error",
+                    text: `Error ${isDeactivating ? "deactivating" : "activating"} coupon: ${error.message}`,
+                    confirmButtonText: "OK",
+                });
             }
         }
 
@@ -524,8 +558,6 @@
                         headers: {
                             "Content-Type": "application/json",
                             "Accept": "application/json",
-                            // Add CSRF token if required (replace 'csrfToken' with actual token value from server)
-                            // "X-CSRF-Token": csrfToken
                         },
                         credentials: "include" // Include cookies for session authentication
                     });

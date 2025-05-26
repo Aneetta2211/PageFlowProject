@@ -377,8 +377,8 @@ const downloadReport = async (req, res) => {
             doc.moveDown();
 
             doc.text(`Total Orders: ${totalOrders}`);
-            doc.text(`Total Amount: ₹${totalAmount.toFixed(2)}`); // Updated to use ₹
-            doc.text(`Total Discount: ₹${totalDiscount.toFixed(2)}`); // Updated to use ₹
+            doc.text(`Total Amount: ₹${totalAmount.toFixed(2)}`); 
+            doc.text(`Total Discount: ₹${totalDiscount.toFixed(2)}`); 
             doc.text(`Total Coupons Applied: ${totalCoupons}`);
             doc.moveDown();
 
@@ -387,8 +387,8 @@ const downloadReport = async (req, res) => {
                 doc.text(`Order ${index + 1}:`);
                 doc.text(`Order ID: ${order.orderId}`);
                 doc.text(`Date: ${new Date(order.createdOn).toLocaleDateString()}`);
-                doc.text(`Amount: ₹${order.finalAmount.toFixed(2)}`); // Updated to use ₹
-                doc.text(`Discount: ₹${order.discount.toFixed(2)}`); // Updated to use ₹
+                doc.text(`Amount: ₹${order.finalAmount.toFixed(2)}`); 
+                doc.text(`Discount: ₹${order.discount.toFixed(2)}`); 
                 doc.text(`Coupon: ${order.couponApplied ? order.appliedCoupon || 'Applied' : 'None'}`);
                 doc.moveDown();
             });

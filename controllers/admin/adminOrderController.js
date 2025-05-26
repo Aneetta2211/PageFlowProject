@@ -123,7 +123,7 @@ const renderOrderDetailsPage = async (req, res) => {
 const updateOrderStatus = async (req, res) => {
     try {
         const { orderId, status } = req.body;
-        const validStatuses = ['Pending', 'Shipped', 'Out for Delivery', 'Delivered', 'Cancelled', 'Return Request', 'Returned', 'Return Denied'];
+        const validStatuses = ['Placed', 'Pending', 'Shipped', 'Out for Delivery', 'Delivered', 'Cancelled', 'Return Request', 'Returned', 'Return Denied'];
         if (!validStatuses.includes(status)) {
             return res.status(400).json({ error: 'Invalid status' });
         }
@@ -144,7 +144,6 @@ const updateOrderStatus = async (req, res) => {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 };
-
 const cancelOrder = async (req, res) => {
     try {
         const { orderId } = req.params;
