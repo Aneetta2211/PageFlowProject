@@ -5,7 +5,8 @@ const PDFDocument = require('pdfkit');
 const ExcelJS = require('exceljs');
 const Order = require('../../models/orderSchema');
 const Coupon = require('../../models/couponSchema');
-const Product=require("../../models/productSchema.js")
+const Product = require("../../models/productSchema.js");
+const Category = require("../../models/categorySchema.js");
 
 const pageerror = async (req, res) => {
     res.render('admin/dashboard', { 
@@ -22,7 +23,10 @@ const pageerror = async (req, res) => {
         totalProductsGrowth: 0,
         totalOrdersGrowth: 0,
         totalRevenueGrowth: 0,
-        recentOrders: []
+        recentOrders: [],
+        chartData: null,
+        topProducts: [],
+        topCategories: []
     });
 };
 
@@ -66,11 +70,11 @@ const loadDashboard = async (req, res) => {
     try {
         console.log("Loading dashboard for user:", req.session.admin);
 
-       
         const { filterType = 'daily', startDate, endDate } = req.query;
 
-        
+        // Date filter for orders
         let dateFilter = {};
+        let chartDateFilter = {};
         const now = new Date();
         
         if (filterType === 'daily') {
@@ -80,6 +84,7 @@ const loadDashboard = async (req, res) => {
                     $lte: new Date(now.setHours(23, 59, 59, 999)),
                 },
             };
+            chartDateFilter = { $gte: new Date(now.setHours(0, 0, 0, 0)) }; // For daily chart (last 24 hours)
         } else if (filterType === 'weekly') {
             const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
             startOfWeek.setHours(0, 0, 0, 0);
@@ -89,6 +94,7 @@ const loadDashboard = async (req, res) => {
             dateFilter = {
                 createdOn: { $gte: startOfWeek, $lte: endOfWeek },
             };
+            chartDateFilter = { $gte: startOfWeek, $lte: endOfWeek }; // For weekly chart
         } else if (filterType === 'monthly') {
             const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
             const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
@@ -96,6 +102,7 @@ const loadDashboard = async (req, res) => {
             dateFilter = {
                 createdOn: { $gte: startOfMonth, $lte: endOfMonth },
             };
+            chartDateFilter = { $gte: startOfMonth, $lte: endOfMonth }; // For monthly chart
         } else if (filterType === 'yearly') {
             const startOfYear = new Date(now.getFullYear(), 0, 1);
             const endOfYear = new Date(now.getFullYear(), 11, 31);
@@ -103,6 +110,7 @@ const loadDashboard = async (req, res) => {
             dateFilter = {
                 createdOn: { $gte: startOfYear, $lte: endOfYear },
             };
+            chartDateFilter = { $gte: startOfYear, $lte: endOfYear }; // For yearly chart
         } else if (filterType === 'custom' && startDate && endDate) {
             dateFilter = {
                 createdOn: {
@@ -110,9 +118,10 @@ const loadDashboard = async (req, res) => {
                     $lte: new Date(new Date(endDate).setHours(23, 59, 59, 999)),
                 },
             };
+            chartDateFilter = { $gte: new Date(startDate), $lte: new Date(endDate) }; // For custom range chart
         }
 
-        
+        // Fetch orders for sales data
         const orders = await Order.find({
             ...dateFilter,
             status: { $in: ['Placed', 'Processing', 'Shipped', 'Delivered'] }
@@ -120,12 +129,9 @@ const loadDashboard = async (req, res) => {
             .populate('orderedItems.product user')
             .sort({ createdOn: -1 });
 
-        
         const totalUsers = await User.countDocuments({ isAdmin: false });
         const totalProducts = await Product.countDocuments();
-        console.log("Total products:", totalProducts);
 
-       
         let totalOrders = orders.length;
         let totalAmount = 0;
         let totalDiscount = 0;
@@ -137,7 +143,6 @@ const loadDashboard = async (req, res) => {
             if (order.couponApplied) totalCoupons++;
         });
 
-        
         const formattedOrders = orders.map(order => ({
             orderId: order.orderId,
             customerName: order.user ? order.user.name : 'Unknown',
@@ -149,7 +154,6 @@ const loadDashboard = async (req, res) => {
             date: order.createdOn
         }));
 
-        
         const salesData = {
             orders: formattedOrders,
             totalOrders,
@@ -158,12 +162,151 @@ const loadDashboard = async (req, res) => {
             totalCoupons
         };
 
-        
+        // Fetch data for Revenue & Orders Overview Chart
+        const chartOrders = await Order.find({
+            createdOn: chartDateFilter,
+            status: { $in: ['Placed', 'Processing', 'Shipped', 'Delivered'] }
+        }).populate('orderedItems.product user');
+
+        let chartData = { labels: [], revenue: [], ordersCount: [] };
+        if (filterType === 'daily') {
+            // Hourly data for the day
+            const hours = Array.from({ length: 24 }, (_, i) => i);
+            chartData.labels = hours.map(hour => `${hour}:00`);
+            chartData.revenue = hours.map(hour => {
+                return chartOrders
+                    .filter(order => new Date(order.createdOn).getHours() === hour)
+                    .reduce((sum, order) => sum + order.finalAmount, 0);
+            });
+            chartData.ordersCount = hours.map(hour => {
+                return chartOrders.filter(order => new Date(order.createdOn).getHours() === hour).length;
+            });
+        } else if (filterType === 'weekly') {
+            // Daily data for the week
+            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            chartData.labels = days;
+            chartData.revenue = days.map((_, i) => {
+                return chartOrders
+                    .filter(order => new Date(order.createdOn).getDay() === i)
+                    .reduce((sum, order) => sum + order.finalAmount, 0);
+            });
+            chartData.ordersCount = days.map((_, i) => {
+                return chartOrders.filter(order => new Date(order.createdOn).getDay() === i).length;
+            });
+        } else if (filterType === 'monthly') {
+            // Daily data for the month
+            const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+            chartData.labels = Array.from({ length: daysInMonth }, (_, i) => (i + 1).toString());
+            chartData.revenue = Array.from({ length: daysInMonth }, (_, i) => {
+                return chartOrders
+                    .filter(order => new Date(order.createdOn).getDate() === (i + 1))
+                    .reduce((sum, order) => sum + order.finalAmount, 0);
+            });
+            chartData.ordersCount = Array.from({ length: daysInMonth }, (_, i) => {
+                return chartOrders.filter(order => new Date(order.createdOn).getDate() === (i + 1)).length;
+            });
+        } else if (filterType === 'yearly') {
+            // Monthly data for the year
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            chartData.labels = months;
+            chartData.revenue = months.map((_, i) => {
+                return chartOrders
+                    .filter(order => new Date(order.createdOn).getMonth() === i)
+                    .reduce((sum, order) => sum + order.finalAmount, 0);
+            });
+            chartData.ordersCount = months.map((_, i) => {
+                return chartOrders.filter(order => new Date(order.createdOn).getMonth() === i).length;
+            });
+        } else if (filterType === 'custom' && startDate && endDate) {
+            // Daily data for the custom range
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            const daysDiff = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+            chartData.labels = Array.from({ length: daysDiff }, (_, i) => {
+                const date = new Date(start);
+                date.setDate(date.getDate() + i);
+                return date.toISOString().split('T')[0];
+            });
+            chartData.revenue = chartData.labels.map(label => {
+                return chartOrders
+                    .filter(order => new Date(order.createdOn).toISOString().split('T')[0] === label)
+                    .reduce((sum, order) => sum + order.finalAmount, 0);
+            });
+            chartData.ordersCount = chartData.labels.map(label => {
+                return chartOrders.filter(order => new Date(order.createdOn).toISOString().split('T')[0] === label).length;
+            });
+        }
+
+        // Fetch Top 10 Best-Selling Products
+        const productSales = await Order.aggregate([
+            { $match: { status: { $in: ['Placed', 'Processing', 'Shipped', 'Delivered'] } } },
+            { $unwind: '$orderedItems' },
+            {
+                $group: {
+                    _id: '$orderedItems.product',
+                    totalSold: { $sum: '$orderedItems.quantity' }
+                }
+            },
+            { $sort: { totalSold: -1 } },
+            { $limit: 10 },
+            {
+                $lookup: {
+                    from: 'products',
+                    localField: '_id',
+                    foreignField: '_id',
+                    as: 'product'
+                }
+            },
+            { $unwind: '$product' }
+        ]);
+
+        const topProducts = productSales.map(item => ({
+            name: item.product.productName,
+            totalSold: item.totalSold
+        }));
+
+        // Fetch Top 10 Best-Selling Categories
+        const categorySales = await Order.aggregate([
+            { $match: { status: { $in: ['Placed', 'Processing', 'Shipped', 'Delivered'] } } },
+            { $unwind: '$orderedItems' },
+            {
+                $lookup: {
+                    from: 'products',
+                    localField: 'orderedItems.product',
+                    foreignField: '_id',
+                    as: 'product'
+                }
+            },
+            { $unwind: '$product' },
+            {
+                $group: {
+                    _id: '$product.category',
+                    totalSold: { $sum: '$orderedItems.quantity' }
+                }
+            },
+            { $sort: { totalSold: -1 } },
+            { $limit: 10 },
+            {
+                $lookup: {
+                    from: 'categories',
+                    localField: '_id',
+                    foreignField: '_id',
+                    as: 'category'
+                }
+            },
+            { $unwind: '$category' }
+        ]);
+
+        const topCategories = categorySales.map(item => ({
+            name: item.category.name,
+            totalSold: item.totalSold
+        }));
+
         const recentOrders = await Order.find({
             status: { $in: ['Placed', 'Processing', 'Shipped', 'Delivered'] }
         })
             .sort({ createdOn: -1 })
-            .limit(5)
+            .limit(5) // Fixed: Completed the limit method
             .populate('orderedItems.product user');
 
         res.render("admin/dashboard", {
@@ -173,14 +316,17 @@ const loadDashboard = async (req, res) => {
             salesData,
             totalUsers,
             totalProducts,
-            totalUsersGrowth: 5.3, 
+            totalUsersGrowth: 5.3,
             totalProductsGrowth: 7.1,
-            totalOrdersGrowth: 3.2, 
-            totalRevenueGrowth: 8.5, 
+            totalOrdersGrowth: 3.2,
+            totalRevenueGrowth: 8.5,
             recentOrders,
             filterType,
             startDate: startDate || dateFilter.createdOn?.$gte?.toISOString().split('T')[0],
-            endDate: endDate || dateFilter.createdOn?.$lte?.toISOString().split('T')[0]
+            endDate: endDate || dateFilter.createdOn?.$lte?.toISOString().split('T')[0],
+            chartData,
+            topProducts,
+            topCategories
         });
     } catch (error) {
         console.error("Error loading dashboard:", error);
@@ -198,7 +344,10 @@ const loadDashboard = async (req, res) => {
             recentOrders: [],
             filterType: 'daily',
             startDate: null,
-            endDate: null
+            endDate: null,
+            chartData: null,
+            topProducts: [],
+            topCategories: []
         });
     }
 };
@@ -217,11 +366,11 @@ const logout = async (req, res) => {
         res.redirect("/pageerror");
     }
 };
+
 const getSalesReport = async (req, res) => {
     try {
         const { filterType, startDate, endDate } = req.query;
 
-        
         let dateFilter = {};
         const now = new Date();
         
@@ -264,19 +413,16 @@ const getSalesReport = async (req, res) => {
             };
         }
 
-        
         const orders = await Order.find(dateFilter)
             .populate('user', 'name')
             .populate('orderedItems.product', 'productName') 
             .sort({ createdOn: -1 }); 
 
-       
         const totalOrders = orders.length;
         const totalAmount = orders.reduce((sum, order) => sum + order.finalAmount, 0);
         const totalDiscount = orders.reduce((sum, order) => sum + (order.discount || 0), 0);
         const totalCoupons = orders.filter(order => order.couponApplied).length;
 
-        
         const salesData = {
             orders,
             totalOrders,
@@ -306,10 +452,9 @@ const getSalesReport = async (req, res) => {
 
 const downloadReport = async (req, res) => {
     try {
-        const { format, filterType, startDate, endDate } = req.query;
+        const { format,Lottery, startDate, endDate } = req.query;
         let start, end;
 
-        
         const now = new Date();
         switch (filterType) {
             case 'daily':
@@ -343,13 +488,11 @@ const downloadReport = async (req, res) => {
                 end = new Date();
         }
 
-        
         const orders = await Order.find({
             createdOn: { $gte: start, $lte: end },
             status: { $in: ['Placed', 'Processing', 'Shipped', 'Delivered'] }
         }).populate('orderedItems.product user');
 
-        
         let totalOrders = orders.length;
         let totalAmount = 0;
         let totalDiscount = 0;
@@ -416,7 +559,6 @@ const downloadReport = async (req, res) => {
                 });
             });
 
-            
             worksheet.addRow({});
             worksheet.addRow({ orderId: 'Total Orders', amount: totalOrders });
             worksheet.addRow({ orderId: 'Total Amount', amount: totalAmount.toFixed(2) });

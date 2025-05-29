@@ -6,6 +6,7 @@ const categoryController = require("../controllers/admin/categoryController.js")
 const productController = require("../controllers/admin/productController.js"); 
 const couponController = require("../controllers/admin/couponController.js");
 const orderController = require("../controllers/admin/adminOrderController.js");
+const walletController=require("../controllers/admin/walletController.js")
 const { userAuth, adminAuth } = require("../middlewares/auth.js");
 const upload = require("../helpers/multer.js");
 
@@ -20,6 +21,7 @@ router.get("/", adminAuth, adminController.loadDashboard);
 router.get("/logout", adminController.logout);
 router.get('/sales-report',adminAuth, adminController.getSalesReport);
 router.get('/download-report',adminAuth, adminController.downloadReport);
+
 
 // Customer Management
 router.get("/customers", adminAuth, customerController.customerInfo);
@@ -64,5 +66,9 @@ router.post('/coupons/add', adminAuth, couponController.addCoupon);
 router.put('/coupons/edit/:id', adminAuth, couponController.editCoupon);
 router.delete('/coupons/delete/:id', adminAuth, couponController.deleteCoupon);
 router.post('/coupons/toggle/:id', adminAuth, couponController.toggleCouponStatus);
+
+// Wallet Management
+router.get("/wallet", adminAuth, walletController.walletInfo);
+router.get("/wallet/orders/:userId", adminAuth,walletController.walletOrders);
 
 module.exports = router;
