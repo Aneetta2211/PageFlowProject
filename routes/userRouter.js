@@ -37,6 +37,8 @@ router.get("/auth/google/callback",
 );
 
 router.get("/logout", userController.logout);
+router.get("/about", userController.loadAbout);
+router.get("/contact",userController.loadContact);
 
 // Forgot Password
 router.get('/forgotPassword', profileController.getForgotPasspage);

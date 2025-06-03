@@ -55,6 +55,12 @@ const productSchema = new Schema({
         required: true,
         default: "Available",
     },
+    averageRating: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 5
+    },
 }, { timestamps: true });
 
 const Product = mongoose.model("product", productSchema);

@@ -1,6 +1,7 @@
 
 const User=require("../../models/userSchema");
 const Product=require("../../models/productSchema")
+const Category=require("../../models/categorySchema")
 const Wallet=require("../../models/walletSchema")
 const { addToWallet } = require("../user/walletController");
 const env=require('dotenv').config();
@@ -291,6 +292,11 @@ try {
 }
 };
 
+
+
+
+
+
 const logout=async (req,res)=>{
 try {
 
@@ -311,6 +317,36 @@ try {
 }
 }
 
+const loadAbout = async (req, res) => {
+    try {
+        
+        const user = req.session.user || null;
+        
+        res.render("user/about", { 
+            user: user,
+            title: "About Us - Our Story",
+            currentPage: "about"
+        });
+        
+    } catch (error) {
+        console.error("About Page Error:", error);
+        res.status(500).send("Server Error");
+    }
+};
+
+const loadContact = async (req, res) => {
+    try {
+        const user = req.session.user || null;
+        res.render("user/contact", { 
+            user: user,
+            title: "Contact Us - PageFlow",
+            currentPage: "contact"
+        });
+    } catch (error) {
+        console.error("Contact Page Error:", error);
+        res.status(500).send("Server Error");
+    }
+};
 
 
 module.exports = {
@@ -324,6 +360,6 @@ loginUser,
 verifyOTP,
 resendOTP,
 logout,
-
-
+loadAbout, 
+loadContact
 };

@@ -1,0 +1,263 @@
+<%- include("../../views/partials/user/header") %>
+
+<style>
+  
+  .contact-section {
+    background: #ffffff; 
+    position: relative;
+    overflow: hidden;
+  }
+
+  .contact-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: url('/images/book-pattern.png') repeat;
+    opacity: 0.05;
+    z-index: 0;
+  }
+
+  .contact-section h1 {
+    font-family: 'Playfair Display', serif;
+    color: #060606;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+    animation: fadeInDown 1s ease-out;
+  }
+
+  .contact-section p {
+    font-family: 'Nunito', sans-serif;
+    color: #000000;
+    font-size: 1.1rem;
+    transition: transform 0.3s ease;
+  }
+
+  .contact-section p:hover {
+    transform: translateY(-3px);
+  }
+
+  .contact-form-card, .contact-info-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: 1px solid #e0e0e0;
+    background: linear-gradient(145deg, #ffffff, #f0f0f0);
+    border-radius: 15px;
+    animation: fadeInUp 0.8s ease-out forwards;
+  }
+
+  .contact-form-card:hover, .contact-info-card:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+  }
+
+  .contact-form-card .form-control {
+    font-family: 'Nunito', sans-serif;
+    border-radius: 8px;
+    border: 1px solid #ced4da;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .contact-form-card .form-control:focus {
+    border-color: #e74c3c;
+    box-shadow: 0 0 8px rgba(231, 76, 60, 0.3);
+  }
+
+  .contact-form-card .btn-submit {
+    background: linear-gradient(45deg, #e74c3c, #c0392b);
+    color: white;
+    font-family: 'Montserrat', sans-serif;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 30px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .contact-form-card .btn-submit:hover {
+    transform: scale(1.05);
+    box-shadow: 0 5px 15px rgba(231, 76, 60, 0.4);
+  }
+
+  .contact-info-card h4 {
+    font-family: 'Montserrat', sans-serif;
+    color: #000000;
+    letter-spacing: 1px;
+  }
+
+  .contact-info-card p {
+    font-family: 'Nunito', sans-serif;
+    color: #000000;
+  }
+
+  .contact-info-card .contact-icon {
+    background: linear-gradient(45deg, #2c3e50, #4a5a6b); /* Neutral gray gradient */
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.3s ease;
+  }
+
+  .contact-info-card:hover .contact-icon {
+    transform: scale(1.1);
+  }
+
+  .map-container {
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    animation: fadeInUp 0.8s ease-out forwards;
+    animation-delay: 0.4s;
+  }
+
+  .map-container iframe {
+    transition: transform 0.5s ease;
+  }
+
+  .map-container:hover iframe {
+    transform: scale(1.02);
+  }
+
+  /* Keyframe animations */
+  @keyframes fadeInDown {
+    0% {
+      opacity: 0;
+      transform: translateY(-20px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes fadeInUp {
+    0% {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+</style>
+
+<!-- Contact Section -->
+<section class="contact-section" style="padding: 60px 0;">
+  <div class="container">
+    <h1 style="font-size: 2.5rem; font-weight: bold; margin-bottom: 30px; text-align: center;">Contact Us</h1>
+    <p style="line-height: 1.8; margin-bottom: 40px; text-align: center;">
+      We'd love to hear from you! Whether you have questions, feedback, or just want to say hello, reach out to us and we'll get back to you as soon as possible.
+    </p>
+    <div class="row">
+      <!-- Contact Form -->
+      <div class="col-md-6 mb-4">
+        <div class="contact-form-card" style="padding: 30px; position: relative; z-index: 1;">
+          <h4 style="font-size: 1.5rem; font-weight: bold; margin-bottom: 20px; color: #000000;">Send Us a Message</h4>
+          <form action="/contact" method="POST">
+           <div class="mb-3">
+  <label for="name" class="form-label">Name</label>
+  <input type="text" class="form-control" id="name" name="name" required>
+  <div id="name-error" class="text-danger" style="font-size: 0.9rem;"></div>
+</div>
+<div class="mb-3">
+  <label for="email" class="form-label">Email</label>
+  <input type="email" class="form-control" id="email" name="email" required>
+  <div id="email-error" class="text-danger" style="font-size: 0.9rem;"></div>
+</div>
+<div class="mb-3">
+  <label for="message" class="form-label">Message</label>
+  <textarea class="form-control" id="message" name="message" rows="5" required></textarea>
+  <div id="message-error" class="text-danger" style="font-size: 0.9rem;"></div>
+</div>
+            <button type="submit" class="btn btn-submit">Send Message</button>
+          </form>
+        </div>
+      </div>
+      <!-- Contact Information -->
+      <div class="col-md-6 mb-4">
+        <div class="contact-info-card" style="padding: 30px; position: relative; z-index: 1;">
+          <h4 style="font-size: 1.5rem; font-weight: bold; margin-bottom: 20px; color: #000000;">Get in Touch</h4>
+          <div class="d-flex align-items-center mb-3">
+            <div class="contact-icon me-3">
+              <i class="fas fa-envelope" style="color: white; font-size: 20px;"></i>
+            </div>
+            <p style="margin: 0;">Email: pageflow@gmail.com</p>
+          </div>
+          <div class="d-flex align-items-center mb-3">
+            <div class="contact-icon me-3">
+              <i class="fas fa-phone" style="color: white; font-size: 20px;"></i>
+            </div>
+            <p style="margin: 0;">Phone: +1 (123) 456-7890</p>
+          </div>
+          <div class="d-flex align-items-center mb-3">
+            <div class="contact-icon me-3">
+              <i class="fas fa-map-marker-alt" style="color: white; font-size: 20px;"></i>
+            </div>
+            <p style="margin: 0;">Address: 123 Book Street, Literature City, LC 12345</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Map Section -->
+    <div class="row mt-5">
+      <div class="col-12">
+        <div class="map-container">
+          <!-- Placeholder for Google Maps iframe or static image -->
+          <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3151.835434509374!2d144.9537363153169!3d-37.81627977975195!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x6ad642af0f11fd81%3A0x5045675218ce6e0!2sVictoria%20State%20Library!5e0!3m2!1sen!2sus!4v1634567890123!5m2!1sen!2sus" width="100%" height="400" style="border:0;" allowfullscreen="" loading="lazy"></iframe>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Add Font Awesome for icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+<!-- Add Google Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Montserrat:wght@600&family=Nunito:wght@400;600&display=swap" rel="stylesheet">
+<script>
+  document.querySelector('form').addEventListener('submit', function (e) {
+    e.preventDefault();
+
+    const name = document.getElementById('name').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const message = document.getElementById('message').value.trim();
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    let isValid = true;
+
+    // Reset error messages
+    document.getElementById('name-error').textContent = '';
+    document.getElementById('email-error').textContent = '';
+    document.getElementById('message-error').textContent = '';
+
+    // Name validation
+    if (name.length < 2) {
+      isValid = false;
+      document.getElementById('name-error').textContent = 'Name must be at least 2 characters long.';
+    }
+
+    // Email validation
+    if (!emailRegex.test(email)) {
+      isValid = false;
+      document.getElementById('email-error').textContent = 'Please enter a valid email address.';
+    }
+
+    // Message validation
+    if (message.length < 10) {
+      isValid = false;
+      document.getElementById('message-error').textContent = 'Message must be at least 10 characters long.';
+    }
+
+    if (isValid) {
+      this.submit();
+    }
+  });
+</script>
+
+<%- include("../../views/partials/user/footer") %>
