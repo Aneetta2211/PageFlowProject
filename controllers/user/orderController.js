@@ -296,6 +296,8 @@ const cancelOrderItem = async (req, res) => {
         const itemDiscount = item.discountApplied || 0;
         const refundAmount = itemTotal - itemDiscount;
 
+
+
         console.log('Item to cancel:', { productID, quantity: item.quantity, price: item.price, discountApplied: itemDiscount, refundAmount });
 
       

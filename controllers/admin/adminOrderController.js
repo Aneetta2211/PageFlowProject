@@ -246,13 +246,15 @@ const cancelOrderItem = async (req, res) => {
         const item = order.orderedItems[itemIndex];
         const refundAmount = item.price * item.quantity;
 
-        
+
+
         order.cancelledItems.push({
             product: item.product._id,
             price: item.price,
             quantity: item.quantity,
             cancelReason: reason || 'No reason provided',
             cancelledAt: new Date()
+             
         });
 
       

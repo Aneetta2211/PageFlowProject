@@ -26,7 +26,9 @@ const pageerror = async (req, res) => {
         recentOrders: [],
         chartData: null,
         topProducts: [],
-        topCategories: []
+        topCategories: [],
+        currentPage: 1,
+        totalPages: 1
     });
 };
 
@@ -70,7 +72,7 @@ const loadDashboard = async (req, res) => {
     try {
         console.log("Loading dashboard for user:", req.session.admin);
 
-        const { filterType = 'daily', startDate, endDate } = req.query;
+        const { filterType = 'daily', startDate, endDate, page = 1, limit = 10 } = req.query;
 
         // Date filter for orders
         let dateFilter = {};
@@ -121,23 +123,41 @@ const loadDashboard = async (req, res) => {
             chartDateFilter = { $gte: new Date(startDate), $lte: new Date(endDate) }; // For custom range chart
         }
 
-        // Fetch orders for sales data
+        // Fetch total number of orders for pagination
+        const totalOrdersCount = await Order.countDocuments({
+            ...dateFilter,
+            status: { $in: ['Placed', 'Processing', 'Shipped', 'Delivered'] }
+        });
+
+        // Calculate pagination parameters
+        const currentPage = parseInt(page);
+        const totalPages = Math.ceil(totalOrdersCount / limit);
+        const skip = (currentPage - 1) * limit;
+
+        // Fetch paginated orders
         const orders = await Order.find({
             ...dateFilter,
             status: { $in: ['Placed', 'Processing', 'Shipped', 'Delivered'] }
         })
             .populate('orderedItems.product user')
-            .sort({ createdOn: -1 });
+            .sort({ createdOn: -1 })
+            .skip(skip)
+            .limit(limit);
 
         const totalUsers = await User.countDocuments({ isAdmin: false });
         const totalProducts = await Product.countDocuments();
 
-        let totalOrders = orders.length;
+        let totalOrders = totalOrdersCount; // Use the total count for display
         let totalAmount = 0;
         let totalDiscount = 0;
         let totalCoupons = 0;
 
-        orders.forEach(order => {
+        // Calculate totals based on all orders (not just paginated ones)
+        const allOrders = await Order.find({
+            ...dateFilter,
+            status: { $in: ['Placed', 'Processing', 'Shipped', 'Delivered'] }
+        });
+        allOrders.forEach(order => {
             totalAmount += order.finalAmount;
             totalDiscount += order.discount || 0;
             if (order.couponApplied) totalCoupons++;
@@ -306,7 +326,7 @@ const loadDashboard = async (req, res) => {
             status: { $in: ['Placed', 'Processing', 'Shipped', 'Delivered'] }
         })
             .sort({ createdOn: -1 })
-            .limit(5) // Fixed: Completed the limit method
+            .limit(5)
             .populate('orderedItems.product user');
 
         res.render("admin/dashboard", {
@@ -326,7 +346,9 @@ const loadDashboard = async (req, res) => {
             endDate: endDate || dateFilter.createdOn?.$lte?.toISOString().split('T')[0],
             chartData,
             topProducts,
-            topCategories
+            topCategories,
+            currentPage,
+            totalPages
         });
     } catch (error) {
         console.error("Error loading dashboard:", error);
@@ -347,7 +369,9 @@ const loadDashboard = async (req, res) => {
             endDate: null,
             chartData: null,
             topProducts: [],
-            topCategories: []
+            topCategories: [],
+            currentPage: 1,
+            totalPages: 1
         });
     }
 };
@@ -452,7 +476,7 @@ const getSalesReport = async (req, res) => {
 
 const downloadReport = async (req, res) => {
     try {
-        const { format,Lottery, startDate, endDate } = req.query;
+        const { format, filterType, startDate, endDate } = req.query; // Fixed: Corrected parameter name from 'Lottery' to 'filterType'
         let start, end;
 
         const now = new Date();
