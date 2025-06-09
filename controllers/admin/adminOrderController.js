@@ -303,9 +303,9 @@ const cancelOrderItem = async (req, res) => {
 
 const verifyReturnRequest = async (req, res) => {
     try {
-        const { orderId, status } = req.body; // status: 'Approved' or 'Denied'
+        const { orderId, status } = req.body; 
 
-        // Find the order
+        
         const order = await Order.findOne({ orderId })
             .populate('user')
             .populate('orderedItems.product')
@@ -319,13 +319,13 @@ const verifyReturnRequest = async (req, res) => {
             return res.status(400).json({ error: 'No valid return request found for this order' });
         }
 
-        // Update order status based on return decision
+       
         if (status === 'Approved') {
             order.status = 'Returned';
             order.returnStatus = 'Approved';
 
-            // Refund the amount to the user's wallet
-            const refundAmount = order.finalAmount; // ₹849
+            
+            const refundAmount = order.finalAmount; 
             let userWallet = await Wallet.findOne({ user: order.user._id });
 
             if (!userWallet) {
@@ -346,14 +346,11 @@ const verifyReturnRequest = async (req, res) => {
 
             await userWallet.save();
 
-            // Do NOT move orderedItems to cancelledItems or clear orderedItems
-            // Keep orderedItems intact to preserve product details
         } else {
             order.status = 'Return Denied';
             order.returnStatus = 'Denied';
         }
 
-        // Save the updated order
         await order.save();
 
         res.status(200).json({ message: `Return request ${status.toLowerCase()} successfully` });

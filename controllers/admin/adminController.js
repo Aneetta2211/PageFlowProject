@@ -73,7 +73,7 @@ const loadDashboard = async (req, res) => {
 
         const { filterType = 'daily', startDate, endDate, page = 1, limit = 10 } = req.query;
 
-        // Validate and set date filter
+       
         let dateFilter = {};
         let chartDateFilter = {};
         const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
@@ -136,15 +136,15 @@ const loadDashboard = async (req, res) => {
                 throw new Error('Invalid filter type');
         }
 
-        // Fetch total number of orders for pagination
+       
         const totalOrdersCount = await Order.countDocuments(dateFilter);
 
-        // Calculate pagination parameters
+      
         const currentPage = parseInt(page);
         const totalPages = Math.ceil(totalOrdersCount / limit);
         const skip = Math.max(0, (currentPage - 1) * limit);
 
-        // Fetch paginated orders (all statuses)
+        
         const orders = await Order.find(dateFilter)
             .populate('user', 'name')
             .populate('orderedItems.product', 'productName')
@@ -152,11 +152,11 @@ const loadDashboard = async (req, res) => {
             .skip(skip)
             .limit(limit);
 
-        // Fetch total users and products
+        
         const totalUsers = await User.countDocuments({ isAdmin: false });
         const totalProducts = await Product.countDocuments();
 
-        // Calculate totals
+       
         const allOrders = await Order.find(dateFilter).populate('orderedItems.product user');
 
         let totalOrders = totalOrdersCount;
@@ -172,7 +172,7 @@ const loadDashboard = async (req, res) => {
             if (order.couponApplied) totalCoupons++;
         });
 
-        // Format orders for display
+        
         const formattedOrders = orders.map(order => ({
             orderId: order.orderId,
             customerName: order.user ? order.user.name : 'Unknown',
@@ -194,7 +194,7 @@ const loadDashboard = async (req, res) => {
             totalCoupons
         };
 
-        // Calculate growth metrics
+       
         const previousPeriodFilter = {};
         if (filterType === 'daily') {
             const prevDay = new Date(now);
@@ -247,7 +247,7 @@ const loadDashboard = async (req, res) => {
         const totalOrdersGrowth = prevTotalOrders ? ((totalOrders - prevTotalOrders) / prevTotalOrders * 100).toFixed(2) : 0;
         const totalRevenueGrowth = prevTotalAmount ? ((totalAmount - prevTotalAmount) / prevTotalAmount * 100).toFixed(2) : 0;
 
-        // Fetch data for Revenue & Orders Overview Chart
+        
         const chartOrders = await Order.find({
             createdOn: chartDateFilter,
         }).populate('orderedItems.product user');
@@ -317,7 +317,7 @@ const loadDashboard = async (req, res) => {
             });
         }
 
-        // Fetch Top 5 Best-Selling Products
+        
         const productSales = await Order.aggregate([
             { $match: { ...dateFilter, status: { $in: ['Placed', 'Processing', 'Shipped', 'Delivered'] } } },
             { $unwind: '$orderedItems' },
@@ -345,7 +345,7 @@ const loadDashboard = async (req, res) => {
             totalSold: item.totalSold || 0
         }));
 
-        // Fetch Top 5 Best-Selling Categories
+        
         const categorySales = await Order.aggregate([
             { $match: { ...dateFilter, status: { $in: ['Placed', 'Processing', 'Shipped', 'Delivered'] } } },
             { $unwind: '$orderedItems' },
@@ -382,7 +382,7 @@ const loadDashboard = async (req, res) => {
             totalSold: item.totalSold || 0
         }));
 
-        // Render dashboard
+       
         res.render("admin/dashboard", {
             currentRoute: 'dashboard',
             errorPage: null,
@@ -611,39 +611,127 @@ const downloadReport = async (req, res) => {
         });
 
         if (format === 'pdf') {
-            const doc = new PDFDocument();
+            const doc = new PDFDocument({ margin: 30, size: 'A4' });
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', `attachment; filename=sales-report-${filterType}.pdf`);
 
             doc.pipe(res);
 
-            doc.fontSize(20).text('Sales Report', { align: 'center' });
-            doc.moveDown();
-            doc.fontSize(12).text(`Period: ${filterType.toUpperCase()}`);
+            doc.fontSize(22).fillColor('#333').text('Sales Report', { align: 'center' });
+            doc.moveDown(0.5);
+            
+            
+            doc.fontSize(12).fillColor('#666');
+            doc.text(`Report Period: ${filterType.toUpperCase()}`, { align: 'center' });
             if (filterType === 'custom') {
-                doc.text(`From: ${start.toISOString().slice(0, 10)} To: ${end.toISOString().slice(0, 10)}`);
+                doc.text(`From: ${start.toLocaleDateString()} To: ${end.toLocaleDateString()}`, { align: 'center' });
             }
-            doc.moveDown();
+            doc.text(`Generated on: ${new Date().toLocaleDateString()}`, { align: 'center' });
+            doc.moveDown(1);
 
-            doc.text(`Total Orders: ${totalOrders}`);
-            doc.text(`Total Amount: ₹${totalAmount.toFixed(2)}`);
-            doc.text(`Total Discount: ₹${totalDiscount.toFixed(2)}`);
-            doc.text(`Total Coupons Applied: ${totalCoupons}`);
-            doc.moveDown();
+            
+            doc.fontSize(14).fillColor('#333').text('Summary', { underline: true });
+            doc.moveDown(0.3);
+            
+            const summaryY = doc.y;
+            doc.fontSize(11).fillColor('#444');
+            doc.text(`Total Orders: ${totalOrders}`, 50, summaryY);
+            doc.text(`Total Amount: ₹${totalAmount.toFixed(2)}`, 200, summaryY);
+            doc.text(`Total Discount: ₹${totalDiscount.toFixed(2)}`, 350, summaryY);
+            doc.text(`Coupons Used: ${totalCoupons}`, 500, summaryY);
+            doc.moveDown(1.5);
 
-            doc.text('Order Details:', { underline: true });
-            orders.forEach((order, index) => {
-                doc.text(`Order ${index + 1}:`);
-                doc.text(`Order ID: ${order.orderId}`);
-                doc.text(`Customer: ${order.user ? order.user.name : 'Unknown'}`);
-                doc.text(`Date: ${new Date(order.createdOn).toLocaleDateString()}`);
-                doc.text(`Amount: ₹${(order.finalAmount || 0).toFixed(2)}`);
-                doc.text(`Discount: ₹${(order.discount || 0).toFixed(2)}`);
-                doc.text(`Coupon: ${order.couponApplied ? order.appliedCoupon || 'Applied' : 'None'}`);
-                doc.text(`Status: ${order.status || 'Unknown'}`);
-                doc.text(`Payment Status: ${order.paymentStatus || 'Unknown'}`);
-                doc.moveDown();
+           
+            doc.fontSize(14).fillColor('#333').text('Order Details', { underline: true });
+            doc.moveDown(0.5);
+
+            
+            const tableTop = doc.y;
+            const itemHeight = 20;
+            const tableHeaders = [
+                { title: 'Order ID', x: 50, width: 80 },
+                { title: 'Customer', x: 130, width: 80 },
+                { title: 'Date', x: 210, width: 70 },
+                { title: 'Amount', x: 280, width: 60 },
+                { title: 'Discount', x: 340, width: 60 },
+                { title: 'Status', x: 400, width: 70 },
+                { title: 'Payment', x: 470, width: 70 }
+            ];
+
+            
+            doc.fontSize(10).fillColor('#fff');
+            doc.rect(50, tableTop, 490, itemHeight).fill('#4472C4');
+            
+            tableHeaders.forEach(header => {
+                doc.text(header.title, header.x + 5, tableTop + 6, { width: header.width - 10 });
             });
+
+            let currentY = tableTop + itemHeight;
+            const pageHeight = doc.page.height - 100; 
+
+         
+            orders.forEach((order, index) => {
+                
+                if (currentY > pageHeight) {
+                    doc.addPage();
+                    currentY = 50;
+                    
+                  
+                    doc.fontSize(10).fillColor('#fff');
+                    doc.rect(50, currentY, 490, itemHeight).fill('#4472C4');
+                    tableHeaders.forEach(header => {
+                        doc.text(header.title, header.x + 5, currentY + 6, { width: header.width - 10 });
+                    });
+                    currentY += itemHeight;
+                }
+
+               
+                const rowColor = index % 2 === 0 ? '#f8f9fa' : '#ffffff';
+                doc.rect(50, currentY, 490, itemHeight).fill(rowColor).stroke('#ddd');
+
+               
+                doc.fontSize(9).fillColor('#333');
+                
+                const rowData = [
+                    { text: order.orderId || 'N/A', x: 50, width: 80 },
+                    { text: order.user ? order.user.name : 'Unknown', x: 130, width: 80 },
+                    { text: new Date(order.createdOn).toLocaleDateString(), x: 210, width: 70 },
+                    { text: `₹${(order.finalAmount || 0).toFixed(2)}`, x: 280, width: 60 },
+                    { text: `₹${(order.discount || 0).toFixed(2)}`, x: 340, width: 60 },
+                    { text: order.status || 'Unknown', x: 400, width: 70 },
+                    { text: order.paymentStatus || 'Unknown', x: 470, width: 70 }
+                ];
+
+                rowData.forEach(cell => {
+                    doc.text(cell.text, cell.x + 5, currentY + 6, { 
+                        width: cell.width - 10,
+                        ellipsis: true
+                    });
+                });
+
+                currentY += itemHeight;
+            });
+
+         
+            if (currentY > pageHeight - 100) {
+                doc.addPage();
+                currentY = 50;
+            }
+
+            doc.moveDown(1);
+            currentY = doc.y + 20;
+            
+           
+            doc.fontSize(12).fillColor('#333');
+            doc.rect(50, currentY, 490, 80).fill('#f0f0f0').stroke('#ccc');
+            
+            doc.text('Report Summary', 60, currentY + 10, { underline: true });
+            doc.fontSize(10);
+            doc.text(`Total Orders: ${totalOrders}`, 60, currentY + 30);
+            doc.text(`Total Revenue: ₹${totalAmount.toFixed(2)}`, 200, currentY + 30);
+            doc.text(`Total Discounts: ₹${totalDiscount.toFixed(2)}`, 350, currentY + 30);
+            doc.text(`Coupons Applied: ${totalCoupons}`, 60, currentY + 50);
+            doc.text(`Average Order Value: ₹${totalOrders > 0 ? (totalAmount / totalOrders).toFixed(2) : '0.00'}`, 200, currentY + 50);
 
             doc.end();
         } else if (format === 'excel') {
@@ -693,7 +781,6 @@ const downloadReport = async (req, res) => {
         res.redirect('/pageerror');
     }
 };
-
 module.exports = {
     loadLogin,
     login,

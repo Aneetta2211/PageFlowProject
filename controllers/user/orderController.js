@@ -475,7 +475,7 @@ const downloadInvoice = async (req, res) => {
         const { orderID } = req.params;
         const user = req.user;
 
-        
+        // Validate order ID format
         const orderIdRegex = /^OR-\d{4}$/;
         if (!orderIdRegex.test(orderID)) {
             console.warn('Invalid orderID format:', orderID);
@@ -488,11 +488,11 @@ const downloadInvoice = async (req, res) => {
         const order = await Order.findOne({ orderId: orderID, user: user._id })
             .populate({
                 path: 'orderedItems.product',
-                select: 'productName sku regularPrice salesPrice'
+                select: 'productName regularPrice salesPrice'
             })
             .populate({
                 path: 'cancelledItems.product',
-                select: 'productName sku regularPrice salesPrice'
+                select: 'productName regularPrice salesPrice'
             })
             .populate({
                 path: 'address',
@@ -507,52 +507,170 @@ const downloadInvoice = async (req, res) => {
             return res.status(404).send('Order not found');
         }
 
-        const doc = new PDFDocument();
+        const doc = new PDFDocument({ margin: 50 });
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename=invoice_${order.orderId}.pdf`);
         doc.pipe(res);
 
-        doc.fontSize(20).text('INVOICE', { align: 'center' });
-        doc.moveDown();
-        doc.fontSize(12).text(`Order ID: ${order.orderId}`);
-        doc.text(`Date: ${order.createdOn.toDateString()}`);
-        doc.text(`Status: ${order.status}`);
+       
+        doc.fontSize(24).fillColor('#2c3e50').text('INVOICE', { align: 'center' });
+        doc.moveDown(0.5);
+        
+        
+        doc.fontSize(12).fillColor('#7f8c8d')
+           .text('PAGEFLOW', { align: 'center' })
+           .text('123 Book Street, Literature City, LC 12345', { align: 'center' })
+           .text('Phone: +1 (123) 456-7890| Email: pageflow@gmail.com', { align: 'center' });
+        
+        doc.moveDown(1);
+        
+       
+        doc.strokeColor('#bdc3c7').lineWidth(1)
+           .moveTo(50, doc.y).lineTo(550, doc.y).stroke();
+        doc.moveDown(0.5);
 
+        
+        const leftColumn = 50;
+        const rightColumn = 350;
+        
+        doc.fontSize(14).fillColor('#2c3e50').text('Invoice Details:', leftColumn, doc.y);
+        doc.fontSize(11).fillColor('#34495e')
+           .text(`Invoice Number: ${order.orderId}`, leftColumn, doc.y + 20)
+           .text(`Order Date: ${order.createdOn.toLocaleDateString('en-IN')}`, leftColumn, doc.y + 15)
+           .text(`Status: ${order.status}`, leftColumn, doc.y + 15)
+           .text(`Payment Method: ${order.paymentMethod || 'Not specified'}`, leftColumn, doc.y + 15);
+
+       
         const address = order.address && order.address.address && order.address.address.length > 0
             ? order.address.address[0]
             : null;
+            
         if (address) {
-            doc.moveDown();
-            doc.text('Shipping Address:');
-            doc.text(address.name);
-            doc.text(address.landMark);
-            doc.text(`${address.city}, ${address.state} ${address.pincode}`);
-            doc.text(`Phone: ${address.phone}`);
+            doc.fontSize(14).fillColor('#2c3e50').text('Billing Address:', rightColumn, doc.y - 80);
+            doc.fontSize(11).fillColor('#34495e')
+               .text(address.name || 'N/A', rightColumn, doc.y + 20)
+               .text(address.landMark || 'N/A', rightColumn, doc.y + 15)
+               .text(`${address.city || 'N/A'}, ${address.state || 'N/A'} ${address.pincode || 'N/A'}`, rightColumn, doc.y + 15)
+               .text(`Phone: ${address.phone || 'N/A'}`, rightColumn, doc.y + 15);
             if (address.altPhone) {
-                doc.text(`Alternate Phone: ${address.altPhone}`);
+                doc.text(`Alt Phone: ${address.altPhone}`, rightColumn, doc.y + 15);
             }
         }
 
-        doc.moveDown();
-        doc.fontSize(14).text('Order Items:');
-        order.orderedItems.forEach(item => {
-            doc.text(`${item.product.productName} - ${item.quantity} x ₹${item.price.toFixed(2)} = ₹${(item.quantity * item.price).toFixed(2)}`);
-        });
+        doc.moveDown(2);
 
-        if (order.cancelledItems && order.cancelledItems.length > 0) {
-            doc.moveDown();
-            doc.fontSize(14).text('Cancelled Items:');
-            order.cancelledItems.forEach(item => {
-                doc.text(`${item.product.productName} - ${item.quantity} x ₹${item.price.toFixed(2)} = ₹${(item.quantity * item.price).toFixed(2)} (Reason: ${item.cancelReason || 'No reason provided'})`);
+        
+        doc.fontSize(14).fillColor('#2c3e50').text('Order Items:', leftColumn, doc.y);
+        doc.moveDown(0.5);
+
+       
+        const tableTop = doc.y;
+        const itemHeight = 25;
+        
+        
+        const columns = {
+            item: { x: leftColumn, width: 250 },
+            qty: { x: leftColumn + 250, width: 60 },
+            price: { x: leftColumn + 310, width: 80 },
+            discount: { x: leftColumn + 390, width: 80 },
+            total: { x: leftColumn + 470, width: 80 }
+        };
+
+       
+        doc.rect(leftColumn, tableTop, 500, itemHeight).fillAndStroke('#ecf0f1', '#bdc3c7');
+        
+        doc.fontSize(10).fillColor('#2c3e50')
+           .text('Item', columns.item.x + 5, tableTop + 8)
+           .text('Qty', columns.qty.x + 5, tableTop + 8)
+           .text('Price', columns.price.x + 5, tableTop + 8)
+           .text('Discount', columns.discount.x + 5, tableTop + 8)
+           .text('Total', columns.total.x + 5, tableTop + 8);
+
+        let currentY = tableTop + itemHeight;
+
+       
+        if (order.orderedItems && order.orderedItems.length > 0) {
+            order.orderedItems.forEach((item, index) => {
+                const isEven = index % 2 === 0;
+                const rowColor = isEven ? '#ffffff' : '#f8f9fa';
+                
+               
+                doc.rect(leftColumn, currentY, 500, itemHeight).fillAndStroke(rowColor, '#ecf0f1');
+                
+                const itemTotal = item.quantity * item.price;
+                const discountAmount = item.discountApplied || 0;
+                const finalTotal = itemTotal - discountAmount;
+                
+                doc.fontSize(9).fillColor('#2c3e50')
+                   .text(item.product.productName || 'N/A', columns.item.x + 5, currentY + 8, { width: columns.item.width - 10 })
+                   .text(item.quantity.toString(), columns.qty.x + 5, currentY + 8)
+                   .text(`₹${item.price.toFixed(2)}`, columns.price.x + 5, currentY + 8)
+                   .text(`₹${discountAmount.toFixed(2)}`, columns.discount.x + 5, currentY + 8)
+                   .text(`₹${finalTotal.toFixed(2)}`, columns.total.x + 5, currentY + 8);
+                
+                currentY += itemHeight;
             });
         }
 
-doc.moveDown();
-doc.text(`Subtotal: ₹${order.totalPrice.toFixed(2)}`);
-doc.text(`Shipping: ₹${order.shipping ? order.shipping.toFixed(2) : '0.00'}`);
-doc.text(`Discount: ₹${order.discount.toFixed(2)}`);
-doc.text(`Total: ₹${order.finalAmount.toFixed(2)}`);
-doc.text(`Payment Method: ${order.paymentMethod || 'Not specified'}`);
+       
+        if (order.cancelledItems && order.cancelledItems.length > 0) {
+            doc.moveDown(1);
+            doc.fontSize(12).fillColor('#e74c3c').text('Cancelled Items:', leftColumn, currentY + 10);
+            currentY += 35;
+            
+           
+            doc.rect(leftColumn, currentY, 500, itemHeight).fillAndStroke('#ffebee', '#ef5350');
+            
+            doc.fontSize(10).fillColor('#c62828')
+               .text('Item', columns.item.x + 5, currentY + 8)
+               .text('Qty', columns.qty.x + 5, currentY + 8)
+               .text('Price', columns.price.x + 5, currentY + 8)
+               .text('Reason', columns.discount.x + 5, currentY + 8, { width: 160 });
+
+            currentY += itemHeight;
+
+            order.cancelledItems.forEach((item, index) => {
+                const isEven = index % 2 === 0;
+                const rowColor = isEven ? '#fff5f5' : '#ffebee';
+                
+                doc.rect(leftColumn, currentY, 500, itemHeight).fillAndStroke(rowColor, '#ffcdd2');
+                
+                doc.fontSize(9).fillColor('#c62828')
+                   .text(item.product.productName || 'N/A', columns.item.x + 5, currentY + 8, { width: columns.item.width - 10 })
+                   .text(item.quantity.toString(), columns.qty.x + 5, currentY + 8)
+                   .text(`₹${item.price.toFixed(2)}`, columns.price.x + 5, currentY + 8)
+                   .text(item.cancelReason || 'No reason', columns.discount.x + 5, currentY + 8, { width: 160 });
+                
+                currentY += itemHeight;
+            });
+        }
+
+        
+        doc.moveDown(2);
+        
+      
+        const totalsStartY = Math.max(currentY + 20, doc.y);
+        const totalsX = 350;
+        
+       
+        doc.rect(totalsX, totalsStartY, 200, 120).fillAndStroke('#f8f9fa', '#dee2e6');
+        
+        doc.fontSize(12).fillColor('#2c3e50')
+           .text('Order Summary', totalsX + 10, totalsStartY + 10);
+        
+        doc.fontSize(10).fillColor('#495057')
+           .text(`Subtotal: ₹${order.totalPrice.toFixed(2)}`, totalsX + 10, totalsStartY + 35)
+           .text(`Shipping: ₹${order.shipping ? order.shipping.toFixed(2) : '0.00'}`, totalsX + 10, totalsStartY + 50)
+           .text(`Discount: ₹${order.discount.toFixed(2)}`, totalsX + 10, totalsStartY + 65);
+        
+        
+        doc.fontSize(12).fillColor('#2c3e50')
+           .text(`Total: ₹${order.finalAmount.toFixed(2)}`, totalsX + 10, totalsStartY + 85);
+
+       
+        doc.fontSize(8).fillColor('#7f8c8d')
+           .text('Thank you for your business!', 50, doc.page.height - 100, { align: 'center' })
+           .text('This is a computer generated invoice.', 50, doc.page.height - 85, { align: 'center' });
 
         doc.end();
     } catch (error) {
@@ -570,7 +688,7 @@ const getOrderDetails = async (req, res) => {
             .populate({
                 path: 'orderedItems.product',
                 select: 'productName sku productImage regularPrice salesPrice',
-                match: { isBlocked: { $ne: true } } // Ensure only non-blocked products are populated
+                match: { isBlocked: { $ne: true } } 
             })
             .populate({
                 path: 'cancelledItems.product',
@@ -583,7 +701,7 @@ const getOrderDetails = async (req, res) => {
             return res.status(404).render('error', { message: 'Order not found' });
         }
 
-        // Log populated items to debug
+        
         console.log('Ordered Items:', order.orderedItems.map(item => ({
             productId: item.product?._id,
             productName: item.product?.productName || 'Not populated',
@@ -689,7 +807,7 @@ const renderCheckout = async (req, res) => {
             subtotal += price * item.quantity;
         });
 
-        const shipping = 49.00; // Fixed shipping charge
+        const shipping = 49.00; 
         const discount = cart.discount || 0;
         const total = cart.total !== undefined && cart.total !== null ? cart.total : subtotal + shipping - discount;
 
@@ -786,7 +904,7 @@ const renderCheckout = async (req, res) => {
             ineligibilityReason: c.ineligibilityReason
         })));
 
-        // Fetch wallet balance
+        
         const wallet = await Wallet.findOne({ user: userId });
         const walletBalance = wallet ? wallet.balance : 0;
 
@@ -908,7 +1026,7 @@ const placeOrder = async (req, res) => {
       });
     }
 
-    // Handle wallet payment
+   
     if (paymentMethod === 'wallet') {
       const wallet = await Wallet.findOne({ user: userId });
       const walletBalance = wallet ? wallet.balance : 0;
@@ -957,7 +1075,7 @@ const placeOrder = async (req, res) => {
       });
     }
 
-    // Generate new order ID
+  
     const orderId = await generateOrderId();
 
     const order = new Order({
@@ -1068,7 +1186,7 @@ const verifyPayment = async (req, res) => {
 
         console.log('Verifying payment for:', { orderId, razorpay_payment_id, razorpay_order_id });
 
-        // Find the order
+      
         const order = await Order.findOne({ orderId, user: userId });
         if (!order) {
             console.warn('Order not found:', { orderId, userId });
@@ -1078,7 +1196,7 @@ const verifyPayment = async (req, res) => {
             });
         }
 
-        // Validate Razorpay secret key
+       
         if (!process.env.RAZORPAY_KEY_SECRET) {
             console.error('RAZORPAY_KEY_SECRET is not defined in environment variables');
             return res.status(500).json({
@@ -1087,7 +1205,7 @@ const verifyPayment = async (req, res) => {
             });
         }
 
-        // Verify payment signature
+        
         const body = razorpay_order_id + '|' + razorpay_payment_id;
         const expectedSignature = crypto
             .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
@@ -1095,9 +1213,9 @@ const verifyPayment = async (req, res) => {
             .digest('hex');
 
         if (expectedSignature === razorpay_signature) {
-            // Update order status and payment details
+            
             order.paymentStatus = 'Paid';
-            order.status = 'Placed'; // Set to 'Placed' to align with COD flow
+            order.status = 'Placed'; 
             order.razorpayPaymentId = razorpay_payment_id;
             await order.save();
 
@@ -1169,7 +1287,7 @@ const retryPayment = async (req, res) => {
 
         console.log('Initiating retry payment for:', { orderId, userId });
 
-        // Find the order and validate its state
+       
         const order = await Order.findOne({ orderId, user: userId });
         if (!order) {
             console.warn('Order not found:', { orderId, userId });
@@ -1195,10 +1313,10 @@ const retryPayment = async (req, res) => {
             });
         }
 
-        // Create a new Razorpay order
-        const receipt = `retry_${order.orderId}`; // Receipt format: retry_OR-XXXX (max 40 chars)
+       
+        const receipt = `retry_${order.orderId}`;
         const razorpayOrder = await razorpay.orders.create({
-            amount: Math.round(order.finalAmount * 100), // Ensure integer amount in paise
+            amount: Math.round(order.finalAmount * 100), 
             currency: 'INR',
             receipt: receipt
         });
@@ -1209,7 +1327,7 @@ const retryPayment = async (req, res) => {
             success: true,
             orderId: order.orderId,
             razorpayOrderId: razorpayOrder.id,
-            amount: order.finalAmount, // Amount in rupees for client-side
+            amount: order.finalAmount, 
             message: 'Retry payment initiated'
         });
     } catch (error) {
@@ -1249,7 +1367,7 @@ const applyCoupon = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid or expired coupon" });
     }
 
-    // Calculate subtotal and validate cart items
+   
     let subtotal = 0;
     const validCartItems = cart.items.filter((item) => item.productId && item.productId._id);
     if (validCartItems.length === 0) {
@@ -1269,7 +1387,7 @@ const applyCoupon = async (req, res) => {
       });
     }
 
-    // Check total usage for this user
+   
     const userUsage = coupon.usage.filter(
       (entry) => entry.userId && entry.userId.toString() === userId.toString()
     );
@@ -1282,7 +1400,7 @@ const applyCoupon = async (req, res) => {
       });
     }
 
-    // Check if coupon was used for any product in the cart
+    
     const usedForCartProducts = userUsage.some((entry) =>
       entry.productId && cartProductIds.includes(entry.productId.toString())
     );
@@ -1293,7 +1411,7 @@ const applyCoupon = async (req, res) => {
       });
     }
 
-    // Calculate discount
+ 
     let discount = 0;
     if (coupon.discountType === "percentage") {
       discount = (subtotal * coupon.discount) / 100;
@@ -1304,10 +1422,10 @@ const applyCoupon = async (req, res) => {
       discount = coupon.discount;
     }
 
-    // Update cart
+    
     cart.subtotal = subtotal;
     cart.discount = discount;
-    cart.shipping = 49.00; // Fixed shipping charge
+    cart.shipping = 49.00; 
     cart.total = subtotal + cart.shipping - discount;
     cart.appliedCoupon = coupon.code;
 
@@ -1326,7 +1444,7 @@ const applyCoupon = async (req, res) => {
 
 const removeCoupon = async (req, res) => {
     try {
-        const userId = req.session.user?.id; // Use session-based authentication
+        const userId = req.session.user?.id;
         if (!userId) {
             return res.status(401).json({ success: false, message: "User not authenticated" });
         }

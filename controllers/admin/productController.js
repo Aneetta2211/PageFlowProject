@@ -59,7 +59,7 @@ const addProduct = async (req, res) => {
     const salesPriceNum = parseFloat(salesPrice);
     const productOfferNum = parseInt(productOffer) || 0;
 
-    // Validate salePrice <= regularPrice
+   
     if (salesPriceNum > regularPriceNum) {
       throw new Error("Sale price must be less than or equal to regular price");
     }
