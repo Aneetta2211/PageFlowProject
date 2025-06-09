@@ -131,7 +131,7 @@
                             </div>
                         </div>
                         <div class="col-12 text-end">
-                            <button type="button" class="btn btn-secondary-custom me-2" onclick="resetForm()">Reset</button>
+                            <button type="button" class="btn btn-secondary-custom me-2" onclick= "resetForm()">Reset</button>
                             <button type="submit" class="btn btn-custom">Add Product</button>
                         </div>
                     </div>
@@ -180,7 +180,7 @@
     const maxImages = 4;
 
 
-    function validateForm() {
+function validateForm() {
     let isValid = true;
     const fields = [
         { 
@@ -213,18 +213,17 @@
             errorId: 'quantity-error', 
             message: 'Quantity must be a positive integer' 
         },
-      {
-    id: 'productOffer',
-    errorId: 'productOffer-error',
-    message: 'Product offer must be between 0 and 100'
-}
+        {
+            id: 'productOffer',
+            errorId: 'productOffer-error',
+            message: 'Product offer must be between 0 and 100'
+        }
     ];
 
     fields.forEach(field => {
         const value = document.getElementById(field.id).value.trim();
         const errorElement = document.getElementById(field.errorId);
 
-      
         if (field.id === 'productName') {
             if (!value) {
                 errorElement.textContent = field.message;
@@ -276,48 +275,50 @@
                 errorElement.textContent = 'Negative quantity is not valid';
                 isValid = false;
             } else if (numValue === 0) {
-                
                 errorElement.textContent = 'Product will be marked as Out of Stock';
                 errorElement.style.color = '#dc3545';
                 errorElement.style.fontWeight = 'bold';
-                
-                
                 document.getElementById('quantity').style.borderColor = '#dc3545';
-                
-                
                 document.getElementById('quantity').dataset.stockStatus = 'out-of-stock';
             } else if (!Number.isInteger(numValue)) {
                 errorElement.textContent = field.message;
                 isValid = false;
             } else {
-               
                 errorElement.textContent = '';
                 errorElement.style.color = '';
                 errorElement.style.fontWeight = '';
                 document.getElementById('quantity').style.borderColor = '';
                 document.getElementById('quantity').dataset.stockStatus = 'in-stock';
             }
-            
         }
-       else if (field.id === 'productOffer') {
-    const numValue = parseInt(value);
-    if (isNaN(numValue) || numValue < 0 || numValue > 100) {
-        errorElement.textContent = field.message;
-        isValid = false;
-    } else {
-        errorElement.textContent = '';
-    }
-}
+        else if (field.id === 'productOffer') {
+            const numValue = parseInt(value);
+            if (isNaN(numValue) || numValue < 0 || numValue > 100) {
+                errorElement.textContent = field.message;
+                isValid = false;
+            } else {
+                errorElement.textContent = '';
+            }
+        }
     });
-    
- 
+
+    // Validate salePrice <= regularPrice
+    const regularPrice = parseFloat(document.getElementById('regularPrice').value);
+    const salePrice = parseFloat(document.getElementById('salePrice').value);
+    const salePriceError = document.getElementById('salePrice-error');
+    if (!isNaN(regularPrice) && !isNaN(salePrice) && salePrice > regularPrice) {
+        salePriceError.textContent = 'Sale price must be less than or equal to regular price';
+        isValid = false;
+    } else if (salePriceError.textContent === 'Sale price must be less than or equal to regular price') {
+        salePriceError.textContent = '';
+    }
+
     const minImages = 3;
     if (croppedImages.length < minImages) {
         document.getElementById('images-error').textContent = `Minimum ${minImages} images are required`;
         isValid = false;
     } else {
         document.getElementById('images-error').textContent = '';
-        
         const dataTransfer = new DataTransfer();
         croppedImages.forEach(file => dataTransfer.items.add(file));
         document.getElementById('images').files = dataTransfer.files;

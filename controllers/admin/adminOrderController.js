@@ -10,7 +10,7 @@ const { addToWallet } = require("../../controllers/user/walletController");
 const renderOrderPage = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
-        const limit = 3;
+        const limit = 10;
         const skip = (page - 1) * limit;
 
       
@@ -303,67 +303,63 @@ const cancelOrderItem = async (req, res) => {
 
 const verifyReturnRequest = async (req, res) => {
     try {
-        const { orderId, status } = req.body;
-        const validReturnStatuses = ['Approved', 'Denied'];
-        if (!validReturnStatuses.includes(status)) {
-            return res.status(400).json({ error: `Invalid return status: ${status}. Must be 'Approved' or 'Denied'.` });
-        }
+        const { orderId, status } = req.body; // status: 'Approved' or 'Denied'
 
-        const order = await Order.findOne({ orderId }).populate('orderedItems.product');
+        // Find the order
+        const order = await Order.findOne({ orderId })
+            .populate('user')
+            .populate('orderedItems.product')
+            .populate('cancelledItems.product');
+
         if (!order) {
-            console.error(`Order with orderId ${orderId} not found`);
             return res.status(404).json({ error: 'Order not found' });
         }
 
-        console.log('Verifying return request:', {
-            orderId,
-            status,
-            currentReturnRequested: order.returnRequested,
-            currentReturnStatus: order.returnStatus,
-            currentOrderStatus: order.status
-        });
-
-        if (!order.returnRequested) {
-            console.error(`No return request found for orderId ${orderId}`);
-            return res.status(400).json({ 
-                error: `No return request found for this order. Current status: ${order.status}, returnRequested: ${order.returnRequested}` 
-            });
+        if (order.status !== 'Return Request' || !order.returnRequested) {
+            return res.status(400).json({ error: 'No valid return request found for this order' });
         }
 
-        order.returnStatus = status;
+        // Update order status based on return decision
         if (status === 'Approved') {
             order.status = 'Returned';
-            
-            const refundAmount = order.orderedItems.reduce((total, item) => {
-                return total + (item.price * item.quantity);
-            }, 0);
+            order.returnStatus = 'Approved';
 
-            
-            await addToWallet({
-                userId: order.user,
+            // Refund the amount to the user's wallet
+            const refundAmount = order.finalAmount; // ₹849
+            let userWallet = await Wallet.findOne({ user: order.user._id });
+
+            if (!userWallet) {
+                userWallet = new Wallet({
+                    user: order.user._id,
+                    balance: 0,
+                    transactions: []
+                });
+            }
+
+            userWallet.balance += refundAmount;
+            userWallet.transactions.push({
                 amount: refundAmount,
-                description: `Refund for order #${orderId}`
+                type: 'credit',
+                description: `Refund for returned order ${orderId}`,
+                date: new Date()
             });
 
-           
-            for (const item of order.orderedItems) {
-                await Product.findByIdAndUpdate(item.product._id, {
-                    $inc: { quantity: item.quantity }
-                });
-                console.log(`Incremented stock for product ${item.product._id} by ${item.quantity}`);
-            }
-        } else if (status === 'Denied') {
+            await userWallet.save();
+
+            // Do NOT move orderedItems to cancelledItems or clear orderedItems
+            // Keep orderedItems intact to preserve product details
+        } else {
             order.status = 'Return Denied';
-            order.returnDenyReason = req.body.denyReason || 'No reason provided';
+            order.returnStatus = 'Denied';
         }
 
+        // Save the updated order
         await order.save();
-        console.log(`Return request ${status.toLowerCase()} for orderId ${orderId}. New status: ${order.status}, returnStatus: ${order.returnStatus}`);
 
-        res.json({ success: true, message: `Return request ${status.toLowerCase()} successfully` });
+        res.status(200).json({ message: `Return request ${status.toLowerCase()} successfully` });
     } catch (error) {
         console.error('Error verifying return request:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
+        res.status(500).json({ error: 'Server error while verifying return request' });
     }
 };
 

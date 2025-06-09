@@ -41,14 +41,13 @@ const getProductAddPage = async (req, res) => {
 };
 
 
-
 const addProduct = async (req, res) => {
   try {
-    const { productName, category, description, regularPrice, quantity, productOffer } = req.body;
+    const { productName, category, description, regularPrice, salesPrice, quantity, productOffer } = req.body;
     const images = req.files ? req.files.map(file => `/uploads/products/${file.filename}`) : [];
 
     if (!productName || !category || !description || !regularPrice || 
-        quantity === undefined || quantity === null || !images.length) {
+        !salesPrice || quantity === undefined || quantity === null || !images.length) {
       throw new Error("All required fields must be provided");
     }
 
@@ -56,15 +55,22 @@ const addProduct = async (req, res) => {
       throw new Error("Cannot upload more than 4 images");
     }
 
+    const regularPriceNum = parseFloat(regularPrice);
+    const salesPriceNum = parseFloat(salesPrice);
+    const productOfferNum = parseInt(productOffer) || 0;
+
+    // Validate salePrice <= regularPrice
+    if (salesPriceNum > regularPriceNum) {
+      throw new Error("Sale price must be less than or equal to regular price");
+    }
+
+    if (isNaN(productOfferNum) || productOfferNum < 0 || productOfferNum > 100) {
+      throw new Error("Product offer must be between 0 and 100");
+    }
+
     const categoryData = await Category.findById(category);
     if (!categoryData) {
       throw new Error("Category not found");
-    }
-
-    const regularPriceNum = parseFloat(regularPrice);
-    const productOfferNum = parseInt(productOffer) || 0; 
-    if (isNaN(productOfferNum) || productOfferNum < 0 || productOfferNum > 100) {
-      throw new Error("Product offer must be between 0 and 100");
     }
 
     const pricing = calculateProductPricing(
@@ -72,12 +78,15 @@ const addProduct = async (req, res) => {
       categoryData
     );
 
+    
+    const finalSalesPrice = pricing.offerType === 'none' ? salesPriceNum : pricing.salesPrice;
+
     const newProduct = new Product({
       productName,
       category,
       description,
       regularPrice: regularPriceNum,
-      salesPrice: pricing.salesPrice,
+      salesPrice: finalSalesPrice,
       quantity: parseInt(quantity),
       productImage: images,
       productOffer: productOfferNum,
@@ -93,9 +102,11 @@ const addProduct = async (req, res) => {
     res.redirect("/admin/products");
   } catch (error) {
     console.error("Error adding product:", error.message);
-    res.redirect("/pageerror");
+    req.session.errorMessage = error.message; 
+    res.redirect("/admin/add-product"); 
   }
 };
+
 
 const getAllProducts = async (req, res) => {
   try {
@@ -179,8 +190,6 @@ const getEditProductPage = async (req, res) => {
     res.redirect("/pageerror");
   }
 };
-
-
 
 
 const updateProduct = async (req, res) => {
@@ -320,7 +329,6 @@ const loadProfile = async (req, res) => {
     res.redirect('/pageNotFound');
   }
 };
-
 
 
 const manageProductOffer = async (req, res, action) => {
