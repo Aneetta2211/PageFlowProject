@@ -9,8 +9,8 @@ const Product = require("../../models/productSchema.js");
 const Category = require("../../models/categorySchema.js");
 
 const pageerror = async (req, res) => {
-    res.render('admin/dashboard', { 
-        currentRoute: 'dashboard', 
+    res.render('admin/dashboard', {
+        currentRoute: 'dashboard',
         errorPage: 'admin-error',
         errorMessage: 'Page not found',
         filterType: 'daily',
@@ -23,7 +23,6 @@ const pageerror = async (req, res) => {
         totalProductsGrowth: 0,
         totalOrdersGrowth: 0,
         totalRevenueGrowth: 0,
-        recentOrders: [],
         chartData: null,
         topProducts: [],
         topCategories: [],
@@ -74,104 +73,117 @@ const loadDashboard = async (req, res) => {
 
         const { filterType = 'daily', startDate, endDate, page = 1, limit = 10 } = req.query;
 
-        // Date filter for orders
+        // Validate and set date filter
         let dateFilter = {};
         let chartDateFilter = {};
-        const now = new Date();
-        
-        if (filterType === 'daily') {
-            dateFilter = {
-                createdOn: {
-                    $gte: new Date(now.setHours(0, 0, 0, 0)),
-                    $lte: new Date(now.setHours(23, 59, 59, 999)),
-                },
-            };
-            chartDateFilter = { $gte: new Date(now.setHours(0, 0, 0, 0)) }; // For daily chart (last 24 hours)
-        } else if (filterType === 'weekly') {
-            const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
-            startOfWeek.setHours(0, 0, 0, 0);
-            const endOfWeek = new Date(startOfWeek);
-            endOfWeek.setDate(startOfWeek.getDate() + 6);
-            endOfWeek.setHours(23, 59, 59, 999);
-            dateFilter = {
-                createdOn: { $gte: startOfWeek, $lte: endOfWeek },
-            };
-            chartDateFilter = { $gte: startOfWeek, $lte: endOfWeek }; // For weekly chart
-        } else if (filterType === 'monthly') {
-            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-            const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-            endOfMonth.setHours(23, 59, 59, 999);
-            dateFilter = {
-                createdOn: { $gte: startOfMonth, $lte: endOfMonth },
-            };
-            chartDateFilter = { $gte: startOfMonth, $lte: endOfMonth }; // For monthly chart
-        } else if (filterType === 'yearly') {
-            const startOfYear = new Date(now.getFullYear(), 0, 1);
-            const endOfYear = new Date(now.getFullYear(), 11, 31);
-            endOfYear.setHours(23, 59, 59, 999);
-            dateFilter = {
-                createdOn: { $gte: startOfYear, $lte: endOfYear },
-            };
-            chartDateFilter = { $gte: startOfYear, $lte: endOfYear }; // For yearly chart
-        } else if (filterType === 'custom' && startDate && endDate) {
-            dateFilter = {
-                createdOn: {
-                    $gte: new Date(startDate),
-                    $lte: new Date(new Date(endDate).setHours(23, 59, 59, 999)),
-                },
-            };
-            chartDateFilter = { $gte: new Date(startDate), $lte: new Date(endDate) }; // For custom range chart
+        const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+
+        switch (filterType) {
+            case 'daily':
+                dateFilter = {
+                    createdOn: {
+                        $gte: new Date(now.setHours(0, 0, 0, 0)),
+                        $lte: new Date(now.setHours(23, 59, 59, 999)),
+                    },
+                };
+                chartDateFilter = { $gte: new Date(now.setHours(0, 0, 0, 0)), $lte: new Date(now.setHours(23, 59, 59, 999)) };
+                break;
+            case 'weekly':
+                const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+                startOfWeek.setHours(0, 0, 0, 0);
+                const endOfWeek = new Date(startOfWeek);
+                endOfWeek.setDate(startOfWeek.getDate() + 6);
+                endOfWeek.setHours(23, 59, 59, 999);
+                dateFilter = {
+                    createdOn: { $gte: startOfWeek, $lte: endOfWeek },
+                };
+                chartDateFilter = { $gte: startOfWeek, $lte: endOfWeek };
+                break;
+            case 'monthly':
+                const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+                const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+                endOfMonth.setHours(23, 59, 59, 999);
+                dateFilter = {
+                    createdOn: { $gte: startOfMonth, $lte: endOfMonth },
+                };
+                chartDateFilter = { $gte: startOfMonth, $lte: endOfMonth };
+                break;
+            case 'yearly':
+                const startOfYear = new Date(now.getFullYear(), 0, 1);
+                const endOfYear = new Date(now.getFullYear(), 11, 31);
+                endOfYear.setHours(23, 59, 59, 999);
+                dateFilter = {
+                    createdOn: { $gte: startOfYear, $lte: endOfYear },
+                };
+                chartDateFilter = { $gte: startOfYear, $lte: endOfYear };
+                break;
+            case 'custom':
+                if (!startDate || !endDate) {
+                    throw new Error('Start date and end date are required for custom filter');
+                }
+                const start = new Date(startDate);
+                const end = new Date(endDate);
+                end.setHours(23, 59, 59, 999);
+                if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) {
+                    throw new Error('Invalid date range');
+                }
+                dateFilter = {
+                    createdOn: { $gte: start, $lte: end },
+                };
+                chartDateFilter = { $gte: start, $lte: end };
+                break;
+            default:
+                throw new Error('Invalid filter type');
         }
 
         // Fetch total number of orders for pagination
-        const totalOrdersCount = await Order.countDocuments({
-            ...dateFilter,
-            status: { $in: ['Placed', 'Processing', 'Shipped', 'Delivered'] }
-        });
+        const totalOrdersCount = await Order.countDocuments(dateFilter);
 
         // Calculate pagination parameters
         const currentPage = parseInt(page);
         const totalPages = Math.ceil(totalOrdersCount / limit);
-        const skip = (currentPage - 1) * limit;
+        const skip = Math.max(0, (currentPage - 1) * limit);
 
-        // Fetch paginated orders
-        const orders = await Order.find({
-            ...dateFilter,
-            status: { $in: ['Placed', 'Processing', 'Shipped', 'Delivered'] }
-        })
-            .populate('orderedItems.product user')
+        // Fetch paginated orders (all statuses)
+        const orders = await Order.find(dateFilter)
+            .populate('user', 'name')
+            .populate('orderedItems.product', 'productName')
             .sort({ createdOn: -1 })
             .skip(skip)
             .limit(limit);
 
+        // Fetch total users and products
         const totalUsers = await User.countDocuments({ isAdmin: false });
         const totalProducts = await Product.countDocuments();
 
-        let totalOrders = totalOrdersCount; // Use the total count for display
+        // Calculate totals
+        const allOrders = await Order.find(dateFilter).populate('orderedItems.product user');
+
+        let totalOrders = totalOrdersCount;
         let totalAmount = 0;
         let totalDiscount = 0;
         let totalCoupons = 0;
 
-        // Calculate totals based on all orders (not just paginated ones)
-        const allOrders = await Order.find({
-            ...dateFilter,
-            status: { $in: ['Placed', 'Processing', 'Shipped', 'Delivered'] }
-        });
         allOrders.forEach(order => {
-            totalAmount += order.finalAmount;
-            totalDiscount += order.discount || 0;
+            if (['Placed', 'Processing', 'Shipped', 'Delivered'].includes(order.status)) {
+                totalAmount += order.finalAmount || 0;
+                totalDiscount += order.discount || 0;
+            }
             if (order.couponApplied) totalCoupons++;
         });
 
+        // Format orders for display
         const formattedOrders = orders.map(order => ({
             orderId: order.orderId,
             customerName: order.user ? order.user.name : 'Unknown',
-            product: order.orderedItems && order.orderedItems.length > 0 
-                ? (order.orderedItems[0].product ? order.orderedItems[0].product.productName : 'Unknown Product') 
+            product: order.orderedItems && order.orderedItems.length > 0
+                ? (order.orderedItems[0].product ? order.orderedItems[0].product.productName : 'Unknown Product')
                 : 'No Products',
-            amount: order.finalAmount,
-            status: order.status,
-            date: order.createdOn
+            amount: order.finalAmount || 0,
+            status: order.status || 'Unknown',
+            date: order.createdOn,
+            coupon: order.couponApplied ? order.appliedCoupon || 'Applied' : 'None',
+            paymentStatus: order.paymentStatus || 'Unknown'
         }));
 
         const salesData = {
@@ -182,63 +194,111 @@ const loadDashboard = async (req, res) => {
             totalCoupons
         };
 
+        // Calculate growth metrics
+        const previousPeriodFilter = {};
+        if (filterType === 'daily') {
+            const prevDay = new Date(now);
+            prevDay.setDate(now.getDate() - 1);
+            previousPeriodFilter.createdOn = {
+                $gte: new Date(prevDay.setHours(0, 0, 0, 0)),
+                $lte: new Date(prevDay.setHours(23, 59, 59, 999)),
+            };
+        } else if (filterType === 'weekly') {
+            const prevWeekStart = new Date(now.setDate(now.getDate() - now.getDay() - 7));
+            prevWeekStart.setHours(0, 0, 0, 0);
+            const prevWeekEnd = new Date(prevWeekStart);
+            prevWeekEnd.setDate(prevWeekStart.getDate() + 6);
+            prevWeekEnd.setHours(23, 59, 59, 999);
+            previousPeriodFilter.createdOn = { $gte: prevWeekStart, $lte: prevWeekEnd };
+        } else if (filterType === 'monthly') {
+            const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+            prevMonthEnd.setHours(23, 59, 59, 999);
+            previousPeriodFilter.createdOn = { $gte: prevMonthStart, $lte: prevMonthEnd };
+        } else if (filterType === 'yearly') {
+            const prevYearStart = new Date(now.getFullYear() - 1, 0, 1);
+            const prevYearEnd = new Date(now.getFullYear() - 1, 11, 31);
+            prevYearEnd.setHours(23, 59, 59, 999);
+            previousPeriodFilter.createdOn = { $gte: prevYearStart, $lte: prevYearEnd };
+        } else if (filterType === 'custom') {
+            const daysDiff = Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24));
+            const prevStart = new Date(startDate);
+            prevStart.setDate(prevStart.getDate() - daysDiff);
+            const prevEnd = new Date(startDate);
+            prevEnd.setHours(23, 59, 59, 999);
+            previousPeriodFilter.createdOn = { $gte: prevStart, $lte: prevEnd };
+        }
+
+        const prevTotalUsers = await User.countDocuments({
+            isAdmin: false,
+            createdOn: previousPeriodFilter.createdOn
+        });
+        const prevTotalProducts = await Product.countDocuments({
+            createdOn: previousPeriodFilter.createdOn
+        });
+        const prevOrders = await Order.find(previousPeriodFilter);
+        const prevTotalAmount = prevOrders
+            .filter(order => ['Placed', 'Processing', 'Shipped', 'Delivered'].includes(order.status))
+            .reduce((sum, order) => sum + (order.finalAmount || 0), 0);
+        const prevTotalOrders = prevOrders.length;
+
+        const totalUsersGrowth = prevTotalUsers ? ((totalUsers - prevTotalUsers) / prevTotalUsers * 100).toFixed(2) : 0;
+        const totalProductsGrowth = prevTotalProducts ? ((totalProducts - prevTotalProducts) / prevTotalProducts * 100).toFixed(2) : 0;
+        const totalOrdersGrowth = prevTotalOrders ? ((totalOrders - prevTotalOrders) / prevTotalOrders * 100).toFixed(2) : 0;
+        const totalRevenueGrowth = prevTotalAmount ? ((totalAmount - prevTotalAmount) / prevTotalAmount * 100).toFixed(2) : 0;
+
         // Fetch data for Revenue & Orders Overview Chart
         const chartOrders = await Order.find({
             createdOn: chartDateFilter,
-            status: { $in: ['Placed', 'Processing', 'Shipped', 'Delivered'] }
         }).populate('orderedItems.product user');
 
         let chartData = { labels: [], revenue: [], ordersCount: [] };
+
         if (filterType === 'daily') {
-            // Hourly data for the day
-            const hours = Array.from({ length: 24 }, (_, i) => i);
-            chartData.labels = hours.map(hour => `${hour}:00`);
-            chartData.revenue = hours.map(hour => {
+            const hours = Array.from({ length: 24 }, (_, i) => `${i}:00`);
+            chartData.labels = hours;
+            chartData.revenue = hours.map((_, i) => {
                 return chartOrders
-                    .filter(order => new Date(order.createdOn).getHours() === hour)
-                    .reduce((sum, order) => sum + order.finalAmount, 0);
+                    .filter(order => ['Placed', 'Processing', 'Shipped', 'Delivered'].includes(order.status) && new Date(order.createdOn).getHours() === i)
+                    .reduce((sum, order) => sum + (order.finalAmount || 0), 0);
             });
-            chartData.ordersCount = hours.map(hour => {
-                return chartOrders.filter(order => new Date(order.createdOn).getHours() === hour).length;
+            chartData.ordersCount = hours.map((_, i) => {
+                return chartOrders.filter(order => new Date(order.createdOn).getHours() === i).length;
             });
         } else if (filterType === 'weekly') {
-            // Daily data for the week
             const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
             chartData.labels = days;
             chartData.revenue = days.map((_, i) => {
                 return chartOrders
-                    .filter(order => new Date(order.createdOn).getDay() === i)
-                    .reduce((sum, order) => sum + order.finalAmount, 0);
+                    .filter(order => ['Placed', 'Processing', 'Shipped', 'Delivered'].includes(order.status) && new Date(order.createdOn).getDay() === i)
+                    .reduce((sum, order) => sum + (order.finalAmount || 0), 0);
             });
             chartData.ordersCount = days.map((_, i) => {
                 return chartOrders.filter(order => new Date(order.createdOn).getDay() === i).length;
             });
         } else if (filterType === 'monthly') {
-            // Daily data for the month
             const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-            chartData.labels = Array.from({ length: daysInMonth }, (_, i) => (i + 1).toString());
-            chartData.revenue = Array.from({ length: daysInMonth }, (_, i) => {
+            chartData.labels = Array.from({ length: daysInMonth }, (_, i) => `${i + 1}`);
+            chartData.revenue = chartData.labels.map((_, i) => {
                 return chartOrders
-                    .filter(order => new Date(order.createdOn).getDate() === (i + 1))
-                    .reduce((sum, order) => sum + order.finalAmount, 0);
+                    .filter(order => ['Placed', 'Processing', 'Shipped', 'Delivered'].includes(order.status) && new Date(order.createdOn).getDate() === i + 1)
+                    .reduce((sum, order) => sum + (order.finalAmount || 0), 0);
             });
-            chartData.ordersCount = Array.from({ length: daysInMonth }, (_, i) => {
-                return chartOrders.filter(order => new Date(order.createdOn).getDate() === (i + 1)).length;
+            chartData.ordersCount = chartData.labels.map((_, i) => {
+                return chartOrders.filter(order => new Date(order.createdOn).getDate() === i + 1).length;
             });
         } else if (filterType === 'yearly') {
-            // Monthly data for the year
             const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
             chartData.labels = months;
             chartData.revenue = months.map((_, i) => {
                 return chartOrders
-                    .filter(order => new Date(order.createdOn).getMonth() === i)
-                    .reduce((sum, order) => sum + order.finalAmount, 0);
+                    .filter(order => ['Placed', 'Processing', 'Shipped', 'Delivered'].includes(order.status) && new Date(order.createdOn).getMonth() === i)
+                    .reduce((sum, order) => sum + (order.finalAmount || 0), 0);
             });
             chartData.ordersCount = months.map((_, i) => {
                 return chartOrders.filter(order => new Date(order.createdOn).getMonth() === i).length;
             });
-        } else if (filterType === 'custom' && startDate && endDate) {
-            // Daily data for the custom range
+        } else if (filterType === 'custom') {
             const start = new Date(startDate);
             const end = new Date(endDate);
             const daysDiff = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
@@ -249,17 +309,17 @@ const loadDashboard = async (req, res) => {
             });
             chartData.revenue = chartData.labels.map(label => {
                 return chartOrders
-                    .filter(order => new Date(order.createdOn).toISOString().split('T')[0] === label)
-                    .reduce((sum, order) => sum + order.finalAmount, 0);
+                    .filter(order => ['Placed', 'Processing', 'Shipped', 'Delivered'].includes(order.status) && new Date(order.createdOn).toISOString().split('T')[0] === label)
+                    .reduce((sum, order) => sum + (order.finalAmount || 0), 0);
             });
             chartData.ordersCount = chartData.labels.map(label => {
                 return chartOrders.filter(order => new Date(order.createdOn).toISOString().split('T')[0] === label).length;
             });
         }
 
-        // Fetch Top 10 Best-Selling Products
+        // Fetch Top 5 Best-Selling Products
         const productSales = await Order.aggregate([
-            { $match: { status: { $in: ['Placed', 'Processing', 'Shipped', 'Delivered'] } } },
+            { $match: { ...dateFilter, status: { $in: ['Placed', 'Processing', 'Shipped', 'Delivered'] } } },
             { $unwind: '$orderedItems' },
             {
                 $group: {
@@ -268,7 +328,7 @@ const loadDashboard = async (req, res) => {
                 }
             },
             { $sort: { totalSold: -1 } },
-            { $limit: 10 },
+            { $limit: 5 },
             {
                 $lookup: {
                     from: 'products',
@@ -281,13 +341,13 @@ const loadDashboard = async (req, res) => {
         ]);
 
         const topProducts = productSales.map(item => ({
-            name: item.product.productName,
-            totalSold: item.totalSold
+            name: item.product.productName || 'Unknown',
+            totalSold: item.totalSold || 0
         }));
 
-        // Fetch Top 10 Best-Selling Categories
+        // Fetch Top 5 Best-Selling Categories
         const categorySales = await Order.aggregate([
-            { $match: { status: { $in: ['Placed', 'Processing', 'Shipped', 'Delivered'] } } },
+            { $match: { ...dateFilter, status: { $in: ['Placed', 'Processing', 'Shipped', 'Delivered'] } } },
             { $unwind: '$orderedItems' },
             {
                 $lookup: {
@@ -305,7 +365,7 @@ const loadDashboard = async (req, res) => {
                 }
             },
             { $sort: { totalSold: -1 } },
-            { $limit: 10 },
+            { $limit: 5 },
             {
                 $lookup: {
                     from: 'categories',
@@ -318,17 +378,11 @@ const loadDashboard = async (req, res) => {
         ]);
 
         const topCategories = categorySales.map(item => ({
-            name: item.category.name,
-            totalSold: item.totalSold
+            name: item.category.name || 'Unknown',
+            totalSold: item.totalSold || 0
         }));
 
-        const recentOrders = await Order.find({
-            status: { $in: ['Placed', 'Processing', 'Shipped', 'Delivered'] }
-        })
-            .sort({ createdOn: -1 })
-            .limit(5)
-            .populate('orderedItems.product user');
-
+        // Render dashboard
         res.render("admin/dashboard", {
             currentRoute: 'dashboard',
             errorPage: null,
@@ -336,14 +390,13 @@ const loadDashboard = async (req, res) => {
             salesData,
             totalUsers,
             totalProducts,
-            totalUsersGrowth: 5.3,
-            totalProductsGrowth: 7.1,
-            totalOrdersGrowth: 3.2,
-            totalRevenueGrowth: 8.5,
-            recentOrders,
+            totalUsersGrowth,
+            totalProductsGrowth,
+            totalOrdersGrowth,
+            totalRevenueGrowth,
             filterType,
-            startDate: startDate || dateFilter.createdOn?.$gte?.toISOString().split('T')[0],
-            endDate: endDate || dateFilter.createdOn?.$lte?.toISOString().split('T')[0],
+            startDate: startDate || (dateFilter.createdOn?.$gte?.toISOString().split('T')[0]),
+            endDate: endDate || (dateFilter.createdOn?.$lte?.toISOString().split('T')[0]),
             chartData,
             topProducts,
             topCategories,
@@ -363,7 +416,6 @@ const loadDashboard = async (req, res) => {
             totalProductsGrowth: 0,
             totalOrdersGrowth: 0,
             totalRevenueGrowth: 0,
-            recentOrders: [],
             filterType: 'daily',
             startDate: null,
             endDate: null,
@@ -380,79 +432,105 @@ const logout = async (req, res) => {
     try {
         req.session.destroy(err => {
             if (err) {
-                console.log("Error destroying session", err);
+                console.error("Error destroying session", err);
                 return res.redirect("/pageerror");
             }
             res.redirect("/admin/login");
         });
     } catch (error) {
-        console.log("Unexpected error during logout", error);
+        console.error("Unexpected error during logout", error);
         res.redirect("/pageerror");
     }
 };
 
 const getSalesReport = async (req, res) => {
     try {
-        const { filterType, startDate, endDate } = req.query;
+        const { filterType = 'daily', startDate, endDate } = req.query;
 
         let dateFilter = {};
-        const now = new Date();
-        
-        if (filterType === 'daily') {
-            dateFilter = {
-                createdOn: {
-                    $gte: new Date(now.setHours(0, 0, 0, 0)),
-                    $lte: new Date(now.setHours(23, 59, 59, 999)),
-                },
-            };
-        } else if (filterType === 'weekly') {
-            const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
-            startOfWeek.setHours(0, 0, 0, 0);
-            const endOfWeek = new Date(startOfWeek);
-            endOfWeek.setDate(startOfWeek.getDate() + 6);
-            endOfWeek.setHours(23, 59, 59, 999);
-            dateFilter = {
-                createdOn: { $gte: startOfWeek, $lte: endOfWeek },
-            };
-        } else if (filterType === 'monthly') {
-            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-            const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-            endOfMonth.setHours(23, 59, 59, 999);
-            dateFilter = {
-                createdOn: { $gte: startOfMonth, $lte: endOfMonth },
-            };
-        } else if (filterType === 'yearly') {
-            const startOfYear = new Date(now.getFullYear(), 0, 1);
-            const endOfYear = new Date(now.getFullYear(), 11, 31);
-            endOfYear.setHours(23, 59, 59, 999);
-            dateFilter = {
-                createdOn: { $gte: startOfYear, $lte: endOfYear },
-            };
-        } else if (filterType === 'custom' && startDate && endDate) {
-            dateFilter = {
-                createdOn: {
-                    $gte: new Date(startDate),
-                    $lte: new Date(new Date(endDate).setHours(23, 59, 59, 999)),
-                },
-            };
+        const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+
+        switch (filterType) {
+            case 'daily':
+                dateFilter = {
+                    createdOn: {
+                        $gte: new Date(now.setHours(0, 0, 0, 0)),
+                        $lte: new Date(now.setHours(23, 59, 59, 999)),
+                    },
+                };
+                break;
+            case 'weekly':
+                const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+                startOfWeek.setHours(0, 0, 0, 0);
+                const endOfWeek = new Date(startOfWeek);
+                endOfWeek.setDate(startOfWeek.getDate() + 6);
+                endOfWeek.setHours(23, 59, 59, 999);
+                dateFilter = {
+                    createdOn: { $gte: startOfWeek, $lte: endOfWeek },
+                };
+                break;
+            case 'monthly':
+                const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+                const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+                endOfMonth.setHours(23, 59, 59, 999);
+                dateFilter = {
+                    createdOn: { $gte: startOfMonth, $lte: endOfMonth },
+                };
+                break;
+            case 'yearly':
+                const startOfYear = new Date(now.getFullYear(), 0, 1);
+                const endOfYear = new Date(now.getFullYear(), 11, 31);
+                endOfYear.setHours(23, 59, 59, 999);
+                dateFilter = {
+                    createdOn: { $gte: startOfYear, $lte: endOfYear },
+                };
+                break;
+            case 'custom':
+                if (!startDate || !endDate) {
+                    throw new Error('Start date and end date are required for custom filter');
+                }
+                dateFilter = {
+                    createdOn: {
+                        $gte: new Date(startDate),
+                        $lte: new Date(new Date(endDate).setHours(23, 59, 59, 999)),
+                    },
+                };
+                break;
+            default:
+                throw new Error('Invalid filter type');
         }
 
         const orders = await Order.find(dateFilter)
             .populate('user', 'name')
-            .populate('orderedItems.product', 'productName') 
-            .sort({ createdOn: -1 }); 
+            .populate('orderedItems.product', 'productName')
+            .sort({ createdOn: -1 });
 
         const totalOrders = orders.length;
-        const totalAmount = orders.reduce((sum, order) => sum + order.finalAmount, 0);
-        const totalDiscount = orders.reduce((sum, order) => sum + (order.discount || 0), 0);
+        const totalAmount = orders
+            .filter(order => ['Placed', 'Processing', 'Shipped', 'Delivered'].includes(order.status))
+            .reduce((sum, order) => sum + (order.finalAmount || 0), 0);
+        const totalDiscount = orders
+            .filter(order => ['Placed', 'Processing', 'Shipped', 'Delivered'].includes(order.status))
+            .reduce((sum, order) => sum + (order.discount || 0), 0);
         const totalCoupons = orders.filter(order => order.couponApplied).length;
 
         const salesData = {
-            orders,
+            orders: orders.map(order => ({
+                orderId: order.orderId,
+                customerName: order.user ? order.user.name : 'Unknown',
+                product: order.orderedItems && order.orderedItems.length > 0
+                    ? (order.orderedItems[0].product ? order.orderedItems[0].product.productName : 'Unknown Product')
+                    : 'No Products',
+                amount: order.finalAmount || 0,
+                status: order.status || '',
+                date: order.createdOn,
+                coupon: order.couponApplied ? order.appliedCoupon || 'Applied' : 'None',
+                paymentStatus: order.paymentStatus || 'Unknown'
+            })),
             totalOrders,
             totalAmount,
             totalDiscount,
-            totalCoupons,
+            totalCoupons
         };
 
         res.render('admin/sales-report', {
@@ -460,26 +538,27 @@ const getSalesReport = async (req, res) => {
             filterType,
             startDate,
             endDate,
-            errorMessage: null,
+            errorMessage: null
         });
     } catch (error) {
-        console.error(error);
-        res.render('admin/sales-report', {
+        console.error("Error loading sales report:", error);
+        res.render('error', {
             salesData: null,
             filterType,
             startDate,
             endDate,
-            errorMessage: 'Failed to load sales data.',
+            errorMessage: 'Failed to load sales data: ' + error.message
         });
     }
 };
 
 const downloadReport = async (req, res) => {
     try {
-        const { format, filterType, startDate, endDate } = req.query; // Fixed: Corrected parameter name from 'Lottery' to 'filterType'
-        let start, end;
+        const { format, filterType = 'daily', startDate, endDate } = req.query;
 
-        const now = new Date();
+        let start, end;
+        const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+
         switch (filterType) {
             case 'daily':
                 start = new Date(now.setHours(0, 0, 0, 0));
@@ -503,19 +582,20 @@ const downloadReport = async (req, res) => {
                 end.setHours(23, 59, 59, 999);
                 break;
             case 'custom':
+                if (!startDate || !endDate) {
+                    throw new Error('Start date and end date are required for custom filter');
+                }
                 start = new Date(startDate);
                 end = new Date(endDate);
                 end.setHours(23, 59, 59, 999);
                 break;
             default:
-                start = new Date(0);
-                end = new Date();
+                throw new Error('Invalid filter type');
         }
 
         const orders = await Order.find({
             createdOn: { $gte: start, $lte: end },
-            status: { $in: ['Placed', 'Processing', 'Shipped', 'Delivered'] }
-        }).populate('orderedItems.product user');
+        }).populate('user', 'name').populate('orderedItems.product', 'productName');
 
         let totalOrders = orders.length;
         let totalAmount = 0;
@@ -523,8 +603,10 @@ const downloadReport = async (req, res) => {
         let totalCoupons = 0;
 
         orders.forEach(order => {
-            totalAmount += order.finalAmount;
-            totalDiscount += order.discount || 0;
+            if (['Placed', 'Processing', 'Shipped', 'Delivered'].includes(order.status)) {
+                totalAmount += order.finalAmount || 0;
+                totalDiscount += order.discount || 0;
+            }
             if (order.couponApplied) totalCoupons++;
         });
 
@@ -539,13 +621,13 @@ const downloadReport = async (req, res) => {
             doc.moveDown();
             doc.fontSize(12).text(`Period: ${filterType.toUpperCase()}`);
             if (filterType === 'custom') {
-                doc.text(`From: ${start.toISOString().split('T')[0]} To: ${end.toISOString().split('T')[0]}`);
+                doc.text(`From: ${start.toISOString().slice(0, 10)} To: ${end.toISOString().slice(0, 10)}`);
             }
             doc.moveDown();
 
             doc.text(`Total Orders: ${totalOrders}`);
-            doc.text(`Total Amount: ₹${totalAmount.toFixed(2)}`); 
-            doc.text(`Total Discount: ₹${totalDiscount.toFixed(2)}`); 
+            doc.text(`Total Amount: ₹${totalAmount.toFixed(2)}`);
+            doc.text(`Total Discount: ₹${totalDiscount.toFixed(2)}`);
             doc.text(`Total Coupons Applied: ${totalCoupons}`);
             doc.moveDown();
 
@@ -553,10 +635,13 @@ const downloadReport = async (req, res) => {
             orders.forEach((order, index) => {
                 doc.text(`Order ${index + 1}:`);
                 doc.text(`Order ID: ${order.orderId}`);
+                doc.text(`Customer: ${order.user ? order.user.name : 'Unknown'}`);
                 doc.text(`Date: ${new Date(order.createdOn).toLocaleDateString()}`);
-                doc.text(`Amount: ₹${order.finalAmount.toFixed(2)}`); 
-                doc.text(`Discount: ₹${order.discount.toFixed(2)}`); 
+                doc.text(`Amount: ₹${(order.finalAmount || 0).toFixed(2)}`);
+                doc.text(`Discount: ₹${(order.discount || 0).toFixed(2)}`);
                 doc.text(`Coupon: ${order.couponApplied ? order.appliedCoupon || 'Applied' : 'None'}`);
+                doc.text(`Status: ${order.status || 'Unknown'}`);
+                doc.text(`Payment Status: ${order.paymentStatus || 'Unknown'}`);
                 doc.moveDown();
             });
 
@@ -567,19 +652,25 @@ const downloadReport = async (req, res) => {
 
             worksheet.columns = [
                 { header: 'Order ID', key: 'orderId', width: 20 },
+                { header: 'Customer', key: 'customer', width: 20 },
                 { header: 'Date', key: 'date', width: 15 },
                 { header: 'Amount (₹)', key: 'amount', width: 15 },
                 { header: 'Discount (₹)', key: 'discount', width: 15 },
-                { header: 'Coupon', key: 'coupon', width: 15 }
+                { header: 'Coupon', key: 'coupon', width: 15 },
+                { header: 'Status', key: 'status', width: 15 },
+                { header: 'Payment Status', key: 'paymentStatus', width: 15 },
             ];
 
             orders.forEach(order => {
                 worksheet.addRow({
                     orderId: order.orderId,
+                    customer: order.user ? order.user.name : 'Unknown',
                     date: new Date(order.createdOn).toLocaleDateString(),
-                    amount: order.finalAmount.toFixed(2),
-                    discount: order.discount.toFixed(2),
-                    coupon: order.couponApplied ? order.appliedCoupon || 'Applied' : 'None'
+                    amount: (order.finalAmount || 0).toFixed(2),
+                    discount: (order.discount || 0).toFixed(2),
+                    coupon: order.couponApplied ? order.appliedCoupon || 'Applied' : 'None',
+                    status: order.status || 'Unknown',
+                    paymentStatus: order.paymentStatus || 'Unknown'
                 });
             });
 
