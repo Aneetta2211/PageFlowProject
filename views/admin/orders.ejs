@@ -82,8 +82,8 @@
             <li><a href="/admin/add-product"><i class="fa fa-plus"></i> Add Products</a></li>
             <li><a href="/admin/products"><i class="fa fa-box"></i> Products</a></li>
             <li><a href="/admin/orders" class="active"><i class="fa fa-shopping-cart"></i> Orders</a></li>
-             <li><a href="/admin/coupons"><i class="fa fa-tag"></i> Coupons</a></li>
-                    <li><a href="/admin/wallet"><i class="fa fa-wallet"></i> Wallet</a></li> 
+            <li><a href="/admin/coupons"><i class="fa fa-tag"></i> Coupons</a></li>
+            <li><a href="/admin/wallet"><i class="fa fa-wallet"></i> Wallet</a></li> 
         </ul>
     </div>
 
@@ -91,34 +91,37 @@
         <h1>Order Management</h1>
 
         <div class="filter-section">
-            <div class="row">
-                <div class="col-md-4">
-                    <input type="text" id="searchInput" class="form-control" placeholder="Search by Order ID or User">
+            <form id="filterForm" action="/admin/orders" method="GET">
+                <div class="row">
+                    <div class="col-md-4">
+                        <input type="text" id="searchInput" name="search" class="form-control" placeholder="Search by Order ID or User" value="<%= typeof search !== 'undefined' ? search : '' %>">
+                    </div>
+                    <div class="col-md-3">
+                        <select id="sortSelect" name="sort" class="form-select">
+                            <option value="date-desc" <%= sortBy === 'date-desc' ? 'selected' : '' %>>Sort by Date (Desc)</option>
+                            <option value="date-asc" <%= sortBy === 'date-asc' ? 'selected' : '' %>>Sort by Date (Asc)</option>
+                            <option value="id-asc" <%= sortBy === 'id-asc' ? 'selected' : '' %>>Sort by Order ID (Asc)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <select id="filterStatus" name="status" class="form-select">
+                            <option value="" <%= statusFilter === '' ? 'selected' : '' %>>All Statuses</option>
+                            <option value="Placed" <%= statusFilter === 'Placed' ? 'selected' : '' %>>Placed</option>
+                            <option value="Pending" <%= statusFilter === 'Pending' ? 'selected' : '' %>>Pending</option>
+                            <option value="Shipped" <%= statusFilter === 'Shipped' ? 'selected' : '' %>>Shipped</option>
+                            <option value="Out for Delivery" <%= statusFilter === 'Out for Delivery' ? 'selected' : '' %>>Out for Delivery</option>
+                            <option value="Delivered" <%= statusFilter === 'Delivered' ? 'selected' : '' %>>Delivered</option>
+                            <option value="Cancelled" <%= statusFilter === 'Cancelled' ? 'selected' : '' %>>Cancelled</option>
+                            <option value="Return Request" <%= statusFilter === 'Return Request' ? 'selected' : '' %>>Return Request</option>
+                            <option value="Returned" <%= statusFilter === 'Returned' ? 'selected' : '' %>>Returned</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary">Apply</button>
+                        <button type="button" id="clearSearch" class="btn btn-secondary">Clear</button>
+                    </div>
                 </div>
-                <div class="col-md-3">
-                    <select id="sortSelect" class="form-select">
-                        <option value="date-desc">Sort by Date (Desc)</option>
-                        <option value="date-asc">Sort by Date (Asc)</option>
-                        <option value="id-asc">Sort by Order ID (Asc)</option>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <select id="filterStatus" class="form-select">
-                        <option value="">All Statuses</option>
-                        <option value="Placed">Placed</option>
-                        <option value="Pending">Pending</option>
-                        <option value="Shipped">Shipped</option>
-                        <option value="Out for Delivery">Out for Delivery</option>
-                        <option value="Delivered">Delivered</option>
-                        <option value="Cancelled">Cancelled</option>
-                        <option value="Return Request">Return Request</option>
-                        <option value="Returned">Returned</option>
-                    </select>
-                </div>
-                <div class="col-md-2">
-                    <button id="clearSearch" class="btn btn-secondary">Clear</button>
-                </div>
-            </div>
+            </form>
         </div>
 
         <div class="table-responsive">
@@ -134,138 +137,109 @@
                     </tr>
                 </thead>
                 <tbody id="orderTable">
-    <% orders.forEach(order => { %>
-        <tr>
-            <td><%= order.orderId %></td>
-            <td><%= new Date(order.createdOn).toLocaleDateString() %></td>
-            <td><%= order.user ? order.user.name : 'N/A' %> 
-                (<%= order.user ? order.user.email : 'N/A' %>)</td>
-            <td><%= order.address && order.address.phone ? order.address.phone : 'N/A' %></td>
-            <td>
-                <span class="status-<%= order.status.toLowerCase().replace(' ', '-') %>">
-                    <%= order.status %>
-                </span>
-            </td>
-            <td>
-                <a href="/admin/orders/details/<%= order.orderId %>" class="btn btn-info btn-sm">View</a>
-                <% if (order.returnRequested && order.returnStatus === 'Pending') { %>
-                    <button class="btn btn-warning btn-sm verify-return" data-order-id="<%= order.orderId %>">Verify Return</button>
-                <% } %>
-            </td>
-        </tr>
-    <% }) %>
-</tbody>
+                    <% orders.forEach(order => { %>
+                        <tr>
+                            <td><%= order.orderId %></td>
+                            <td><%= new Date(order.createdOn).toLocaleDateString() %></td>
+                            <td><%= order.user ? order.user.name : 'N/A' %> 
+                                (<%= order.user ? order.user.email : 'N/A' %>)</td>
+                            <td><%= order.address && order.address.phone ? order.address.phone : 'N/A' %></td>
+                            <td>
+                                <span class="status-<%= order.status.toLowerCase().replace(' ', '-') %>">
+                                    <%= order.status %>
+                                </span>
+                            </td>
+                            <td>
+                                <a href="/admin/orders/details/<%= order.orderId %>" class="btn btn-info btn-sm">View</a>
+                                <% if (order.returnRequested && order.returnStatus === 'Pending') { %>
+                                    <button class="btn btn-warning btn-sm verify-return" data-order-id="<%= order.orderId %>">Verify Return</button>
+                                <% } %>
+                            </td>
+                        </tr>
+                    <% }) %>
+                </tbody>
             </table>
         </div>
 
-        <nav>
-            <ul class="pagination">
-                <li class="page-item <%= currentPage === 1 ? 'disabled' : '' %>">
-                    <a class="page-link" href="/admin/orders?page=<%= currentPage - 1 %>">Previous</a>
-                </li>
-                <% for (let i = 1; i <= totalPages; i++) { %>
-                    <li class="page-item <%= i === currentPage ? 'active' : '' %>">
-                        <a class="page-link" href="/admin/orders?page=<%= i %>"><%= i %></a>
+        <% if (totalPages > 1) { %>
+            <nav>
+                <ul class="pagination">
+                    <li class="page-item <%= currentPage === 1 ? 'disabled' : '' %>">
+                        <a class="page-link" href="/admin/orders?page=<%= currentPage - 1 %>&status=<%= statusFilter %>&sort=<%= sortBy %>&search=<%= typeof search !== 'undefined' ? search : '' %>">Previous</a>
                     </li>
-                <% } %>
-                <li class="page-item <%= currentPage === totalPages ? 'disabled' : '' %>">
-                    <a class="page-link" href="/admin/orders?page=<%= currentPage + 1 %>">Next</a>
-                </li>
-            </ul>
-        </nav>
+                    <% for (let i = 1; i <= totalPages; i++) { %>
+                        <li class="page-item <%= i === currentPage ? 'active' : '' %>">
+                            <a class="page-link" href="/admin/orders?page=<%= i %>&status=<%= statusFilter %>&sort=<%= sortBy %>&search=<%= typeof search !== 'undefined' ? search : '' %>"><%= i %></a>
+                        </li>
+                    <% } %>
+                    <li class="page-item <%= currentPage === totalPages ? 'disabled' : '' %>">
+                        <a class="page-link" href="/admin/orders?page=<%= currentPage + 1 %>&status=<%= statusFilter %>&sort=<%= sortBy %>&search=<%= typeof search !== 'undefined' ? search : '' %>">Next</a>
+                    </li>
+                </ul>
+            </nav>
+        <% } %>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-    document.getElementById('searchInput').addEventListener('input', function() {
-        const search = this.value.toLowerCase();
-        const rows = document.querySelectorAll('#orderTable tr');
-        rows.forEach(row => {
-            const orderId = row.cells[0].textContent.toLowerCase();
-            const user = row.cells[2].textContent.toLowerCase();
-            const phone = row.cells[3].textContent.toLowerCase();
-            row.style.display = orderId.includes(search) || user.includes(search) || phone.includes(search) ? '' : 'none';
-        });
-    });
-
-    document.getElementById('clearSearch').addEventListener('click', function() {
-        document.getElementById('searchInput').value = '';
-        document.getElementById('filterStatus').value = '';
-        document.getElementById('sortSelect').value = 'date-desc';
-        const rows = document.querySelectorAll('#orderTable tr');
-        rows.forEach(row => row.style.display = '');
-        window.location.href = '/admin/orders';
-    });
-
-    document.getElementById('filterStatus').addEventListener('change', function() {
-        const status = this.value;
-        const rows = document.querySelectorAll('#orderTable tr');
-        rows.forEach(row => {
-            const rowStatus = row.cells[4].textContent.trim();
-            row.style.display = status === '' || rowStatus === status ? '' : 'none';
-        });
-    });
-
-    document.getElementById('sortSelect').addEventListener('change', function() {
-        const value = this.value;
-        const tbody = document.getElementById('orderTable');
-        const rows = Array.from(tbody.querySelectorAll('tr'));
-
-        rows.sort((a, b) => {
-            if (value === 'date-asc') {
-                return new Date(a.cells[1].textContent) - new Date(b.cells[1].textContent);
-            } else if (value === 'date-desc') {
-                return new Date(b.cells[1].textContent) - new Date(a.cells[1].textContent);
-            } else if (value === 'id-asc') {
-                return a.cells[0].textContent.localeCompare(b.cells[0].textContent);
-            }
+    <script>
+        document.getElementById('clearSearch').addEventListener('click', function() {
+            window.location.href = '/admin/orders';
         });
 
-        tbody.innerHTML = '';
-        rows.forEach(row => tbody.appendChild(row));
-    });
-
-    document.querySelectorAll('.verify-return').forEach(button => {
-        button.addEventListener('click', function() {
-            const orderId = this.dataset.orderId;
-            window.location.href = `/admin/orders/details/${orderId}`;
+        document.getElementById('searchInput').addEventListener('input', function() {
+            const search = this.value.toLowerCase();
+            const rows = document.querySelectorAll('#orderTable tr');
+            rows.forEach(row => {
+                const orderId = row.cells[0].textContent.toLowerCase();
+                const user = row.cells[2].textContent.toLowerCase();
+                const phone = row.cells[3].textContent.toLowerCase();
+                row.style.display = orderId.includes(search) || user.includes(search) || phone.includes(search) ? '' : 'none';
+            });
         });
-    });
 
-    // New function to disable status options when order is Delivered
-    function updateStatusDropdown() {
-        const statusSelect = document.getElementById('orderStatusSelect');
-        if (!statusSelect) return; // Exit if the dropdown doesn't exist
+        document.getElementById('filterStatus').addEventListener('change', function() {
+            document.getElementById('filterForm').submit();
+        });
 
-        const currentStatus = statusSelect.dataset.currentStatus; // Assumes data-current-status attribute on select
-        const options = statusSelect.querySelectorAll('option');
+        document.getElementById('sortSelect').addEventListener('change', function() {
+            document.getElementById('filterForm').submit();
+        });
 
-        if (currentStatus === 'Delivered') {
-            options.forEach(option => {
-                const value = option.value;
-                // Disable all options except Delivered, Return Request, and Returned
-                if (!['Delivered', 'Return Request', 'Returned'].includes(value)) {
-                    option.disabled = true;
-                } else {
+        document.querySelectorAll('.verify-return').forEach(button => {
+            button.addEventListener('click', function() {
+                const orderId = this.dataset.orderId;
+                window.location.href = `/admin/orders/details/${orderId}`;
+            });
+        });
+
+        function updateStatusDropdown() {
+            const statusSelect = document.getElementById('orderStatusSelect');
+            if (!statusSelect) return;
+
+            const currentStatus = statusSelect.dataset.currentStatus;
+            const options = statusSelect.querySelectorAll('option');
+
+            if (currentStatus === 'Delivered') {
+                options.forEach(option => {
+                    const value = option.value;
+                    if (!['Delivered', 'Return Request', 'Returned'].includes(value)) {
+                        option.disabled = true;
+                    } else {
+                        option.disabled = false;
+                    }
+                });
+            } else {
+                options.forEach(option => {
                     option.disabled = false;
-                }
-            });
-        } else {
-            // Enable all options if status is not Delivered
-            options.forEach(option => {
-                option.disabled = false;
-            });
+                });
+            }
         }
-    }
 
-    // Run the function on page load
-    document.addEventListener('DOMContentLoaded', updateStatusDropdown);
-
-    // Run the function when the status dropdown changes
-    const statusSelect = document.getElementById('orderStatusSelect');
-    if (statusSelect) {
-        statusSelect.addEventListener('change', updateStatusDropdown);
-    }
-</script>
+        document.addEventListener('DOMContentLoaded', updateStatusDropdown);
+        const statusSelect = document.getElementById('orderStatusSelect');
+            if (statusSelect) {
+            statusSelect.addEventListener('change', updateStatusDropdown);
+        }
+    </script>
 </body>
 </html>

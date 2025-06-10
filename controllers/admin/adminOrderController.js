@@ -7,29 +7,48 @@ const Order = require('../../models/orderSchema');
 const Wallet = require('../../models/walletSchema'); 
 const { addToWallet } = require("../../controllers/user/walletController");
 
+
 const renderOrderPage = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const limit = 10;
         const skip = (page - 1) * limit;
+        
+        
+        const statusFilter = req.query.status || '';
+        const sortBy = req.query.sort || 'date-desc';
 
-      
-        const orders = await Order.find()
+        
+        const query = {};
+        if (statusFilter && statusFilter !== 'All') {
+            query.status = statusFilter;
+        }
+
+        
+        let sortOption = {};
+        if (sortBy === 'date-asc') {
+            sortOption.orderDate = 1;
+        } else if (sortBy === 'date-desc') {
+            sortOption.orderDate = -1;
+        } else if (sortBy === 'id-asc') {
+            sortOption.orderId = 1;
+        }
+
+        
+        const orders = await Order.find(query)
             .populate('user', 'name email')
-            .sort({ orderDate: -1 })
+            .sort(sortOption)
             .skip(skip)
             .limit(limit)
             .lean();
 
-       
+        
         const formattedOrders = await Promise.all(orders.map(async (order) => {
-            
             const addressDoc = await Address.findOne({
                 userId: order.user._id,
                 'address._id': order.address
             }).lean();
 
-           
             let addressDetails = null;
             if (addressDoc && addressDoc.address) {
                 addressDetails = addressDoc.address.find(addr => 
@@ -43,23 +62,28 @@ const renderOrderPage = async (req, res) => {
             };
         }));
 
-        const totalOrders = await Order.countDocuments();
+        
+        const totalOrders = await Order.countDocuments(query);
         const totalPages = Math.ceil(totalOrders / limit);
 
-        const products = await Product.find({}, 'productId name stock')
-            .lean();
+        const products = await Product.find({}, 'productId name stock').lean();
 
         res.render('admin/orders', {
             orders: formattedOrders,
             products,
             currentPage: page,
             totalPages,
+            statusFilter, 
+            sortBy 
         });
     } catch (error) {
         console.error('Error rendering order page:', error);
         res.status(500).send('Internal Server Error');
     }
 };
+
+
+
 
 const renderOrderDetailsPage = async (req, res) => {
     try {
