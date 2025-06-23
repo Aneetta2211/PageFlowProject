@@ -1,6 +1,7 @@
-const User = require("../../models/userSchema");
-const Product = require("../../models/productSchema");
-const Category = require("../../models/categorySchema");
+const User = require('../../models/userSchema');
+const Product = require('../../models/productSchema');
+const Category = require('../../models/categorySchema');
+const Wishlist = require('../../models/wishlistSchema'); 
 
 const PRICE_RANGES = [
   { label: 'under-500', min: 0, max: 500 },
@@ -27,11 +28,14 @@ const loadShoppingPage = async (req, res) => {
       return res.redirect('/pageNotFound');
     }
 
+   
+    const wishlist = await Wishlist.findOne({ userId }).lean() || { products: [] };
+
     const categoryIds = categories.map((cat) => cat._id.toString());
     const page = parseInt(req.query.page) || 1;
     const limit = 6;
     const skip = (page - 1) * limit;
-    
+
     const searchQuery = req.query.query || '';
     const sortOption = req.query.sort || '';
     const priceFilter = req.query.price || '';
@@ -45,7 +49,6 @@ const loadShoppingPage = async (req, res) => {
     if (searchQuery) {
       query.$or = [
         { productName: { $regex: searchQuery, $options: 'i' } },
-        { description: { $regex: searchQuery, $options: 'i' } }
       ];
     }
 
@@ -112,6 +115,7 @@ const loadShoppingPage = async (req, res) => {
 
     res.render('user/shop', {
       user: userData,
+      wishlistItems: wishlist, 
       products: processedProducts,
       category: categories,
       totalProducts,

@@ -274,25 +274,39 @@
     <script>
         async function addToCart(productId) {
             try {
-                const response = await fetch(`/cart/add/${productId}`, {
+                const response = await fetch(`/wishlist/add-to-cart/${productId}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ quantity: 1 })
+                    body: JSON.stringify({ quantity: 1 }),
+                    credentials: 'include'
                 });
+
+                if (!response.ok) {
+                    const text = await response.text();
+                    console.error('Add to cart failed:', response.status, text);
+                    let errorData;
+                    try {
+                        errorData = JSON.parse(text);
+                    } catch {
+                        throw new Error('Server returned non-JSON response: ' + text.substring(0, 100));
+                    }
+                    if (errorData.loginUrl) {
+                        window.location.href = errorData.loginUrl;
+                        return;
+                    }
+                    throw new Error(errorData.error || `Failed to add to cart (Status: ${response.status})`);
+                }
 
                 const result = await response.json();
 
                 if (result.success) {
-                    // Update button to show "In Cart"
-                    const btn = document.querySelector(`button[onclick="addToCart('${productId}')"]`);
-                    if (btn) {
-                        btn.innerHTML = '<i class="fas fa-shopping-cart mr-1"></i> In Cart';
-                        btn.onclick = function() {
-                            window.location.href = '/profile/cart';
-                        };
+                    // Update cart count in UI
+                    const cartCountElement = document.querySelector('.cart-count');
+                    if (cartCountElement && result.cartCount) {
+                        cartCountElement.textContent = result.cartCount;
                     }
 
-                    // Remove item from DOM
+                    // Remove item from DOM with animation
                     const item = document.querySelector(`.wishlist-item[data-product-id="${productId}"]`);
                     if (item) {
                         item.style.transform = 'scale(0.9)';
@@ -303,21 +317,25 @@
                     // Check if wishlist is now empty
                     const wishlistGrid = document.querySelector('.wishlist-grid');
                     if (wishlistGrid && wishlistGrid.children.length === 0) {
-                        location.reload();
+                        setTimeout(() => location.reload(), 300);
                     }
 
                     Swal.fire({
                         icon: 'success',
                         title: 'Added to Cart',
-                        text: 'Product added to your cart and removed from wishlist',
-                        timer: 1500,
-                        showConfirmButton: false
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: result.message || 'Failed to add to cart'
+                        text: result.message || 'Product added to your cart and removed from wishlist',
+                        showCancelButton: true,
+                        confirmButtonText: 'View Cart',
+                        cancelButtonText: 'OK',
+                        buttonsStyling: false,
+                        customClass: {
+                            confirmButton: 'bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded mr-2',
+                            cancelButton: 'bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded'
+                        }
+                    }).then((swalResult) => {
+                        if (swalResult.isConfirmed) {
+                            window.location.href = result.cartUrl || '/profile/cart';
+                        }
                     });
                 }
             } catch (error) {
@@ -325,7 +343,12 @@
                 Swal.fire({
                     icon: 'error',
                     title: 'Error',
-                    text: 'Failed to add to cart'
+                    text: error.message || 'Failed to add to cart',
+                    confirmButtonText: 'OK',
+                    buttonsStyling: false,
+                    customClass: {
+                        confirmButton: 'bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded'
+                    }
                 });
             }
         }
@@ -335,13 +358,30 @@
                 const response = await fetch('/wishlist/remove', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ productId })
+                    body: JSON.stringify({ productId }),
+                    credentials: 'include'
                 });
+
+                if (!response.ok) {
+                    const text = await response.text();
+                    console.error('Remove from wishlist failed:', response.status, text);
+                    let errorData;
+                    try {
+                        errorData = JSON.parse(text);
+                    } catch {
+                        throw new Error('Server returned non-JSON response: ' + text.substring(0, 100));
+                    }
+                    if (errorData.loginUrl) {
+                        window.location.href = errorData.loginUrl;
+                        return;
+                    }
+                    throw new Error(errorData.error || `Failed to remove from wishlist (Status: ${response.status})`);
+                }
 
                 const result = await response.json();
 
                 if (result.success) {
-                    // Remove item from DOM
+                    // Remove item from DOM with animation
                     const item = document.querySelector(`.wishlist-item[data-product-id="${productId}"]`);
                     if (item) {
                         item.style.transform = 'scale(0.9)';
@@ -352,7 +392,7 @@
                     // Check if wishlist is now empty
                     const wishlistGrid = document.querySelector('.wishlist-grid');
                     if (wishlistGrid && wishlistGrid.children.length === 0) {
-                        location.reload();
+                        setTimeout(() => location.reload(), 300);
                     }
 
                     Swal.fire({
@@ -360,21 +400,24 @@
                         title: 'Removed',
                         text: 'Product removed from wishlist',
                         timer: 1500,
-                        showConfirmButton: false
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: result.message || 'Failed to remove from wishlist'
+                        showConfirmButton: false,
+                        buttonsStyling: false,
+                        customClass: {
+                            confirmButton: 'bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded'
+                        }
                     });
                 }
             } catch (error) {
-                console.error('Error removing from wishlist:', error);
+                console.error('Wishlist remove error:', error);
                 Swal.fire({
                     icon: 'error',
                     title: 'Error',
-                    text: 'Failed to remove from wishlist'
+                    text: error.message || 'Failed to remove from wishlist',
+                    confirmButtonText: 'OK',
+                    buttonsStyling: false,
+                    customClass: {
+                        confirmButton: 'bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded'
+                    }
                 });
             }
         }

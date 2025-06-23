@@ -104,7 +104,7 @@ router.post('/api/orders/:orderId/return', userAuth, walletController.processRet
 // Wishlist Management
 router.get('/profile/wishlist', userAuth, wishlistController.getWishlist); 
 router.post('/wishlist/add', userAuth, wishlistController.addToWishlist);
-router.delete('/wishlist/remove', userAuth, wishlistController.removeFromWishlist); 
+router.post('/wishlist/remove', userAuth, wishlistController.removeFromWishlist); 
 router.post('/wishlist/add-to-cart/:productId', userAuth, wishlistController.addToCart);
 
 

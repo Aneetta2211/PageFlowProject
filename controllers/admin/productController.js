@@ -13,7 +13,7 @@ const calculateProductPricing = (product, category) => {
   
   const salesPrice = maxDiscountPercentage > 0
     ? regularPrice - (regularPrice * maxDiscountPercentage / 100)
-    : regularPrice;
+    : regularPrice;  
 
   return {
     categoryOffer,
@@ -164,11 +164,13 @@ const getEditProductPage = async (req, res) => {
     const productId = req.params.id;
     const product = await Product.findById(productId).populate('category');
     const categories = await Category.find({ isListed: true });
+  
+    
 
     if (!product) {
       throw new Error("Product not found");
     }
-
+  
     
     const pricing = calculateProductPricing(product, product.category || {});
 
@@ -202,6 +204,7 @@ const updateProduct = async (req, res) => {
     if (!product) {
       throw new Error("Product not found");
     }
+
 
     let currentImages = Array.isArray(existingImages) ? existingImages : existingImages ? [existingImages] : [];
     const imagesToRemove = Array.isArray(removedImages) ? removedImages : removedImages ? [removedImages] : [];

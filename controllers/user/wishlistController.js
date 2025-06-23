@@ -11,7 +11,6 @@ const getWishlist = async (req, res) => {
             return res.redirect('/login');
         }
 
-       
         let wishlistItems = await Wishlist.findOne({ userId })
             .populate({
                 path: 'products.productId',
@@ -19,7 +18,6 @@ const getWishlist = async (req, res) => {
                 select: 'productName salesPrice quantity status productImage'
             }) || { products: [] };
 
-       
         console.log('Wishlist Items:', JSON.stringify(wishlistItems, null, 2));
 
         const cartItems = await Cart.findOne({ userId })
@@ -38,7 +36,6 @@ const getWishlist = async (req, res) => {
 
 const addToWishlist = async (req, res) => {
     try {
-       
         const userId = req.session.user?.id || req.session.user;
         if (!userId) {
             return res.status(401).json({ 
@@ -47,19 +44,16 @@ const addToWishlist = async (req, res) => {
             });
         }
 
-     
         const { productId } = req.body;
         if (!productId || !mongoose.Types.ObjectId.isValid(productId)) {
             return res.status(400).json({ error: "Invalid product ID" });
         }
 
-        
         const product = await Product.findById(productId);
         if (!product || product.isBlocked || product.status !== "Available") {
             return res.status(404).json({ error: "Product not available" });
         }
 
-       
         let wishlist = await Wishlist.findOne({ userId });
 
         if (!wishlist) {
@@ -90,11 +84,9 @@ const addToWishlist = async (req, res) => {
             });
         }
 
-       
         wishlist.products.push({ productId });
         await wishlist.save();
 
-       
         res.status(201).json({
             success: true,
             message: "Product added to wishlist",
@@ -150,7 +142,7 @@ const addToCart = async (req, res) => {
         const quantity = parseInt(req.body.quantity, 10) || 1;
 
         if (!userId) {
-            return res.status(401).json({ error: "User not logged in" });
+            return res.status(401).json({ error: "User not logged in", loginUrl: "/login" });
         }
 
         const product = await Product.findById(productId);
@@ -210,7 +202,6 @@ const addToCart = async (req, res) => {
 
         await cart.save();
 
-        
         let wishlist = await Wishlist.findOne({ userId });
         if (wishlist) {
             wishlist.products = wishlist.products.filter(item => 
@@ -219,10 +210,18 @@ const addToCart = async (req, res) => {
             await wishlist.save();
         }
 
-        res.json({ success: true, message: "Added to cart" });
+        res.json({ 
+            success: true, 
+            message: "Added to cart and removed from wishlist",
+            cartUrl: "/profile/cart",
+            cartCount: cart.items.length
+        });
     } catch (error) {
         console.error("Add to cart error:", error);
-        res.status(500).json({ error: "Server error" });
+        res.status(500).json({ 
+            error: "Server error",
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined 
+        });
     }
 };
 
