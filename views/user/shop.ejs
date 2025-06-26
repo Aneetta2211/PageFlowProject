@@ -583,7 +583,7 @@ async function toggleWishlist(productId) {
         if (isInWishlist) {
             // Remove from wishlist
             const response = await fetch('/wishlist/remove', {
-                method: 'POST', // Matches updated route
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ productId }),
                 credentials: 'include'
@@ -656,7 +656,7 @@ async function toggleWishlist(productId) {
                 buttonsStyling: false,
                 customClass: {
                     confirmButton: 'bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded mr-2',
-                    cancelButton: 'bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded'
+                    cancelButton: 'bg-gray-200 hover:bg-gray-300 text-gray-900 font-medium py-2 px-4 rounded'
                 }
             }).then((result) => {
                 if (result.isConfirmed) {
@@ -679,11 +679,32 @@ async function addToCart(productId) {
         const response = await fetch(`/cart/add/${productId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ productId, quantity: 1 }),
             credentials: 'include'
         });
 
         if (!response.ok) {
             const errorData = await response.json();
+            if (errorData.message === 'Product is already in the cart') {
+                Swal.fire({
+                    title: 'Product Already in Cart!',
+                    text: 'This product is already in your cart. You can update the quantity in your cart.',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonText: 'View Cart',
+                    cancelButtonText: 'Continue Shopping',
+                    buttonsStyling: false,
+                    customClass: {
+                        confirmButton: 'bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded mr-2',
+                        cancelButton: 'bg-gray-200 hover:bg-gray-300 text-gray-900 font-medium py-2 px-4 rounded'
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        window.location.href = '/profile/cart';
+                    }
+                });
+                return;
+            }
             throw new Error(errorData.message || 'Failed to add to cart');
         }
 
@@ -700,10 +721,13 @@ async function addToCart(productId) {
                 text: result.message || 'Product has been added to your cart',
                 icon: 'success',
                 showCancelButton: true,
-                confirmButtonColor: '#1e918b',
-                cancelButtonColor: '#6c757d',
                 confirmButtonText: 'View Cart',
-                cancelButtonText: 'Continue Shopping'
+                cancelButtonText: 'Continue Shopping',
+                buttonsStyling: false,
+                customClass: {
+                    confirmButton: 'bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded mr-2',
+                    cancelButton: 'bg-gray-200 hover:bg-gray-300 text-gray-900 font-medium py-2 px-4 rounded'
+                }
             }).then((result) => {
                 if (result.isConfirmed) {
                     window.location.href = '/profile/cart';
@@ -716,7 +740,11 @@ async function addToCart(productId) {
             title: 'Error!',
             text: error.message || 'An error occurred while adding to cart',
             icon: 'error',
-            confirmButtonText: 'OK'
+            confirmButtonText: 'OK',
+            buttonsStyling: false,
+            customClass: {
+                confirmButton: 'bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded'
+            }
         });
     }
 }

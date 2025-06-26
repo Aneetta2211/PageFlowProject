@@ -107,6 +107,7 @@ const addToCart = async (req, res) => {
     try {
         const userId = req.user?._id;
         const productId = req.params.productId;
+        const { quantity } = req.body;
 
         if (!userId) {
             return res.status(401).json({ 
@@ -119,6 +120,22 @@ const addToCart = async (req, res) => {
             return res.status(400).json({ 
                 success: false, 
                 message: 'Invalid product ID'
+            });
+        }
+
+        const parsedQuantity = parseInt(quantity);
+        if (isNaN(parsedQuantity) || parsedQuantity < 1) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Invalid quantity'
+            });
+        }
+
+        const maxQuantity = 10; // Maximum allowed quantity
+        if (parsedQuantity > maxQuantity) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Cannot add more than 10 products'
             });
         }
 
@@ -135,7 +152,7 @@ const addToCart = async (req, res) => {
 
         const validationErrors = [];
         if (product.isBlocked) validationErrors.push('Product is blocked');
-        if (product.quantity <= 0) validationErrors.push('Product is out of stock');
+        if (product.quantity < parsedQuantity) validationErrors.push(`Stock limit exceeded. Only ${product.quantity} items available`);
         if (product.status !== 'Available') validationErrors.push(`Product is ${product.status}`);
         if (product.category && !product.category.isListed) validationErrors.push('Product category is not listed');
         
@@ -164,15 +181,15 @@ const addToCart = async (req, res) => {
         if (existingItem) {
             return res.status(400).json({ 
                 success: false, 
-                message: 'Product is already in cart'
+                message: 'Product is already in the cart'
             });
         }
 
         cart.items.push({ 
             productId, 
-            quantity: 1, 
+            quantity: parsedQuantity, 
             price, 
-            totalPrice: price,
+            totalPrice: price * parsedQuantity,
             status: 'placed'
         });
 

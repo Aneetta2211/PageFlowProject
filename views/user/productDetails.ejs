@@ -18,18 +18,76 @@
       position: relative;
     }
 
-    .main-image {
+    .main-image-container {
+      position: relative;
       width: 100%;
       height: 400px;
-      object-fit: contain; /* Changed from cover to contain to show full image */
+      overflow: hidden;
       border-radius: 10px;
       margin-bottom: 10px;
-      transition: transform 0.3s ease;
+      cursor: zoom-in;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      transition: box-shadow 0.3s ease;
     }
 
-    .main-image:hover {
-      transform: scale(1.2); /* Zoom effect on hover */
-      z-index: 10;
+    .main-image-container:hover {
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    }
+
+    .main-image {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      transform-origin: center center;
+    }
+
+    .main-image-container:hover .main-image {
+      transform: scale(1.8);
+    }
+
+    .zoom-lens {
+      position: absolute;
+      border: 3px solid #fff;
+      border-radius: 50%;
+      width: 150px;
+      height: 150px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(2px);
+    }
+
+    .main-image-container:hover .zoom-lens {
+      opacity: 1;
+    }
+
+    .zoom-indicator {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(0, 0, 0, 0.7);
+      color: white;
+      padding: 5px 10px;
+      border-radius: 15px;
+      font-size: 12px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .main-image-container:hover .zoom-indicator {
+      opacity: 1;
+    }
+
+    .zoom-icon {
+      width: 12px;
+      height: 12px;
+      fill: currentColor;
     }
 
     .thumbnail-container {
@@ -42,15 +100,40 @@
       width: 80px;
       height: 120px;
       object-fit: cover;
-      border-radius: 5px;
+      border-radius: 8px;
       cursor: pointer;
       border: 2px solid transparent;
-      transition: border 0.3s;
+      transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .thumbnail::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.3) 50%, transparent 70%);
+      transform: translateX(-100%);
+      transition: transform 0.6s;
+    }
+
+    .thumbnail:hover::before {
+      transform: translateX(100%);
     }
 
     .thumbnail:hover,
     .thumbnail.active {
       border: 2px solid #007bff;
+      transform: translateY(-3px);
+      box-shadow: 0 5px 15px rgba(0, 123, 255, 0.3);
+    }
+
+    .thumbnail.active {
+      border-color: #28a745;
+      box-shadow: 0 5px 15px rgba(40, 167, 69, 0.3);
     }
 
     .product-info {
@@ -188,10 +271,22 @@
     }
 
     .wishlist-btn {
-      background: none;
+      background-color: rgba(237, 247, 247, 0.8);
       border: none;
       font-size: 20px;
       cursor: pointer;
+      color: #333;
+      transition: background-color 0.3s, transform 0.3s;
+      padding: 8px;
+      border-radius: 50%;
+    }
+
+    .wishlist-btn:hover {
+      background-color: rgba(255, 0, 0, 0.2);
+      transform: scale(1.2);
+    }
+
+    .wishlist-btn.added-to-wishlist {
       color: #ff0000;
     }
 
@@ -206,8 +301,17 @@
         flex-direction: column;
       }
 
-      .main-image {
+      .main-image-container {
         height: 300px;
+      }
+
+      .main-image-container:hover .main-image {
+        transform: scale(1.5);
+      }
+
+      .zoom-lens {
+        width: 100px;
+        height: 100px;
       }
 
       .action-buttons {
@@ -220,7 +324,6 @@
       }
     }
 
-    /* SweetAlert2 Custom Styling */
     .swal2-popup {
       font-family: 'Inter', sans-serif;
       border-radius: 10px !important;
@@ -250,6 +353,7 @@
     }
 </style>
 <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
 <div class="main-container">
     <div class="page-header breadcrumb-wrap bg-light py-3 mb-4">
@@ -266,7 +370,16 @@
     <section class="product-details">
       <div class="product-details-container">
         <div class="product-images">
-          <img src="<%= product.productImage[0] || '/default-image.jpg' %>" alt="<%= product.productName %>" class="main-image" id="mainImage">
+          <div class="main-image-container" id="mainImageContainer">
+            <img src="<%= product.productImage[0] || '/default-image.jpg' %>" alt="<%= product.productName %>" class="main-image" id="mainImage">
+            <div class="zoom-lens" id="zoomLens"></div>
+            <div class="zoom-indicator">
+              <svg class="zoom-icon" viewBox="0 0 24 24">
+                <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+              </svg>
+              Hover to zoom
+            </div>
+          </div>
           <div class="thumbnail-container">
             <% product.productImage.forEach((img, index) => { %>
               <img src="<%= img %>" alt="Thumbnail <%= index + 1 %>" class="thumbnail <%= index === 0 ? 'active' : '' %>" onclick="changeImage('<%= img %>', this)">
@@ -286,29 +399,25 @@
             <% } %>
           </div>
           <p class="stock-status <%= product.status === 'out of stock' ? 'out-of-stock' : 'available' %>">
-            <%= product.status === 'out of stock' ? 'Out of Stock' : 'In Stock' %>
+            <%= product.status === 'out of stock' ? 'Out of Stock' : `In Stock (${product.quantity} available)` %>
           </p>
           <div class="quantity-selector">
             <button class="quantity-btn" onclick="changeQuantity(-1)">-</button>
-            <input type="number" class="quantity-input" id="quantity" value="1" min="1" max="<%= product.quantity %>" readonly>
+            <input type="number" class="quantity-input" id="quantity" value="1" min="1" max="<%= Math.min(10, product.quantity) %>" readonly>
             <button class="quantity-btn" onclick="changeQuantity(1)">+</button>
           </div>
           <div class="action-buttons">
             <button class="add-to-cart-btn" 
-              onclick="addToCart('<%= product._id %>')" 
+              onclick="addToCart('<%= product._id %>', <%= product.quantity %>)" 
               <%= product.status === 'out of stock' ? 'disabled' : '' %>>
               <%= product.status === 'out of stock' ? 'Out of Stock' : 'Add to Cart' %>
             </button>
-            <!-- <button class="buy-now-btn" 
-              onclick="buyNow('<%= product._id %>')" 
-              <%= product.status === 'out of stock' ? 'disabled' : '' %>>
-              <%= product.status === 'out of stock' ? 'Out of Stock' : 'Buy Now' %>
-            </button> -->
-            <button class="wishlist-btn" 
-              onclick="addToWishlist('<%= product._id %>')"
-              data-product-id="<%= product._id %>">
-              ❤️
-            </button>
+            <span class="wishlist-btn <%= wishlistItems?.products?.some(item => item.productId.toString() === product._id.toString()) ? 'added-to-wishlist' : '' %>" 
+                  onclick="toggleWishlist('<%= product._id %>')"
+                  data-product-id="<%= product._id %>"
+                  data-in-wishlist="<%= wishlistItems?.products?.some(item => item.productId.toString() === product._id.toString()) ? 'true' : 'false' %>">
+                  <i class="<%= wishlistItems?.products?.some(item => item.productId.toString() === product._id.toString()) ? 'fas fa-heart' : 'far fa-heart' %>"></i>
+            </span>
           </div>
           <div class="description">
             <h3>Description</h3>
@@ -322,23 +431,86 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
   function changeImage(src, element) {
-    document.getElementById('mainImage').src = src;
+    const mainImage = document.getElementById('mainImage');
+    mainImage.src = src;
+    
     document.querySelectorAll('.thumbnail').forEach(thumb => thumb.classList.remove('active'));
     element.classList.add('active');
+    
+    mainImage.style.opacity = '0';
+    setTimeout(() => {
+      mainImage.style.opacity = '1';
+    }, 100);
   }
 
   function changeQuantity(change) {
     const input = document.getElementById('quantity');
     let value = parseInt(input.value);
+    const min = parseInt(input.min);
     const max = parseInt(input.max);
     value += change;
-    if (value < 1) value = 1;
-    if (value > max) value = max;
+    if (value < min) {
+      value = min;
+    }
+    if (value > max) {
+      value = max;
+      Swal.fire({
+        title: 'Quantity Limit Exceeded!',
+        text: max === 10 ? 'You cannot add more than 10 products.' : `Stock limit exceeded. Only ${max} items available.`,
+        icon: 'error',
+        confirmButtonText: 'OK',
+        buttonsStyling: false,
+        customClass: {
+          confirmButton: 'bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded border-none'
+        }
+      });
+    }
     input.value = value;
   }
 
-  async function addToCart(productId) {
+  document.addEventListener('DOMContentLoaded', function() {
+    const mainImageContainer = document.getElementById('mainImageContainer');
+    const mainImage = document.getElementById('mainImage');
+    const zoomLens = document.getElementById('zoomLens');
+
+    if (mainImageContainer && zoomLens) {
+      mainImageContainer.addEventListener('mousemove', function(e) {
+        const rect = mainImageContainer.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        const lensSize = 75;
+        zoomLens.style.left = (x - lensSize) + 'px';
+        zoomLens.style.top = (y - lensSize) + 'px';
+        
+        const xPercent = (x / rect.width) * 100;
+        const yPercent = (y / rect.height) * 100;
+        
+        mainImage.style.transformOrigin = `${xPercent}% ${yPercent}%`;
+      });
+
+      mainImageContainer.addEventListener('mouseleave', function() {
+        mainImage.style.transformOrigin = 'center center';
+      });
+    }
+  });
+
+  async function addToCart(productId, stockQuantity) {
     const quantity = parseInt(document.getElementById('quantity').value);
+    const maxQuantity = Math.min(10, stockQuantity);
+    if (quantity > maxQuantity) {
+      Swal.fire({
+        title: 'Quantity Limit Exceeded!',
+        text: maxQuantity === 10 ? 'You cannot add more than 10 products.' : `Stock limit exceeded. Only ${maxQuantity} items available.`,
+        icon: 'error',
+        confirmButtonText: 'OK',
+        buttonsStyling: false,
+        customClass: {
+          confirmButton: 'bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded border-none'
+        }
+      });
+      return;
+    }
     try {
       const response = await fetch(`/cart/add/${productId}`, {
         method: 'POST',
@@ -346,6 +518,30 @@
         body: JSON.stringify({ productId, quantity }),
         credentials: 'include'
       });
+      if (!response.ok) {
+        const errorData = await response.json();
+        if (errorData.message === 'Product is already in the cart') {
+          Swal.fire({
+            title: 'Product Already in Cart!',
+            text: 'This product is already in your cart. You can update the quantity in your cart.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'View Cart',
+            cancelButtonText: 'Continue Shopping',
+            buttonsStyling: false,
+            customClass: {
+              confirmButton: 'bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded border-none',
+              cancelButton: 'bg-gray-200 hover:bg-gray-300 text-gray-900 font-medium py-2 px-4 rounded border-none'
+            }
+          }).then((result) => {
+            if (result.isConfirmed) {
+              window.location.href = '/profile/cart';
+            }
+          });
+          return;
+        }
+        throw new Error(errorData.message || 'Failed to add to cart');
+      }
       const result = await response.json();
       if (result.success) {
         Swal.fire({
@@ -354,7 +550,12 @@
           icon: 'success',
           showCancelButton: true,
           confirmButtonText: 'View Cart',
-          cancelButtonText: 'Continue Shopping'
+          cancelButtonText: 'Continue Shopping',
+          buttonsStyling: false,
+          customClass: {
+            confirmButton: 'bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded border-none',
+            cancelButton: 'bg-gray-200 hover:bg-gray-300 text-gray-900 font-medium py-2 px-4 rounded border-none'
+          }
         }).then((result) => {
           if (result.isConfirmed) {
             window.location.href = '/profile/cart';
@@ -365,63 +566,125 @@
           title: 'Error!',
           text: result.message || 'Failed to add to cart',
           icon: 'error',
-          confirmButtonText: 'OK'
+          confirmButtonText: 'OK',
+          buttonsStyling: false,
+          customClass: {
+            confirmButton: 'bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded border-none'
+          }
         });
       }
     } catch (error) {
       console.error('Error adding to cart:', error);
       Swal.fire({
         title: 'Error!',
-        text: 'An error occurred',
+        text: error.message || 'An error occurred',
         icon: 'error',
-        confirmButtonText: 'OK'
+        confirmButtonText: 'OK',
+        buttonsStyling: false,
+        customClass: {
+          confirmButton: 'bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded border-none'
+        }
       });
     }
   }
 
-  async function addToWishlist(productId) {
+  async function toggleWishlist(productId) {
     try {
-      const response = await fetch('/wishlist/add', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId }),
-        credentials: 'include'
-      });
-      const result = await response.json();
-      if (result.success) {
-        const heartBtn = document.querySelector(`[data-product-id="${productId}"]`);
-        if (heartBtn) {
-          heartBtn.innerHTML = '❤️';
-          heartBtn.style.color = 'red';
-          heartBtn.classList.add('added-to-wishlist');
+      const heartBtn = document.querySelector(`[data-product-id="${productId}"]`);
+      const isInWishlist = heartBtn.dataset.inWishlist === 'true';
+
+      if (isInWishlist) {
+        const response = await fetch('/wishlist/remove', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ productId }),
+          credentials: 'include'
+        });
+
+        if (!response.ok) {
+          const text = await response.text();
+          console.error('Remove from wishlist failed:', response.status, text);
+          let errorData;
+          try {
+            errorData = JSON.parse(text);
+          } catch {
+            throw new Error('Server returned non-JSON response: ' + text.substring(0, 100));
+          }
+          throw new Error(errorData.error || `Failed to remove from wishlist (Status: ${response.status})`);
         }
+
+        const result = await response.json();
+
+        heartBtn.classList.remove('added-to-wishlist');
+        heartBtn.innerHTML = '<i class="far fa-heart"></i>';
+        heartBtn.dataset.inWishlist = 'false';
+
+        Swal.fire({
+          title: 'Removed from Wishlist!',
+          icon: 'success',
+          confirmButtonText: 'OK',
+          buttonsStyling: false,
+          customClass: {
+            confirmButton: 'bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded border-none'
+          }
+        });
+      } else {
+        const response = await fetch('/wishlist/add', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ productId }),
+          credentials: 'include'
+        });
+
+        if (!response.ok) {
+          const text = await response.text();
+          console.error('Add to wishlist failed:', response.status, text);
+          let errorData;
+          try {
+            errorData = JSON.parse(text);
+          } catch {
+            throw new Error('Server returned non-JSON response: ' + text.substring(0, 100));
+          }
+          if (errorData.loginUrl) {
+            window.location.href = errorData.loginUrl;
+            return;
+          }
+          throw new Error(errorData.error || `Failed to add to wishlist (Status: ${response.status})`);
+        }
+
+        const result = await response.json();
+
+        heartBtn.classList.add('added-to-wishlist');
+        heartBtn.innerHTML = '<i class="fas fa-heart"></i>';
+        heartBtn.dataset.inWishlist = 'true';
+
         Swal.fire({
           title: 'Added to Wishlist!',
-          text: 'Product has been added to your wishlist',
           icon: 'success',
           showCancelButton: true,
           confirmButtonText: 'View Wishlist',
-          cancelButtonText: 'Continue Shopping'
+          cancelButtonText: 'Continue Shopping',
+          buttonsStyling: false,
+          customClass: {
+            confirmButton: 'bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded border-none',
+            cancelButton: 'bg-gray-200 hover:bg-gray-300 text-gray-900 font-medium py-2 px-4 rounded border-none'
+          }
         }).then((result) => {
           if (result.isConfirmed) {
             window.location.href = '/profile/wishlist';
           }
         });
-      } else {
-        Swal.fire({
-          title: 'Error!',
-          text: result.message || 'Failed to add to wishlist',
-          icon: 'error',
-          confirmButtonText: 'OK'
-        });
       }
     } catch (error) {
-      console.error('Error adding to wishlist:', error);
+      console.error('Wishlist toggle error:', error);
       Swal.fire({
-        title: 'Error!',
-        text: 'An error occurred',
         icon: 'error',
-        confirmButtonText: 'OK'
+        title: 'Error',
+        text: error.message,
+        buttonsStyling: false,
+        customClass: {
+          confirmButton: 'bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded border-none'
+        }
       });
     }
   }

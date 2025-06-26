@@ -1,7 +1,8 @@
+const mongoose = require('mongoose');
 const User = require('../../models/userSchema');
 const Product = require('../../models/productSchema');
 const Category = require('../../models/categorySchema');
-const Wishlist = require('../../models/wishlistSchema'); 
+const Wishlist = require('../../models/wishlistSchema');
 
 const PRICE_RANGES = [
   { label: 'under-500', min: 0, max: 500 },
@@ -28,7 +29,6 @@ const loadShoppingPage = async (req, res) => {
       return res.redirect('/pageNotFound');
     }
 
-   
     const wishlist = await Wishlist.findOne({ userId }).lean() || { products: [] };
 
     const categoryIds = categories.map((cat) => cat._id.toString());
@@ -115,7 +115,7 @@ const loadShoppingPage = async (req, res) => {
 
     res.render('user/shop', {
       user: userData,
-      wishlistItems: wishlist, 
+      wishlistItems: wishlist,
       products: processedProducts,
       category: categories,
       totalProducts,
@@ -131,43 +131,58 @@ const loadShoppingPage = async (req, res) => {
     });
   } catch (error) {
     console.error("Error loading shop page:", error.message);
-    res.status(500).redirect('/pageNotFound');
+    res.status(500).redirect('/login');
   }
 };
 
 const productDetails = async (req, res) => {
   try {
-    const productId = req.params.productId; 
+    const productId = req.params.productId;
+    if (!mongoose.isValidObjectId(productId)) {
+      return res.status(400).redirect('/login');
+    }
+
     const product = await Product.findById(productId).populate('category');
-    
-    if (!product) {
-      return res.redirect("/pageNotFound");
+    if (!product || product.isBlocked || product.status === 'out of stock') {
+      return res.status(404).redirect('/pageNotFound');
     }
 
     const findCategory = product.category;
+    if (!findCategory || !findCategory.isListed) {
+      return res.status(404).redirect('/pageNotFound');
+    }
+
     const categoryOffer = findCategory?.categoryOffer || 0;
     const productOffer = product.productOffer || 0;
-    
     const totalOffer = Math.max(categoryOffer, productOffer);
-    const offerType = categoryOffer > productOffer ? 'category' : 
-                     (productOffer > categoryOffer ? 'product' : 'none');
+    const offerType = categoryOffer > productOffer ? 'category' : (productOffer > 0 ? 'product' : 'none');
     
     const regularPrice = parseFloat(product.regularPrice) || 0;
     const discountedPrice = regularPrice - (regularPrice * totalOffer / 100);
-    product.salesPrice = discountedPrice.toFixed(2);
-    product.finalPrice = discountedPrice.toFixed(2);
 
+    let wishlistItems = null;
+    const userId = req.session.user?._id || req.session.user?.id;
+    if (userId) {
+      wishlistItems = await Wishlist.findOne({ userId }).lean() || { products: [] };
+      console.log('WishlistItems in productDetails:', JSON.stringify(wishlistItems, null, 2));
+    }
+
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
     res.render("user/productDetails", {
-      product: product,
-      quantity: product.quantity,
-      totalOffer: totalOffer,
-      offerType: offerType,
-      discountedPrice: discountedPrice.toFixed(2),
+      product: {
+        ...product.toObject(),
+        salesPrice: discountedPrice.toFixed(2),
+        finalPrice: discountedPrice.toFixed(2),
+        discountedPrice: discountedPrice.toFixed(2)
+      },
       category: findCategory,
+      totalOffer,
+      offerType,
+      wishlistItems
     });
   } catch (error) {
     console.error("Error loading product details:", error.message);
-    res.redirect("/pageNotFound");
+    res.status(500).redirect('/pageNotFound');
   }
 };
 

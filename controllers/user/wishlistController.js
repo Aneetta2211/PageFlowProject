@@ -36,7 +36,7 @@ const getWishlist = async (req, res) => {
 
 const addToWishlist = async (req, res) => {
     try {
-        const userId = req.session.user?.id || req.session.user;
+        const userId = req.session.user?._id || req.session.user?.id;
         if (!userId) {
             return res.status(401).json({ 
                 error: "Authentication required",
@@ -45,7 +45,7 @@ const addToWishlist = async (req, res) => {
         }
 
         const { productId } = req.body;
-        if (!productId || !mongoose.Types.ObjectId.isValid(productId)) {
+        if (!productId || !mongoose.isValidObjectId(productId)) {
             return res.status(400).json({ error: "Invalid product ID" });
         }
 
@@ -62,6 +62,7 @@ const addToWishlist = async (req, res) => {
                 products: [{ productId }]
             });
             await wishlist.save();
+            console.log('New wishlist created:', JSON.stringify(wishlist, null, 2));
             return res.status(201).json({
                 success: true,
                 message: "Product added to wishlist",
@@ -86,6 +87,7 @@ const addToWishlist = async (req, res) => {
 
         wishlist.products.push({ productId });
         await wishlist.save();
+        console.log('Wishlist updated:', JSON.stringify(wishlist, null, 2));
 
         res.status(201).json({
             success: true,
@@ -106,7 +108,7 @@ const addToWishlist = async (req, res) => {
 
 const removeFromWishlist = async (req, res) => {
     try {
-        const userId = req.session.user?.id || req.session.user;
+        const userId = req.session.user?._id || req.session.user?.id;
         const { productId } = req.body;
 
         if (!userId) {
@@ -128,6 +130,7 @@ const removeFromWishlist = async (req, res) => {
         }
 
         await wishlist.save();
+        console.log('Wishlist after removal:', JSON.stringify(wishlist, null, 2));
         res.status(200).json({ success: true, message: "Removed from wishlist" });
     } catch (error) {
         console.error("Error removing from wishlist:", error);
@@ -137,7 +140,7 @@ const removeFromWishlist = async (req, res) => {
 
 const addToCart = async (req, res) => {
     try {
-        const userId = req.session.user?.id || req.session.user;
+        const userId = req.session.user?._id || req.session.user?.id;
         const productId = req.params.productId;
         const quantity = parseInt(req.body.quantity, 10) || 1;
 
@@ -145,19 +148,23 @@ const addToCart = async (req, res) => {
             return res.status(401).json({ error: "User not logged in", loginUrl: "/login" });
         }
 
+        if (!mongoose.isValidObjectId(productId)) {
+            return res.status(400).json({ error: "Invalid product ID" });
+        }
+
         const product = await Product.findById(productId);
         if (!product || product.isBlocked || product.status !== "Available") {
             return res.status(404).json({ error: "Product not available" });
         }
 
-        if (product.quantity <= 0) {
-            return res.status(400).json({ error: "Out of Stock" });
+        if (product.quantity < quantity) {
+            return res.status(400).json({ error: `Only ${product.quantity} items available` });
         }
 
         const productOffer = product.productOffer || 0;
         const finalPrice = productOffer > 0
-            ? product.salesPrice - (product.salesPrice * productOffer) / 100
-            : product.salesPrice;
+            ? parseFloat((product.salesPrice - (product.salesPrice * productOffer / 100)).toFixed(2))
+            : parseFloat(product.salesPrice.toFixed(2));
 
         let cart = await Cart.findOne({ userId });
 
@@ -171,31 +178,38 @@ const addToCart = async (req, res) => {
                     productId,
                     quantity,
                     price: finalPrice,
-                    totalPrice: Math.floor(finalPrice * quantity),
-                }],
+                    totalPrice: parseFloat((finalPrice * quantity).toFixed(2))
+                }]
             });
         } else {
             const existingItemIndex = cart.items.findIndex(
-                (item) => item.productId.toString() === productId.toString()
+                item => item.productId.toString() === productId.toString()
             );
 
             if (existingItemIndex !== -1) {
-                if (cart.items[existingItemIndex].quantity + quantity > 5) {
+                const newQuantity = cart.items[existingItemIndex].quantity + quantity;
+                if (newQuantity > 5) {
                     return res.status(400).json({ error: "Maximum limit of 5 per product reached" });
                 }
-                cart.items[existingItemIndex].quantity += quantity;
-                cart.items[existingItemIndex].totalPrice = Math.floor(
-                    cart.items[existingItemIndex].quantity * finalPrice
+                if (newQuantity > product.quantity) {
+                    return res.status(400).json({ error: `Only ${product.quantity} items available` });
+                }
+                cart.items[existingItemIndex].quantity = newQuantity;
+                cart.items[existingItemIndex].totalPrice = parseFloat(
+                    (newQuantity * finalPrice).toFixed(2)
                 );
             } else {
                 if (quantity > 5) {
                     return res.status(400).json({ error: "Cannot add more than 5 of this product" });
                 }
+                if (quantity > product.quantity) {
+                    return res.status(400).json({ error: `Only ${product.quantity} items available` });
+                }
                 cart.items.push({
                     productId,
                     quantity,
                     price: finalPrice,
-                    totalPrice: Math.floor(finalPrice * quantity),
+                    totalPrice: parseFloat((finalPrice * quantity).toFixed(2))
                 });
             }
         }
@@ -208,9 +222,10 @@ const addToCart = async (req, res) => {
                 item.productId.toString() !== productId.toString()
             );
             await wishlist.save();
+            console.log('Wishlist after cart addition:', JSON.stringify(wishlist, null, 2));
         }
 
-        res.json({ 
+        res.status(200).json({ 
             success: true, 
             message: "Added to cart and removed from wishlist",
             cartUrl: "/profile/cart",
