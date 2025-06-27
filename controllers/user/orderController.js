@@ -1262,8 +1262,11 @@ const paymentFailed = async (req, res) => {
         const { orderId, razorpay_order_id, razorpay_payment_id, error } = req.body;
         const userId = req.user._id;
 
+        console.log('Recording payment failure for:', { orderId, razorpay_order_id, razorpay_payment_id });
+
         const order = await Order.findOne({ orderId, user: userId });
         if (!order) {
+            console.warn('Order not found:', { orderId, userId });
             return res.status(404).json({
                 success: false,
                 message: 'Order not found'
@@ -1271,9 +1274,17 @@ const paymentFailed = async (req, res) => {
         }
 
         order.paymentStatus = 'Failed';
+        order.status = 'Payment Failed'; // Set status to "Payment Failed"
         order.razorpayPaymentId = razorpay_payment_id;
         order.paymentError = error.description || 'Payment failed';
         await order.save();
+
+        console.log('Payment failure recorded:', {
+            orderId,
+            status: order.status,
+            paymentStatus: order.paymentStatus,
+            paymentError: order.paymentError
+        });
 
         return res.json({
             success: true,
@@ -1281,7 +1292,7 @@ const paymentFailed = async (req, res) => {
         });
     } catch (error) {
         console.error('Error recording payment failure:', error);
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: 'Server error while recording payment failure',
             error: process.env.NODE_ENV === 'development' ? error.message : undefined
@@ -1296,7 +1307,6 @@ const retryPayment = async (req, res) => {
         const userId = req.user._id;
 
         console.log('Initiating retry payment for:', { orderId, userId });
-
 
         const order = await Order.findOne({ orderId, user: userId });
         if (!order) {
@@ -1315,14 +1325,13 @@ const retryPayment = async (req, res) => {
             });
         }
 
-        if (!['Pending', 'Failed'].includes(order.paymentStatus)) {
-            console.warn('Order not in retryable state:', { orderId, paymentStatus: order.paymentStatus });
+        if (order.status !== 'Payment Failed') { // Check for "Payment Failed" status
+            console.warn('Order not in retryable state:', { orderId, status: order.status });
             return res.status(400).json({
                 success: false,
                 message: 'Order is not in a retryable state'
             });
         }
-
 
         const receipt = `retry_${order.orderId}`;
         const razorpayOrder = await razorpay.orders.create({
@@ -1349,7 +1358,6 @@ const retryPayment = async (req, res) => {
         });
     }
 };
-
 
 const applyCoupon = async (req, res) => {
     try {
