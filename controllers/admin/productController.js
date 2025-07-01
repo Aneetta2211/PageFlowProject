@@ -30,13 +30,16 @@ const calculateProductPricing = (product, category) => {
 const getProductAddPage = async (req, res) => {
   try {
     const category = await Category.find({ isListed: true });
-    res.render("admin/add-product", {
-      category: category,
+    const errorMessage = req.session.errorMessage || null; // Get error message from session
+    req.session.errorMessage = null; // Clear the error message from session
+    res.render('admin/add-product', {
+      category,
+      errorMessage,
       currentRoute: 'add-product'
     });
   } catch (error) {
-    console.error("Error in getProductAddPage:", error);
-    res.redirect("/pageerror");
+    console.log(error);
+    res.status(500).send('Server Error');
   }
 };
 
@@ -53,6 +56,13 @@ const addProduct = async (req, res) => {
 
     if (images.length > 4) {
       throw new Error("Cannot upload more than 4 images");
+    }
+
+    const existingProduct = await Product.findOne({ 
+      productName: { $regex: `^${productName}$`, $options: 'i' } 
+    });
+    if (existingProduct) {
+      throw new Error("A product with this name already exists");
     }
 
     const regularPriceNum = parseFloat(regularPrice);
@@ -164,15 +174,15 @@ const getEditProductPage = async (req, res) => {
     const productId = req.params.id;
     const product = await Product.findById(productId).populate('category');
     const categories = await Category.find({ isListed: true });
-  
-    
 
     if (!product) {
       throw new Error("Product not found");
     }
-  
-    
+
     const pricing = calculateProductPricing(product, product.category || {});
+    
+    const errorMessage = req.session.errorMessage || null; 
+    req.session.errorMessage = null; 
 
     res.render("admin/edit-product", {
       product: {
@@ -185,7 +195,8 @@ const getEditProductPage = async (req, res) => {
         discountedPrice: pricing.discountedPrice
       },
       category: categories,
-      currentRoute: 'edit-product',
+      errorMessage, 
+      currentRoute: 'edit-product'
     });
   } catch (error) {
     console.error("Error in getEditProductPage:", error);
@@ -205,6 +216,14 @@ const updateProduct = async (req, res) => {
       throw new Error("Product not found");
     }
 
+    const existingProduct = await Product.findOne({ 
+      productName: { $regex: `^${productName}$`, $options: 'i' },
+      _id: { $ne: productId } 
+    });
+    if (existingProduct) {
+      req.session.errorMessage = "A product with this name already exists";
+      return res.redirect(`/admin/edit-product/${productId}`);
+    }
 
     let currentImages = Array.isArray(existingImages) ? existingImages : existingImages ? [existingImages] : [];
     const imagesToRemove = Array.isArray(removedImages) ? removedImages : removedImages ? [removedImages] : [];
@@ -212,8 +231,8 @@ const updateProduct = async (req, res) => {
 
     const updatedImages = [...currentImages, ...newImages];
     if (updatedImages.length < 3) {
-      req.session.warningMessage = "You must have at least 3 product images.";
-      return res.redirect(`/admin/products/edit/${productId}`);
+      req.session.errorMessage = "You must have at least 3 product images.";
+      return res.redirect(`/admin/edit-product/${productId}`);
     }
 
     const categoryData = await Category.findById(category);
@@ -258,10 +277,13 @@ const updateProduct = async (req, res) => {
     res.redirect("/admin/products");
   } catch (error) {
     console.error("Error updating product:", error);
+    if (error.message === "A product with this name already exists") {
+      req.session.errorMessage = error.message;
+      return res.redirect(`/admin/edit-product/${req.params.id}`);
+    }
     res.redirect("/pageerror");
   }
 };
-
 
 const blockProduct = async (req, res) => {
   try {

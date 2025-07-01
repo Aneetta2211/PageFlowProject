@@ -1276,7 +1276,7 @@ const paymentFailed = async (req, res) => {
         }
 
         order.paymentStatus = 'Failed';
-        order.status = 'Payment Failed'; // Set status to "Payment Failed"
+        order.status = 'Payment Failed'; 
         order.razorpayPaymentId = razorpay_payment_id;
         order.paymentError = error.description || 'Payment failed';
         await order.save();
@@ -1337,7 +1337,7 @@ const retryPayment = async (req, res) => {
 
         const receipt = `retry_${order.orderId}`;
         const razorpayOrder = await razorpay.orders.create({
-            amount: Math.round(order.finalAmount * 100), // Razorpay expects amount in paise
+            amount: Math.round(order.finalAmount * 100), 
             currency: 'INR',
             receipt: receipt
         });
@@ -1348,9 +1348,9 @@ const retryPayment = async (req, res) => {
             success: true,
             orderId: order.orderId,
             razorpayOrderId: razorpayOrder.id,
-            amount: order.finalAmount * 100, // Amount in paise
+            amount: order.finalAmount * 100, 
             currency: 'INR',
-            key: process.env.RAZORPAY_ID, // Add this line to send the key to frontend
+            key: process.env.RAZORPAY_ID, 
             message: 'Retry payment initiated'
         });
     } catch (error) {
