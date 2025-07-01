@@ -80,6 +80,8 @@ router.get('/checkout', userAuth, orderController.renderCheckout);
 router.post('/order/place', userAuth, orderController.placeOrder);
 router.post("/api/orders/:orderID/cancel", userAuth, orderController.cancelOrder);
 router.post("/api/orders/:orderID/cancel-item/:productID", userAuth, orderController.cancelOrderItem);
+router.post('/api/orders/:orderId/retry-payment',userAuth, orderController.retryPayment);
+router.post('/api/verify-payment', userAuth, orderController.verifyPayment);
 
 //razorpay management
 router.post('/verify-payment', userAuth,orderController.verifyPayment);
