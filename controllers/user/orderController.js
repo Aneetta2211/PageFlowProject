@@ -1305,7 +1305,8 @@ const paymentFailed = async (req, res) => {
 
 const retryPayment = async (req, res) => {
     try {
-        const { orderId } = req.params;
+        const { orderId } = req.body
+      
         const userId = req.user._id;
 
         console.log('Initiating retry payment for:', { orderId, userId });
