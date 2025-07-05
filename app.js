@@ -6,6 +6,7 @@ const dotenv = require('dotenv').config();
 const session = require("express-session");
 const passport = require("./config/passport.js");
 const db = require('./config/db.js');
+const userController = require("./controllers/user/userController.js")
 const adminRouter = require('./routes/adminRouter.js');
 db();
 
@@ -45,13 +46,15 @@ app.use((req, res, next) => {
     next();
 });
 
-app.get("/", (req, res) => {
-    res.render("user/home", { isLandingPage: true, user: req.user });
-});
+// app.get("/", (req, res) => {
+//     res.render("user/home", { isLandingPage: true, user: req.user });
+// });
+app.get("/", userController.loadHomepage);
 
-app.get("/home", (req, res) => {
-    res.render("user/home", { isLandingPage: false, user: req.user });
-});
+// app.get("/home", (req, res) => {
+//     res.render("user/home", { isLandingPage: false, user: req.user });
+// });
+app.get("/home", userController.loadHome);
 
 app.use(express.static(path.join(__dirname, "public")));
 

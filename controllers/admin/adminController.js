@@ -642,7 +642,7 @@ const downloadReport = async (req, res) => {
             doc.moveDown(1.5);
 
            
-            doc.fontSize(14).fillColor('#333').text('Order Details', { underline: true });
+            // doc.fontSize(14).fillColor('#333').text('Order Details', { underline: true });
             doc.moveDown(0.5);
 
             

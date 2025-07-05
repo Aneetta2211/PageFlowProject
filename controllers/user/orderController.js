@@ -1077,7 +1077,6 @@ const placeOrder = async (req, res) => {
 
 
         if (!addressDoc) {
-            console.log("jaiiiiii")
             return res.status(400).json({
                 success: false,
                 message: 'Address not found'
@@ -1183,8 +1182,6 @@ const placeOrder = async (req, res) => {
         });
     }
 };
-
-
 
 
 
