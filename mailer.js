@@ -1,11 +1,11 @@
-require("dotenv").config();
+const nodemailer = require("nodemailer");
+require("dotenv").config(); 
 
 const email = process.env.EMAIL;
 const password = process.env.EMAIL_PASSWORD;
 
 if (!email || !password) {
-    console.error(" Missing EMAIL or EMAIL_PASSWORD in environment variables.");
-    process.exit(1);
+    throw new Error("EMAIL or EMAIL_PASSWORD environment variable is missing!");
 }
 
 const transporter = nodemailer.createTransport({
