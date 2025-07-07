@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 const User = require("../../models/userSchema");
 const Address = require("../../models/addressSchema");
 const Product = require("../../models/productSchema");
-const Cart = require("../../models/cartschema");
+const Cart = require("../../models/cartSchema");
 const Wishlist = require("../../models/wishlistSchema");
 const Category = require("../../models/categorySchema");
 

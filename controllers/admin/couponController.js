@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const Coupon = require("../../models/couponSchema");
-const Cart = require("../../models/cartschema");
+const Cart = require("../../models/cartSchema");
 
 
 
