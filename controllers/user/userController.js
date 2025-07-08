@@ -42,7 +42,7 @@ const loadHomepage = async (req, res) => {
             .lean();
         console.log(`Found ${categories.length} categories:`, categories);
 
-        // Fetch wishlist for authenticated users
+        
         let wishlistItems = { products: [] };
         if (req.session.user) {
             console.log("Fetching wishlist for user:", req.session.user.id);
