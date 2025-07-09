@@ -15,8 +15,9 @@ const renderOrderPage = async (req, res) => {
         const skip = (page - 1) * limit;
         
         
-        const searchQuery = req.query.search || '';
+        const statusFilter = req.query.status || '';
         const sortBy = req.query.sort || 'date-desc';
+        const searchQuery = req.query.search || '';
 
         
         const query = {};
