@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const User = require("../../models/userSchema");
 const Product = require("../../models/productSchema");
 const Category = require("../../models/categorySchema");
@@ -24,10 +25,12 @@ const loadHomepage = async (req, res) => {
         console.log("Session data:", req.session);
         console.log("User session:", req.session.user);
 
+        
         console.log("Checking database connection...");
         const dbStatus = require('mongoose').connection.readyState;
         console.log("Database connection status:", dbStatus); 
 
+        
         console.log("Fetching available books from database...");
         const books = await Product.find({ 
             status: 'Available',
@@ -37,26 +40,20 @@ const loadHomepage = async (req, res) => {
             .lean();
         console.log(`Found ${books.length} available books:`, books);
 
+        // Fetch categories
         console.log("Fetching categories from database...");
         const categories = await Category.find({ isListed: true })
             .lean();
         console.log(`Found ${categories.length} categories:`, categories);
 
-        
-        let wishlistItems = { products: [] };
-        if (req.session.user) {
-            console.log("Fetching wishlist for user:", req.session.user.id);
-            wishlistItems = await Wishlist.findOne({ userId: req.session.user.id }).lean() || { products: [] };
-            console.log("Wishlist items:", wishlistItems);
-        }
-
+        // Render landing page
         console.log("Rendering home.ejs with data...");
         res.render("user/home", { 
             isLandingPage: true,
             user: req.session.user || null,
             books: books || [],
             categories: categories || [],
-            wishlistItems: wishlistItems
+            wishlistItems: { products: [] } 
         });
     } catch (error) {
         console.error("Landing Page Error:", error.message, error.stack);

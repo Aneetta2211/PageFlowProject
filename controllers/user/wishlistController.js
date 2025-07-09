@@ -93,13 +93,13 @@ const addToWishlist = async (req, res) => {
             success: true,
             message: "Product added to wishlist",
             productName: product.productName,
-            productImage: product.productImage[0] || null,
             wishlistUrl: "/profile/wishlist"
         });
 
     } catch (error) {
         console.error("Wishlist Error:", error);
         res.status(500).json({
+            success: false,
             error: "Internal server error",
             details: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
@@ -131,10 +131,16 @@ const removeFromWishlist = async (req, res) => {
 
         await wishlist.save();
         console.log('Wishlist after removal:', JSON.stringify(wishlist, null, 2));
-        res.status(200).json({ success: true, message: "Removed from wishlist" });
+        res.status(200).json({ 
+            success: true, 
+            message: "Removed from wishlist" 
+        });
     } catch (error) {
         console.error("Error removing from wishlist:", error);
-        res.status(500).json({ error: "Server error" });
+        res.status(500).json({ 
+            success: false,
+            error: "Server error" 
+        });
     }
 };
 
@@ -161,6 +167,11 @@ const addToCart = async (req, res) => {
             return res.status(400).json({ error: `Only ${product.quantity} items available` });
         }
 
+        const maxQuantity = 10; // Align with cartController
+        if (quantity > maxQuantity) {
+            return res.status(400).json({ error: `Cannot add more than ${maxQuantity} of this product` });
+        }
+
         const productOffer = product.productOffer || 0;
         const finalPrice = productOffer > 0
             ? parseFloat((product.salesPrice - (product.salesPrice * productOffer / 100)).toFixed(2))
@@ -169,16 +180,14 @@ const addToCart = async (req, res) => {
         let cart = await Cart.findOne({ userId });
 
         if (!cart) {
-            if (quantity > 5) {
-                return res.status(400).json({ error: "Cannot add more than 5 of this product" });
-            }
             cart = new Cart({
                 userId,
                 items: [{
                     productId,
                     quantity,
                     price: finalPrice,
-                    totalPrice: parseFloat((finalPrice * quantity).toFixed(2))
+                    totalPrice: parseFloat((finalPrice * quantity).toFixed(2)),
+                    status: 'placed'
                 }]
             });
         } else {
@@ -187,31 +196,19 @@ const addToCart = async (req, res) => {
             );
 
             if (existingItemIndex !== -1) {
-                const newQuantity = cart.items[existingItemIndex].quantity + quantity;
-                if (newQuantity > 5) {
-                    return res.status(400).json({ error: "Maximum limit of 5 per product reached" });
-                }
-                if (newQuantity > product.quantity) {
-                    return res.status(400).json({ error: `Only ${product.quantity} items available` });
-                }
-                cart.items[existingItemIndex].quantity = newQuantity;
-                cart.items[existingItemIndex].totalPrice = parseFloat(
-                    (newQuantity * finalPrice).toFixed(2)
-                );
-            } else {
-                if (quantity > 5) {
-                    return res.status(400).json({ error: "Cannot add more than 5 of this product" });
-                }
-                if (quantity > product.quantity) {
-                    return res.status(400).json({ error: `Only ${product.quantity} items available` });
-                }
-                cart.items.push({
-                    productId,
-                    quantity,
-                    price: finalPrice,
-                    totalPrice: parseFloat((finalPrice * quantity).toFixed(2))
+                return res.status(400).json({ 
+                    success: false, 
+                    message: "Product is already in the cart" 
                 });
             }
+
+            cart.items.push({
+                productId,
+                quantity,
+                price: finalPrice,
+                totalPrice: parseFloat((finalPrice * quantity).toFixed(2)),
+                status: 'placed'
+            });
         }
 
         await cart.save();
@@ -225,11 +222,13 @@ const addToCart = async (req, res) => {
             console.log('Wishlist after cart addition:', JSON.stringify(wishlist, null, 2));
         }
 
+        const cartCount = cart.items.reduce((sum, item) => sum + item.quantity, 0);
+
         res.status(200).json({ 
             success: true, 
             message: "Added to cart and removed from wishlist",
-            cartUrl: "/profile/cart",
-            cartCount: cart.items.length
+            cartCount,
+            cartUrl: "/profile/cart"
         });
     } catch (error) {
         console.error("Add to cart error:", error);

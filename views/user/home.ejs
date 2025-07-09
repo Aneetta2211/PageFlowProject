@@ -189,70 +189,44 @@
     <%- include("../../views/partials/user/footer") %>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script>
-        function redirectToLogin() {
-            Swal.fire({
-                title: 'Login Required',
-                text: 'Please log in to perform this action.',
-                icon: 'warning',
-                confirmButtonText: 'Go to Login',
-                buttonsStyling: false,
-                customClass: {
-                    confirmButton: 'bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded'
-                }
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    window.location.href = '/login?message=Please log in to add to wishlist';
-                }
+<script>
+    function redirectToLogin() {
+        Swal.fire({
+            title: 'Login Required',
+            text: 'Please log in to perform this action.',
+            icon: 'warning',
+            confirmButtonText: 'Go to Login',
+            buttonsStyling: false,
+            customClass: {
+                confirmButton: 'bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded'
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                window.location.href = '/login?message=Please log in to continue';
+            }
+        });
+    }
+
+    async function addToCart(productId) {
+        try {
+            const response = await fetch(`/cart/add/${productId}`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ quantity: 1 }),
+                credentials: 'include'
             });
-        }
 
-        async function addToCart(productId) {
-            try {
-                const response = await fetch(`/cart/add/${productId}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ productId, quantity: 1 }),
-                    credentials: 'include'
-                });
+            const result = await response.json();
 
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    if (errorData.message === 'Product is already in the cart') {
-                        Swal.fire({
-                            title: 'Product Already in Cart!',
-                            text: 'This product is already in your cart. You can update the quantity in your cart.',
-                            icon: 'warning',
-                            showCancelButton: true,
-                            confirmButtonText: 'View Cart',
-                            cancelButtonText: 'Continue Shopping',
-                            buttonsStyling: false,
-                            customClass: {
-                                confirmButton: 'bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded mr-2',
-                                cancelButton: 'bg-gray-200 hover:bg-gray-300 text-gray-900 font-medium py-2 px-4 rounded'
-                            }
-                        }).then((result) => {
-                            if (result.isConfirmed) {
-                                window.location.href = '/profile/cart';
-                            }
-                        });
-                        return;
-                    }
-                    throw new Error(errorData.message || 'Failed to add to cart');
-                }
-
-                const result = await response.json();
-
-                if (result.success) {
-                    const cartCountElement = document.querySelector('.cart-count');
-                    if (cartCountElement) {
-                        cartCountElement.textContent = result.cartCount;
-                    }
-
+            if (!response.ok) {
+                if (result.message === 'Product is already in the cart') {
                     Swal.fire({
-                        title: 'Added to Cart!',
-                        text: result.message || 'Product has been added to your cart',
-                        icon: 'success',
+                        title: 'Product Already in Cart!',
+                        text: 'This product is already in your cart. You can update the quantity in your cart.',
+                        icon: 'warning',
                         showCancelButton: true,
                         confirmButtonText: 'View Cart',
                         cancelButtonText: 'Continue Shopping',
@@ -266,125 +240,120 @@
                             window.location.href = '/profile/cart';
                         }
                     });
+                    return;
                 }
-            } catch (error) {
-                console.error('Error adding to cart:', error);
-                Swal.fire({
-                    title: 'Error!',
-                    text: error.message || 'An error occurred while adding to cart',
-                    icon: 'error',
-                    confirmButtonText: 'OK',
+                throw new Error(result.message || 'Failed to add to cart');
+            }
+
+            // Update cart count
+            const cartCountElement = document.querySelector('.cart-count');
+            if (cartCountElement) {
+                cartCountElement.textContent = result.cartCount;
+            }
+
+            // Show success message
+            await Swal.fire({
+                title: 'Added to Cart!',
+                text: result.message || 'Product has been added to your cart',
+                icon: 'success',
+                showCancelButton: true,
+                confirmButtonText: 'View Cart',
+                cancelButtonText: 'Continue Shopping',
+                buttonsStyling: false,
+                customClass: {
+                    confirmButton: 'bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded mr-2',
+                    cancelButton: 'bg-gray-200 hover:bg-gray-300 text-gray-900 font-medium py-2 px-4 rounded'
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = '/profile/cart';
+                }
+            });
+
+        } catch (error) {
+            console.error('Error adding to cart:', error);
+            Swal.fire({
+                title: 'Error!',
+                text: error.message || 'An error occurred while adding to cart',
+                icon: 'error',
+                confirmButtonText: 'OK',
+                buttonsStyling: false,
+                customClass: {
+                    confirmButton: 'bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded'
+                }
+            });
+        }
+    }
+
+    async function toggleWishlist(productId) {
+        try {
+            const heartBtn = document.querySelector(`.wishlist-btn[data-product-id="${productId}"]`);
+            const isInWishlist = heartBtn.dataset.inWishlist === 'true';
+            
+            const response = await fetch(isInWishlist ? '/wishlist/remove' : '/wishlist/add', {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({ productId }),
+                credentials: 'include'
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                if (error.loginUrl) {
+                    return redirectToLogin();
+                }
+                throw new Error(error.message || 'Failed to update wishlist');
+            }
+
+            const result = await response.json();
+
+            if (result.success) {
+                // Update button state
+                heartBtn.innerHTML = isInWishlist 
+                    ? '<i class="far fa-heart"></i>' 
+                    : '<i class="fas fa-heart"></i>';
+                heartBtn.dataset.inWishlist = isInWishlist ? 'false' : 'true';
+                heartBtn.classList.toggle('added-to-wishlist');
+
+                // Show appropriate message
+                const title = isInWishlist 
+                    ? 'Removed from Wishlist!' 
+                    : 'Added to Wishlist!';
+                
+                await Swal.fire({
+                    title: title,
+                    icon: 'success',
+                    showCancelButton: !isInWishlist,
+                    confirmButtonText: isInWishlist ? 'OK' : 'View Wishlist',
+                    cancelButtonText: 'Continue Shopping',
                     buttonsStyling: false,
                     customClass: {
-                        confirmButton: 'bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded'
+                        confirmButton: 'bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded mr-2',
+                        cancelButton: 'bg-gray-200 hover:bg-gray-300 text-gray-900 font-medium py-2 px-4 rounded'
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed && !isInWishlist) {
+                        window.location.href = '/profile/wishlist';
                     }
                 });
             }
-        }
-
-        async function toggleWishlist(productId) {
-            try {
-                const heartBtn = document.querySelector(`[data-product-id="${productId}"]`);
-                const isInWishlist = heartBtn.dataset.inWishlist === 'true';
-
-                if (isInWishlist) {
-                    // Remove from wishlist
-                    const response = await fetch('/wishlist/remove', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ productId }),
-                        credentials: 'include'
-                    });
-
-                    if (!response.ok) {
-                        const text = await response.text();
-                        console.error('Remove from wishlist failed:', response.status, text);
-                        let errorData;
-                        try {
-                            errorData = JSON.parse(text);
-                        } catch {
-                            throw new Error('Server returned non-JSON response: ' + text.substring(0, 100));
-                        }
-                        throw new Error(errorData.error || `Failed to remove from wishlist (Status: ${response.status})`);
-                    }
-
-                    const result = await response.json();
-
-                    heartBtn.classList.remove('added-to-wishlist');
-                    heartBtn.innerHTML = '<i class="far fa-heart"></i>';
-                    heartBtn.dataset.inWishlist = 'false';
-
-                    Swal.fire({
-                        title: 'Removed from Wishlist!',
-                        icon: 'success',
-                        confirmButtonText: 'OK',
-                        buttonsStyling: false,
-                        customClass: {
-                            confirmButton: 'bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded'
-                        }
-                    });
-                } else {
-                    // Add to wishlist
-                    const response = await fetch('/wishlist/add', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ productId }),
-                        credentials: 'include'
-                    });
-
-                    if (!response.ok) {
-                        const text = await response.text();
-                        console.error('Add to wishlist failed:', response.status, text);
-                        let errorData;
-                        try {
-                            errorData = JSON.parse(text);
-                        } catch {
-                            throw new Error('Server returned non-JSON response: ' + text.substring(0, 100));
-                        }
-                        if (errorData.loginUrl) {
-                            window.location.href = errorData.loginUrl;
-                            return;
-                        }
-                        throw new Error(errorData.error || `Failed to add to wishlist (Status: ${response.status})`);
-                    }
-
-                    const result = await response.json();
-
-                    heartBtn.classList.add('added-to-wishlist');
-                    heartBtn.innerHTML = '<i class="fas fa-heart"></i>';
-                    heartBtn.dataset.inWishlist = 'true';
-
-                    Swal.fire({
-                        title: 'Added to Wishlist!',
-                        icon: 'success',
-                        showCancelButton: true,
-                        confirmButtonText: 'View Wishlist',
-                        cancelButtonText: 'Continue Shopping',
-                        buttonsStyling: false,
-                        customClass: {
-                            confirmButton: 'bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded mr-2',
-                            cancelButton: 'bg-gray-200 hover:bg-gray-300 text-gray-900 font-medium py-2 px-4 rounded'
-                        }
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            window.location.href = '/profile/wishlist';
-                        }
-                    });
+        } catch (error) {
+            console.error('Wishlist toggle error:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: error.message || 'An error occurred while updating the wishlist',
+                confirmButtonText: 'OK',
+                buttonsStyling: false,
+                customClass: {
+                    confirmButton: 'bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded'
                 }
-            } catch (error) {
-                console.error('Wishlist toggle error:', error);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error',
-                    text: error.message,
-                    confirmButtonText: 'OK',
-                    buttonsStyling: false,
-                    customClass: {
-                        confirmButton: 'bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded'
-                    }
-                });
-            }
+            });
         }
-    </script>
+    }
+</script>
 </body>
 </html>

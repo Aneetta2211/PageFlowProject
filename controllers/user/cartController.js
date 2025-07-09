@@ -112,7 +112,8 @@ const addToCart = async (req, res) => {
         if (!userId) {
             return res.status(401).json({ 
                 success: false, 
-                message: 'Please log in to add to cart'
+                message: 'Please log in to add to cart',
+                loginUrl: '/login'
             });
         }
 
@@ -131,11 +132,11 @@ const addToCart = async (req, res) => {
             });
         }
 
-        const maxQuantity = 10; // Maximum allowed quantity
+        const maxQuantity = 10;
         if (parsedQuantity > maxQuantity) {
             return res.status(400).json({ 
                 success: false, 
-                message: 'Cannot add more than 10 products'
+                message: `Cannot add more than ${maxQuantity} of this product`
             });
         }
 
@@ -202,14 +203,21 @@ const addToCart = async (req, res) => {
             });
 
         const cartCount = updatedCart.items.reduce((sum, item) => sum + item.quantity, 0);
-        const subtotal = updatedCart.items.reduce((sum, item) => sum + item.totalPrice, 0);
+
+        // Remove from wishlist if present
+        let wishlist = await Wishlist.findOne({ userId });
+        if (wishlist) {
+            wishlist.products = wishlist.products.filter(item => 
+                item.productId.toString() !== productId.toString()
+            );
+            await wishlist.save();
+        }
 
         return res.status(200).json({ 
             success: true,
-            message: 'Product added to cart',
+            message: 'Added to cart and removed from wishlist',
             cartCount,
-            subtotal,
-            cartItems: updatedCart.items
+            cartUrl: '/profile/cart'
         });
     } catch (error) {
         console.error('Error in addToCart:', error);
