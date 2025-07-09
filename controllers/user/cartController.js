@@ -122,7 +122,7 @@ const addToCart = async (req, res) => {
             });
         }
 
-        const parsedQuantity = parseInt(quantity);
+       const quantity = parseInt(req.body.quantity, 10) || 1;
         if (isNaN(parsedQuantity) || parsedQuantity < 1) {
             return res.status(400).json({ 
                 success: false, 

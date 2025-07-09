@@ -21,42 +21,29 @@ const pageNotFound = async (req, res) => {
 
 const loadHomepage = async (req, res) => {
     try {
-        console.log("loadHomepage function called at", new Date().toISOString());
-        console.log("Session data:", req.session);
-        console.log("User session:", req.session.user);
-
-        
-        console.log("Checking database connection...");
-        const dbStatus = require('mongoose').connection.readyState;
-        console.log("Database connection status:", dbStatus); 
-
-        
-        console.log("Fetching available books from database...");
         const books = await Product.find({ 
             status: 'Available',
             isBlocked: false 
-        })
-            .limit(5)
-            .lean();
-        console.log(`Found ${books.length} available books:`, books);
+        }).limit(5).lean();
 
-        // Fetch categories
-        console.log("Fetching categories from database...");
-        const categories = await Category.find({ isListed: true })
-            .lean();
-        console.log(`Found ${categories.length} categories:`, categories);
+        const categories = await Category.find({ isListed: true }).lean();
 
-        // Render landing page
-        console.log("Rendering home.ejs with data...");
+        let wishlistItems = { products: [] };
+        if (req.session.user) {
+            wishlistItems = await Wishlist.findOne({ userId: req.session.user.id })
+                .populate('products.productId')
+                .lean() || { products: [] };
+        }
+
         res.render("user/home", { 
             isLandingPage: true,
             user: req.session.user || null,
-            books: books || [],
-            categories: categories || [],
-            wishlistItems: { products: [] } 
+            books,
+            categories,
+            wishlistItems 
         });
     } catch (error) {
-        console.error("Landing Page Error:", error.message, error.stack);
+        console.error("Landing Page Error:", error.message);
         res.status(500).send(`Server Error: Unable to load landing page - ${error.message}`);
     }
 };
