@@ -430,20 +430,23 @@
     </div>
     <section class="shop-page container">
       <div class="shop-topbar">
-        <div class="search-bar">
-          <form action="/loadShoppingPage" method="GET" class="search-form">
-            <input type="text" name="query" placeholder="Search items..." class="search-input"
-              value="<%= query || '' %>" />
-            <button type="submit" class="search-button">Search</button>
-            <input type="hidden" name="page" value="<%= currentPage %>">
-            <input type="hidden" name="sort" value="<%= sort || '' %>">
-            <input type="hidden" name="price" value="<%= price || '' %>">
-            <input type="hidden" name="category" value="<%= selectedCategory || '' %>">
-          </form>
-          <a href="/loadShoppingPage">
-            <button type="button" class="clear-all-button">Clear All Filters</button>
-          </a>
-        </div>
+       <div class="search-bar">
+  <form action="/loadShoppingPage" method="GET" class="search-form" id="searchForm">
+    <input type="text" name="query" placeholder="Search items..." class="search-input"
+      value="<%= query || '' %>" />
+    <input type="hidden" name="page" value="<%= currentPage %>">
+    <input type="hidden" name="sort" value="<%= sort || '' %>">
+    <input type="hidden" name="price" value="<%= price || '' %>">
+    <input type="hidden" name="category" value="<%= selectedCategory || '' %>">
+  </form>
+
+  <button type="submit" class="search-button" form="searchForm">Search</button>
+
+  <a href="/loadShoppingPage">
+    <button type="button" class="clear-all-button">Clear All Filters</button>
+  </a>
+</div>
+
         <div class="sort-bar">
           <form action="/loadShoppingPage" method="GET" class="sort-form">
             <select name="sort" onchange="this.form.submit()" class="sort-dropdown">
