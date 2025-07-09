@@ -278,24 +278,31 @@
                 <% } %>
             </td>
             <td>₹<%= item.price.toFixed(2) %></td>
-            <td>
-                <div class="quantity-control">
-                    <button 
-                        onclick="updateQuantity('<%= item.productId._id %>', 'decrement')"
-                        <%= item.quantity <= 1 || item.isOutOfStock || item.isInvalid ? 'disabled' : '' %>>
-                        -
-                    </button>
-                    <span><%= item.quantity %></span>
-                    <button 
-                        onclick="updateQuantity('<%= item.productId._id %>', 'increment')"
-                        <%= (item.quantity >= item.productId.stock || item.isOutOfStock || item.isInvalid) ? 'disabled' : '' %>>
-                        +
-                    </button>
-                </div>
-                <% if (item.quantity >= item.productId.stock && !item.isOutOfStock && !item.isInvalid) { %>
-                    <div class="text-xs text-red-500 mt-1" data-stock="<%= item.productId.stock %>">Max stock reached</div>
-                <% } %>
-            </td>
+            <% if (item.productId) { %>
+  <td>
+    <div class="quantity-control">
+      <button 
+        onclick="updateQuantity('<%= item.productId._id %>', 'decrement')"
+        <%= item.quantity <= 1 || item.isOutOfStock || item.isInvalid ? 'disabled' : '' %>>
+        -
+      </button>
+      <span><%= item.quantity %></span>
+      <button 
+        onclick="updateQuantity('<%= item.productId._id %>', 'increment')"
+        <%= (item.quantity >= item.productId.stock || item.isOutOfStock || item.isInvalid) ? 'disabled' : '' %>>
+        +
+      </button>
+    </div>
+    <% if (item.quantity >= item.productId.stock && !item.isOutOfStock && !item.isInvalid) { %>
+      <div class="text-xs text-red-500 mt-1" data-stock="<%= item.productId.stock %>">Max stock reached</div>
+    <% } %>
+  </td>
+<% } else { %>
+  <td colspan="5" class="text-red-500 font-semibold py-4">
+    Product is no longer available.
+  </td>
+<% } %>
+
             <td>₹<%= item.totalPrice.toFixed(2) %></td>
             <td>
                 <button class="remove-btn" onclick="removeFromCart('<%= item.productId._id %>')">
