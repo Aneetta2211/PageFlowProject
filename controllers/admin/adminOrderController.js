@@ -26,11 +26,11 @@ const renderOrderPage = async (req, res) => {
 
         
         let sortOption = {};
-        if (sortBy === 'date-asc') {
-            sortOption.orderDate = 1;
-        } else if (sortBy === 'date-desc') {
-            sortOption.orderDate = -1;
-        } else if (sortBy === 'id-asc') {
+       if (sortBy === 'date-asc') {
+    sortOption.createdOn = 1;
+} else if (sortBy === 'date-desc') {
+    sortOption.createdOn = -1;
+}else if (sortBy === 'id-asc') {
             sortOption.orderId = 1;
         }
 
