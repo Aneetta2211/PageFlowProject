@@ -97,18 +97,20 @@ const loadShoppingPage = async (req, res) => {
       const regularPrice = parseFloat(product.regularPrice) || 0;
       const discountedPrice = regularPrice - (regularPrice * totalOffer / 100);
       
-      return {
-        ...product,
-        productImage: product.productImage && product.productImage.length > 0 
-          ? product.productImage 
-          : ["default-image.jpg"],
-        totalOffer: totalOffer,
-        offerType,
-        discountedPrice: discountedPrice.toFixed(2),
-        showOffer: totalOffer > 0,
-        finalPrice: discountedPrice.toFixed(2),
-        salesPrice: discountedPrice.toFixed(2)
-      };
+   return {
+  ...product,
+  productImage: product.productImage && product.productImage.length > 0 
+    ? product.productImage 
+    : ["default-image.jpg"],
+  totalOffer: totalOffer,
+  offerType,
+  discountedPrice: discountedPrice.toFixed(2),
+  showOffer: totalOffer > 0,
+  finalPrice: discountedPrice.toFixed(2),
+  salesPrice: discountedPrice.toFixed(2),
+  status: product.status  
+};
+
     });
 
     const totalPages = Math.ceil(totalProducts / limit);
