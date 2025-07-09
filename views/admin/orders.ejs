@@ -93,9 +93,11 @@
         <div class="filter-section">
             <form id="filterForm" action="/admin/orders" method="GET">
                 <div class="row">
-                    <div class="col-md-4">
-                        <input type="text" id="searchInput" name="search" class="form-control" placeholder="Search by Order ID or User" value="<%= typeof search !== 'undefined' ? search : '' %>">
-                    </div>
+                   <div class="col-md-5 d-flex">
+  <input type="text" id="searchInput" name="search" class="form-control me-2" placeholder="Search by Order ID or User" value="<%= typeof search !== 'undefined' ? search : '' %>">
+  <button type="submit" class="btn btn-primary">Search</button>
+</div>
+
                     <div class="col-md-3">
                         <select id="sortSelect" name="sort" class="form-select">
                             <option value="date-desc" <%= sortBy === 'date-desc' ? 'selected' : '' %>>Sort by Date (Desc)</option>
@@ -117,7 +119,6 @@
                         </select>
                     </div>
                     <div class="col-md-2">
-                        <button type="submit" class="btn btn-primary">Apply</button>
                         <button type="button" id="clearSearch" class="btn btn-secondary">Clear</button>
                     </div>
                 </div>
@@ -186,16 +187,17 @@
             window.location.href = '/admin/orders';
         });
 
-        document.getElementById('searchInput').addEventListener('input', function() {
-            const search = this.value.toLowerCase();
-            const rows = document.querySelectorAll('#orderTable tr');
-            rows.forEach(row => {
-                const orderId = row.cells[0].textContent.toLowerCase();
-                const user = row.cells[2].textContent.toLowerCase();
-                const phone = row.cells[3].textContent.toLowerCase();
-                row.style.display = orderId.includes(search) || user.includes(search) || phone.includes(search) ? '' : 'none';
-            });
-        });
+      document.getElementById('searchInput').addEventListener('input', function() {
+    const search = this.value.toLowerCase();
+    const rows = document.querySelectorAll('#orderTable tr');
+    rows.forEach(row => {
+        const orderId = row.cells[0].textContent.toLowerCase();
+        const user = row.cells[2].textContent.toLowerCase();
+        const phone = row.cells[3].textContent.toLowerCase();
+        row.style.display = orderId.includes(search) || user.includes(search) || phone.includes(search) ? '' : 'none';
+    });
+});
+
 
         document.getElementById('filterStatus').addEventListener('change', function() {
             document.getElementById('filterForm').submit();

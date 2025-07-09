@@ -15,14 +15,19 @@ const renderOrderPage = async (req, res) => {
         const skip = (page - 1) * limit;
         
         
-        const statusFilter = req.query.status || '';
+        const searchQuery = req.query.search || '';
         const sortBy = req.query.sort || 'date-desc';
 
         
         const query = {};
         if (statusFilter && statusFilter !== 'All') {
-            query.status = statusFilter;
-        }
+    query.status = statusFilter;
+}
+
+if (searchQuery) {
+    query.orderId = { $regex: searchQuery, $options: 'i' }; 
+}
+
 
         
         let sortOption = {};
