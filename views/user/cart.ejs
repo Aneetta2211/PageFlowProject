@@ -266,41 +266,50 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <% cart.items.forEach(item => { %>
-                                <tr>
-                                    <td>
-                                        <%= item.productId ? item.productId.productName : 'Unknown Product' %>
-                                        <% if (item.isOutOfStock) { %>
-                                            <div class="out-of-stock">Out of Stock</div>
-                                        <% } else if (item.isInvalid) { %>
-                                            <div class="out-of-stock">Unavailable</div>
-                                        <% } %>
-                                    </td>
-                                    <td>₹<%= item.price.toFixed(2) %></td>
-                                    <td>
-                                        <div class="quantity-control">
-                                            <button 
-                                                onclick="updateQuantity('<%= item.productId._id %>', 'decrement')"
-                                                <%= item.quantity <= 1 || item.isOutOfStock || item.isInvalid ? 'disabled' : '' %>
-                                            >-</button>
-                                            <span><%= item.quantity %></span>
-                                            <button 
-                                                onclick="updateQuantity('<%= item.productId._id %>', 'increment')"
-                                                <%= (item.quantity >= item.productId.stock || item.isOutOfStock || item.isInvalid) ? 'disabled' : '' %>
-                                            >+</button>
-                                        </div>
-                                        <% if (item.quantity >= item.productId.stock && !item.isOutOfStock && !item.isInvalid) { %>
-                                            <div class="text-xs text-red-500 mt-1" data-stock="<%= item.productId.stock %>">Max stock reached</div>
-                                        <% } %>
-                                    </td>
-                                    <td>₹<%= item.totalPrice.toFixed(2) %></td>
-                                    <td>
-                                        <button class="remove-btn" onclick="removeFromCart('<%= item.productId._id %>')">
-                                            <i class="fas fa-trash-alt mr-1"></i> Remove
-                                        </button>
-                                    </td>
-                                </tr>
-                            <% }) %>
+                          <% cart.items.forEach(item => { %>
+    <% if (item.productId) { %>
+        <tr>
+            <td>
+                <%= item.productId.productName %>
+                <% if (item.isOutOfStock) { %>
+                    <div class="out-of-stock">Out of Stock</div>
+                <% } else if (item.isInvalid) { %>
+                    <div class="out-of-stock">Unavailable</div>
+                <% } %>
+            </td>
+            <td>₹<%= item.price.toFixed(2) %></td>
+            <td>
+                <div class="quantity-control">
+                    <button 
+                        onclick="updateQuantity('<%= item.productId._id %>', 'decrement')"
+                        <%= item.quantity <= 1 || item.isOutOfStock || item.isInvalid ? 'disabled' : '' %>>
+                        -
+                    </button>
+                    <span><%= item.quantity %></span>
+                    <button 
+                        onclick="updateQuantity('<%= item.productId._id %>', 'increment')"
+                        <%= (item.quantity >= item.productId.stock || item.isOutOfStock || item.isInvalid) ? 'disabled' : '' %>>
+                        +
+                    </button>
+                </div>
+                <% if (item.quantity >= item.productId.stock && !item.isOutOfStock && !item.isInvalid) { %>
+                    <div class="text-xs text-red-500 mt-1" data-stock="<%= item.productId.stock %>">Max stock reached</div>
+                <% } %>
+            </td>
+            <td>₹<%= item.totalPrice.toFixed(2) %></td>
+            <td>
+                <button class="remove-btn" onclick="removeFromCart('<%= item.productId._id %>')">
+                    <i class="fas fa-trash-alt mr-1"></i> Remove
+                </button>
+            </td>
+        </tr>
+    <% } else { %>
+        <tr>
+            <td colspan="5" class="text-red-500 font-semibold py-4">A product in your cart is no longer available.</td>
+        </tr>
+    <% } %>
+<% }) %>
+
                         </tbody>
                     </table>
 
