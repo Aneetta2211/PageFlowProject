@@ -206,28 +206,29 @@
 
             try {
                 const response = await fetch("/admin/category/add", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ name, description })
-                });
-                const data = await response.json();
-                if (data.success) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Success',
-                        text: 'Category added successfully!',
-                        confirmButtonText: 'OK'
-                    }).then(() => {
-                        window.location.reload();
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: data.message || 'Error adding category',
-                        confirmButtonText: 'OK'
-                    });
-                }
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, description })
+});
+const data = await response.json();
+if (data.success) {
+    Swal.fire({
+        icon: 'success',
+        title: 'Success',
+        text: 'Category added successfully!',
+        confirmButtonText: 'OK'
+    }).then(() => {
+        window.location.reload();
+    });
+} else {
+    Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: data.message || 'Error adding category',
+        confirmButtonText: 'OK'
+    });
+}
+
             } catch (error) {
                 console.error("Error adding category:", error);
                 Swal.fire({

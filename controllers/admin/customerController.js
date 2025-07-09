@@ -12,7 +12,7 @@ const customerInfo = async (req, res) => {
       page = parseInt(req.query.page);
     }
     
-    const limit = 3;
+    const limit = 6;
     
     const userData = await User.find({
       isAdmin: false,

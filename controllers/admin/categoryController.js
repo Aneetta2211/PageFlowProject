@@ -54,10 +54,9 @@ const addCategory = async (req, res) => {
         });
 
         if (existingCategory) {
-            return res.render("admin/add-category", {
-                error: "Category name already exists!",
-                name,
-                description
+            return res.json({
+                success: false,
+                message: "Category name already exists!"
             });
         }
 
@@ -68,13 +67,16 @@ const addCategory = async (req, res) => {
         });
 
         await newCategory.save();
-        res.redirect("/admin/category");
+
+        return res.json({
+            success: true,
+            message: "Category added successfully"
+        });
     } catch (error) {
         console.error("Error adding category:", error);
-        res.render("admin/add-category", {
-            error: "Something went wrong. Please try again.",
-            name: "",
-            description: ""
+        return res.json({
+            success: false,
+            message: "Something went wrong while adding the category"
         });
     }
 };
