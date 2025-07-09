@@ -265,59 +265,59 @@
                                 <th>Action</th>
                             </tr>
                         </thead>
-                        <tbody>
-                          <% cart.items.forEach(item => { %>
-    <% if (item.productId) { %>
-        <tr>
-            <td>
-                <%= item.productId.productName %>
-                <% if (item.isOutOfStock) { %>
-                    <div class="out-of-stock">Out of Stock</div>
-                <% } else if (item.isInvalid) { %>
-                    <div class="out-of-stock">Unavailable</div>
-                <% } %>
-            </td>
-            <td>₹<%= item.price.toFixed(2) %></td>
-            <% if (item.productId) { %>
-  <td>
-    <div class="quantity-control">
-      <button 
-        onclick="updateQuantity('<%= item.productId._id %>', 'decrement')"
-        <%= item.quantity <= 1 || item.isOutOfStock || item.isInvalid ? 'disabled' : '' %>>
-        -
-      </button>
-      <span><%= item.quantity %></span>
-      <button 
-        onclick="updateQuantity('<%= item.productId._id %>', 'increment')"
-        <%= (item.quantity >= item.productId.stock || item.isOutOfStock || item.isInvalid) ? 'disabled' : '' %>>
-        +
-      </button>
-    </div>
-    <% if (item.quantity >= item.productId.stock && !item.isOutOfStock && !item.isInvalid) { %>
-      <div class="text-xs text-red-500 mt-1" data-stock="<%= item.productId.stock %>">Max stock reached</div>
-    <% } %>
-  </td>
-<% } else { %>
-  <td colspan="5" class="text-red-500 font-semibold py-4">
-    Product is no longer available.
-  </td>
-<% } %>
-
-            <td>₹<%= item.totalPrice.toFixed(2) %></td>
-            <td>
-                <button class="remove-btn" onclick="removeFromCart('<%= item.productId._id %>')">
-                    <i class="fas fa-trash-alt mr-1"></i> Remove
-                </button>
-            </td>
-        </tr>
-    <% } else { %>
-        <tr>
-            <td colspan="5" class="text-red-500 font-semibold py-4">A product in your cart is no longer available.</td>
-        </tr>
-    <% } %>
-<% }) %>
-
-                        </tbody>
+                       <tbody>
+  <% cart.items.forEach(item => { %>
+    <tr>
+      <td>
+        <% if (item.productId) { %>
+          <%= item.productId.productName %>
+          <% if (item.isOutOfStock) { %>
+            <div class="out-of-stock">Out of Stock</div>
+          <% } else if (item.isInvalid) { %>
+            <div class="out-of-stock">Unavailable</div>
+          <% } %>
+        <% } else { %>
+          <span class="text-red-500">Product not found</span>
+        <% } %>
+      </td>
+      <td>₹<%= item.price.toFixed(2) %></td>
+      <td>
+        <% if (item.productId) { %>
+          <div class="quantity-control">
+            <button 
+              onclick="updateQuantity('<%= item.productId._id %>', 'decrement')"
+              <%= item.quantity <= 1 || item.isOutOfStock || item.isInvalid ? 'disabled' : '' %>>
+              -
+            </button>
+            <span><%= item.quantity %></span>
+            <button 
+              onclick="updateQuantity('<%= item.productId._id %>', 'increment')"
+              <%= (item.quantity >= (item.productId.stock || 10) || item.isOutOfStock || item.isInvalid) ? 'disabled' : '' %>>
+              +
+            </button>
+          </div>
+          <% if (item.quantity >= (item.productId.stock || 10) && !item.isOutOfStock && !item.isInvalid) { %>
+            <div class="text-xs text-red-500 mt-1" data-stock="<%= item.productId.stock || 10 %>">Max stock reached</div>
+          <% } %>
+        <% } else { %>
+          <span class="text-red-500">N/A</span>
+        <% } %>
+      </td>
+      <td>₹<%= item.totalPrice.toFixed(2) %></td>
+      <td>
+        <% if (item.productId) { %>
+          <button class="remove-btn" onclick="removeFromCart('<%= item.productId._id %>')">
+            <i class="fas fa-trash-alt mr-1"></i> Remove
+          </button>
+        <% } else { %>
+          <button class="remove-btn" onclick="removeInvalidItem('<%= item._id %>')">
+            <i class="fas fa-trash-alt mr-1"></i> Remove
+          </button>
+        <% } %>
+      </td>
+    </tr>
+  <% }) %>
+</tbody>
                     </table>
 
                     <!-- Summary Table -->
@@ -544,6 +544,24 @@
                 checkoutBtn.disabled = true;
             }
         }
+
+        async function removeInvalidItem(itemId) {
+    try {
+        const response = await fetch(`/cart/invalid/${itemId}`, {
+            method: 'DELETE'
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            location.reload(); // Refresh to update the cart
+        } else {
+            Swal.fire('Error', result.message || 'Failed to remove item', 'error');
+        }
+    } catch (error) {
+        console.error('Error removing invalid item:', error);
+        Swal.fire('Error', 'Could not remove item', 'error');
+    }
+}
 
         document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.cart-table tbody tr').forEach(row => {
