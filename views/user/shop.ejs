@@ -537,8 +537,9 @@
                     <% } %>
                   </p>
                   <p class="stock-status <%= product.status === 'out of stock' ? 'out-of-stock' : 'available' %>">
-                    <%= product.status === 'out of stock' ? 'Out of Stock' : 'In Stock' %>
-                  </p>
+  <%= product.status === 'out of stock' ? 'Out of Stock' : 'In Stock' %>
+</p>
+
                 </a>
                 <div class="button-group">
                   <button class="add-to-cart-btn" 

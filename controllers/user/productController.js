@@ -90,28 +90,30 @@ const loadShoppingPage = async (req, res) => {
       .limit(limit);
 
     const processedProducts = products.map(product => {
-      const categoryOffer = product.category?.categoryOffer || 0;
-      const productOffer = product.productOffer || 0;
-      const totalOffer = Math.max(categoryOffer, productOffer);
-      const offerType = categoryOffer > productOffer ? 'category' : (productOffer > categoryOffer ? 'product' : 'none');
-      const regularPrice = parseFloat(product.regularPrice) || 0;
-      const discountedPrice = regularPrice - (regularPrice * totalOffer / 100);
-      
-   return {
-  ...product,
-  productImage: product.productImage && product.productImage.length > 0 
-    ? product.productImage 
-    : ["default-image.jpg"],
-  totalOffer: totalOffer,
-  offerType,
-  discountedPrice: discountedPrice.toFixed(2),
-  showOffer: totalOffer > 0,
-  finalPrice: discountedPrice.toFixed(2),
-  salesPrice: discountedPrice.toFixed(2),
-  status: product.status  
-};
+  const categoryOffer = product.category?.categoryOffer || 0;
+  const productOffer = product.productOffer || 0;
+  const totalOffer = Math.max(categoryOffer, productOffer);
+  const offerType = categoryOffer > productOffer ? 'category' : (productOffer > categoryOffer ? 'product' : 'none');
+  const regularPrice = parseFloat(product.regularPrice) || 0;
+  const discountedPrice = regularPrice - (regularPrice * totalOffer / 100);
 
-    });
+  // Determine stock status
+  const stockStatus = product.quantity <= 0 ? 'out of stock' : 'in stock';
+
+  return {
+    ...product,
+    productImage: product.productImage && product.productImage.length > 0 
+      ? product.productImage 
+      : ["default-image.jpg"],
+    totalOffer: totalOffer,
+    offerType,
+    discountedPrice: discountedPrice.toFixed(2),
+    showOffer: totalOffer > 0,
+    finalPrice: discountedPrice.toFixed(2),
+    salesPrice: discountedPrice.toFixed(2),
+    status: stockStatus   
+  };
+});
 
     const totalPages = Math.ceil(totalProducts / limit);
 
