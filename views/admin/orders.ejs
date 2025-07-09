@@ -93,10 +93,10 @@
         <div class="filter-section">
             <form id="filterForm" action="/admin/orders" method="GET">
                 <div class="row">
-                   <div class="col-md-5 d-flex">
-  <input type="text" id="searchInput" name="search" class="form-control me-2" placeholder="Search by Order ID or User" value="<%= typeof search !== 'undefined' ? search : '' %>">
-  <button type="submit" class="btn btn-primary">Search</button>
+                <div class="col-md-5">
+  <input type="text" id="searchInput" name="search" class="form-control" placeholder="Search by Order ID or User" value="<%= typeof search !== 'undefined' ? search : '' %>">
 </div>
+
 
                     <div class="col-md-3">
                         <select id="sortSelect" name="sort" class="form-select">

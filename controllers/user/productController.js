@@ -97,7 +97,6 @@ const loadShoppingPage = async (req, res) => {
   const regularPrice = parseFloat(product.regularPrice) || 0;
   const discountedPrice = regularPrice - (regularPrice * totalOffer / 100);
 
-  // Determine stock status
   const stockStatus = product.quantity <= 0 ? 'out of stock' : 'in stock';
 
   return {

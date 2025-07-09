@@ -26,8 +26,21 @@ const renderOrderPage = async (req, res) => {
 }
 
 if (searchQuery) {
-    query.orderId = { $regex: searchQuery, $options: 'i' }; 
+    const users = await User.find({
+        $or: [
+            { name: { $regex: searchQuery, $options: 'i' } },
+            { email: { $regex: searchQuery, $options: 'i' } }
+        ]
+    }, '_id');
+
+    const userIds = users.map(u => u._id);
+
+    query.$or = [
+        { orderId: { $regex: searchQuery, $options: 'i' } },
+        { user: { $in: userIds } }
+    ];
 }
+
 
 
         
@@ -80,7 +93,8 @@ if (searchQuery) {
             currentPage: page,
             totalPages,
             statusFilter, 
-            sortBy 
+            sortBy,
+             search: searchQuery
         });
     } catch (error) {
         console.error('Error rendering order page:', error);

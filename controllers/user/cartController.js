@@ -203,7 +203,7 @@ if (isNaN(quantity) || quantity < 1) {
 
         const cartCount = updatedCart.items.reduce((sum, item) => sum + item.quantity, 0);
 
-        // Remove from wishlist if present
+        
         let wishlist = await Wishlist.findOne({ userId });
         if (wishlist) {
             wishlist.products = wishlist.products.filter(item => 

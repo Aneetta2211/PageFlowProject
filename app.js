@@ -46,14 +46,10 @@ app.use((req, res, next) => {
     next();
 });
 
-// app.get("/", (req, res) => {
-//     res.render("user/home", { isLandingPage: true, user: req.user });
-// });
+
 app.get("/", userController.loadHomepage);
 
-// app.get("/home", (req, res) => {
-//     res.render("user/home", { isLandingPage: false, user: req.user });
-// });
+
 app.get("/home", userController.loadHome);
 
 app.use(express.static(path.join(__dirname, "public")));
