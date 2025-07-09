@@ -105,9 +105,8 @@ const getCart = async (req, res) => {
 };
 const addToCart = async (req, res) => {
     try {
-        const userId = req.user?._id;
+        const userId = req.session.user?.id;
         const productId = req.params.productId;
-        const { quantity } = req.body;
 
         if (!userId) {
             return res.status(401).json({ 
@@ -116,7 +115,6 @@ const addToCart = async (req, res) => {
                 loginUrl: '/login'
             });
         }
-
         if (!mongoose.isValidObjectId(productId)) {
             return res.status(400).json({ 
                 success: false, 
@@ -215,16 +213,16 @@ const addToCart = async (req, res) => {
 
         return res.status(200).json({ 
             success: true,
-            message: 'Added to cart and removed from wishlist',
-            cartCount,
+            message: 'Added to cart',
+            cartCount: updatedCart.items.reduce((sum, item) => sum + item.quantity, 0),
             cartUrl: '/profile/cart'
         });
+
     } catch (error) {
         console.error('Error in addToCart:', error);
         return res.status(500).json({ 
             success: false, 
-            message: 'Server error adding to cart',
-            error: error.message
+            message: error.message || 'Server error adding to cart'
         });
     }
 };

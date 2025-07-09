@@ -280,42 +280,22 @@ const loginUser = async (req, res) => {
 
 const loadHome = async (req, res) => {
     try {
-        console.log("loadHome function called at", new Date().toISOString());
-        console.log("Session data:", req.session);
-        console.log("User session:", req.session.user);
-
         if (!req.session.user) {
-            console.log("User not logged in, redirecting to /login");
-            return res.redirect("/login?message=Please log in to view the homepage");
+            return res.redirect('/login?message=Please log in to view the homepage');
         }
 
-        console.log("Checking database connection...");
-        const dbStatus = require('mongoose').connection.readyState;
-        console.log("Database connection status:", dbStatus);
-
-        console.log("Fetching all products from database...");
-        const allProducts = await Product.find({}).lean();
-        console.log(`Found ${allProducts.length} total products:`, allProducts);
-
-        console.log("Fetching available books from database...");
         const books = await Product.find({ 
             status: 'Available',
             isBlocked: false 
-        })
-            .limit(5)
-            .lean();
-        console.log(`Found ${books.length} available books:`, books);
+        }).limit(5).lean();
 
-        console.log("Fetching categories from database...");
-        const categories = await Category.find({ isListed: true })
-            .lean();
-        console.log(`Found ${categories.length} categories:`, categories);
+        const categories = await Category.find({ isListed: true }).lean();
 
-        console.log("Fetching wishlist for user:", req.session.user.id);
-        const wishlist = await Wishlist.findOne({ userId: req.session.user.id }).lean() || { products: [] };
-        console.log("Wishlist items:", wishlist);
+        // Properly initialize wishlist
+        let wishlist = await Wishlist.findOne({ userId: req.session.user.id })
+            .populate('products.productId')
+            .lean() || { products: [] };
 
-        console.log("Rendering home.ejs with data...");
         res.render("user/home", { 
             isLandingPage: false,
             user: req.session.user,
@@ -324,8 +304,8 @@ const loadHome = async (req, res) => {
             wishlistItems: wishlist
         });
     } catch (error) {
-        console.error("Home Page Error:", error.message, error.stack);
-        res.status(500).send(`Server Error: Unable to load homepage - ${error.message}`);
+        console.error("Home Page Error:", error);
+        res.status(500).send(`Server Error: ${error.message}`);
     }
 };
 
