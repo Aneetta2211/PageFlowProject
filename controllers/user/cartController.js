@@ -122,8 +122,8 @@ const addToCart = async (req, res) => {
             });
         }
 
-       const quantity = parseInt(req.body.quantity, 10) || 1;
-        if (isNaN(parsedQuantity) || parsedQuantity < 1) {
+      const quantity = parseInt(req.body.quantity, 10) || 1;
+if (isNaN(quantity) || quantity < 1) {
             return res.status(400).json({ 
                 success: false, 
                 message: 'Invalid quantity'
@@ -131,7 +131,8 @@ const addToCart = async (req, res) => {
         }
 
         const maxQuantity = 10;
-        if (parsedQuantity > maxQuantity) {
+       if (quantity > maxQuantity) {
+
             return res.status(400).json({ 
                 success: false, 
                 message: `Cannot add more than ${maxQuantity} of this product`
@@ -151,7 +152,7 @@ const addToCart = async (req, res) => {
 
         const validationErrors = [];
         if (product.isBlocked) validationErrors.push('Product is blocked');
-        if (product.quantity < parsedQuantity) validationErrors.push(`Stock limit exceeded. Only ${product.quantity} items available`);
+        if (product.quantity < quantity) validationErrors.push(`Stock limit exceeded. Only ${product.quantity} items available`);
         if (product.status !== 'Available') validationErrors.push(`Product is ${product.status}`);
         if (product.category && !product.category.isListed) validationErrors.push('Product category is not listed');
         
@@ -186,9 +187,9 @@ const addToCart = async (req, res) => {
 
         cart.items.push({ 
             productId, 
-            quantity: parsedQuantity, 
+          quantity: quantity,
             price, 
-            totalPrice: price * parsedQuantity,
+            totalPrice: price * quantity,
             status: 'placed'
         });
 
