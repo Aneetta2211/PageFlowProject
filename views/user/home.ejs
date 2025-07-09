@@ -118,7 +118,7 @@
                             
                             <!-- Wishlist Button -->
                             <span class="wishlist-btn <%= user && wishlistItems && wishlistItems.products.some(item => item.productId.toString() === book._id.toString()) ? 'added-to-wishlist' : '' %>" 
-                                  <%= user ? `onclick="toggleWishlist('${book._id}')"` : `onclick="redirectToLogin()"` %>
+                                  onclick="<%= user ? `toggleWishlist('${book._id}')` : `window.location.href='/login'` %>"
                                   data-product-id="<%= book._id %>"
                                   data-in-wishlist="<%= user && wishlistItems && wishlistItems.products.some(item => item.productId.toString() === book._id.toString()) ? 'true' : 'false' %>">
                                 <i class="<%= user && wishlistItems && wishlistItems.products.some(item => item.productId.toString() === book._id.toString()) ? 'fas fa-heart' : 'far fa-heart' %>"></i>
@@ -161,7 +161,7 @@
                             <% if (book.status === 'Available') { %>
                                 <div class="px-4 pb-4">
                                     <button class="add-to-cart w-full bg-pink-600 hover:bg-pink-700 text-white py-2 rounded text-sm transition duration-300" 
-                                            <%= user ? `onclick="addToCart('${book._id}')"` : `onclick="redirectToLogin()"` %>
+                                            onclick="<%= user ? `addToCart('${book._id}')` : `window.location.href='/login'` %>"
                                             data-product-id="<%= book._id %>">
                                         Add to Cart
                                     </button>
