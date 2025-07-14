@@ -35,8 +35,8 @@ const getCart = async (req, res) => {
             const product = item.productId;
             let isOutOfStock = false;
             let isInvalid = false;
+            let offerSource = 'none'; // Track the source of the discount
 
-            
             if (!product || product.isBlocked || product.status !== 'Available' || 
                 (product.category && !product.category.isListed) || product.quantity <= 0) {
                 isInvalid = true;
@@ -63,6 +63,7 @@ const getCart = async (req, res) => {
                 if (maxDiscountPercentage > 0) {
                     itemDiscount = (originalPrice * maxDiscountPercentage) / 100;
                     salePrice = originalPrice - itemDiscount;
+                    offerSource = categoryOffer >= productOffer ? 'category' : 'product';
                 }
             }
 
@@ -71,6 +72,7 @@ const getCart = async (req, res) => {
             item.totalPrice = salePrice * item.quantity;
             item.isOutOfStock = isOutOfStock;
             item.isInvalid = isInvalid;
+            item.offerSource = offerSource; // Store the offer source
 
             if (!isInvalid) {
                 total += item.totalPrice;
@@ -79,6 +81,11 @@ const getCart = async (req, res) => {
 
             return item;
         });
+
+        // Update cart fields
+        cart.subtotal = total;
+        cart.discount = totalDiscount;
+        cart.total = total - totalDiscount;
 
         await cart.save();
 

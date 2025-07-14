@@ -321,30 +321,29 @@
                     </table>
 
                     <!-- Summary Table -->
-                    <div class="flex justify-end p-4">
-                        <table class="summary-table">
-                            <thead>
-                                <tr>
-                                    <th colspan="2">Order Summary</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td>Subtotal</td>
-                                    <td>₹<%= total.toFixed(2) %></td>
-                                </tr>
-                                <tr>
-                                    <td>Discount</td>
-                                    <td>-₹<%- discount ? discount.toFixed(2) : '0.00' %></td>
-                                </tr>
-                                <tr>
-                                    <td>Total</td>
-                                    <td>₹<%- (total - (discount || 0)).toFixed(2) %></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-
+<div class="flex justify-end p-4">
+    <table class="summary-table">
+        <thead>
+            <tr>
+                <th colspan="2">Order Summary</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Subtotal</td>
+                <td>₹<%= total.toFixed(2) %></td>
+            </tr>
+            <tr>
+                <td>Discount (<%= cart.items.some(item => item.offerSource === 'category') && cart.items.some(item => item.offerSource === 'product') ? 'Category & Product Offers' : cart.items.some(item => item.offerSource === 'category') ? 'Category Offer' : cart.items.some(item => item.offerSource === 'product') ? 'Product Offer' : 'No Offer' %>)</td>
+                <td>-₹<%= discount ? discount.toFixed(2) : '0.00' %></td>
+            </tr>
+            <tr>
+                <td>Total</td>
+                <td>₹<%= (total - (discount || 0)).toFixed(2) %></td>
+            </tr>
+        </tbody>
+    </table>
+</div>
                     <div class="flex justify-end p-4">
                         <button class="checkout-btn" onclick="proceedToCheckout()"
                             <%= !hasValidItems ? 'disabled' : '' %>>
