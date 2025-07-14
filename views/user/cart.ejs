@@ -320,7 +320,7 @@
 </tbody>
                     </table>
 
-                    <!-- Summary Table -->
+                 <!-- Summary Table -->
 <div class="flex justify-end p-4">
     <table class="summary-table">
         <thead>
@@ -331,15 +331,15 @@
         <tbody>
             <tr>
                 <td>Subtotal</td>
-                <td>₹<%= total.toFixed(2) %></td>
+                <td>₹<%= subtotal.toFixed(2) %></td>
             </tr>
             <tr>
-                <td>Discount (<%= cart.items.some(item => item.offerSource === 'category') && cart.items.some(item => item.offerSource === 'product') ? 'Category & Product Offers' : cart.items.some(item => item.offerSource === 'category') ? 'Category Offer' : cart.items.some(item => item.offerSource === 'product') ? 'Product Offer' : 'No Offer' %>)</td>
+                <td>Discount (<%= discount > 0 ? (offerSource === 'mixed' ? `${offerPercentage}% - Category & Product Offers` : `${offerPercentage}% - ${offerSource.charAt(0).toUpperCase() + offerSource.slice(1)} Offer`) : 'No Offer' %>)</td>
                 <td>-₹<%= discount ? discount.toFixed(2) : '0.00' %></td>
             </tr>
             <tr>
                 <td>Total</td>
-                <td>₹<%= (total - (discount || 0)).toFixed(2) %></td>
+                <td>₹<%= total.toFixed(2) %></td>
             </tr>
         </tbody>
     </table>

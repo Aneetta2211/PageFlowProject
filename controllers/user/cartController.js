@@ -5,7 +5,6 @@ const Product = require("../../models/productSchema");
 const Cart = require("../../models/cartSchema");
 const Wishlist = require("../../models/wishlistSchema");
 const Category = require("../../models/categorySchema");
-
 const getCart = async (req, res) => {
     try {
         const cart = await Cart.findOne({ userId: req.user._id })
@@ -20,22 +19,29 @@ const getCart = async (req, res) => {
             return res.render('user/cart', { 
                 cart: newCart, 
                 user: req.user,
-                total: 0,
+                subtotal: 0,
                 discount: 0,
+                total: 0,
+                offerPercentage: 0,
+                offerSource: 'none',
                 hasValidItems: false,
                 currentPage: 'cart'
             });
         }
 
-        let total = 0;
+        let subtotal = 0;
         let totalDiscount = 0;
+        let total = 0;
         let hasValidItems = false;
+        let offerPercentage = 0;
+        let offerSource = 'none';
 
         cart.items = cart.items.map(item => {
             const product = item.productId;
             let isOutOfStock = false;
             let isInvalid = false;
-            let offerSource = 'none'; // Track the source of the discount
+            let itemOfferPercentage = 0;
+            let itemOfferSource = 'none';
 
             if (!product || product.isBlocked || product.status !== 'Available' || 
                 (product.category && !product.category.isListed) || product.quantity <= 0) {
@@ -63,8 +69,12 @@ const getCart = async (req, res) => {
                 if (maxDiscountPercentage > 0) {
                     itemDiscount = (originalPrice * maxDiscountPercentage) / 100;
                     salePrice = originalPrice - itemDiscount;
-                    offerSource = categoryOffer >= productOffer ? 'category' : 'product';
+                    itemOfferPercentage = maxDiscountPercentage;
+                    itemOfferSource = categoryOffer >= productOffer ? 'category' : 'product';
                 }
+
+                subtotal += originalPrice * item.quantity;
+                totalDiscount += itemDiscount * item.quantity;
             }
 
             item.salePrice = salePrice;
@@ -72,28 +82,39 @@ const getCart = async (req, res) => {
             item.totalPrice = salePrice * item.quantity;
             item.isOutOfStock = isOutOfStock;
             item.isInvalid = isInvalid;
-            item.offerSource = offerSource; // Store the offer source
+            item.offerPercentage = itemOfferPercentage;
+            item.offerSource = itemOfferSource;
 
-            if (!isInvalid) {
-                total += item.totalPrice;
-                totalDiscount += itemDiscount * item.quantity;
+            // Aggregate offer source and percentage for the cart
+            if (itemOfferPercentage > 0) {
+                if (offerSource === 'none') {
+                    offerSource = itemOfferSource;
+                    offerPercentage = itemOfferPercentage;
+                } else if (offerSource !== itemOfferSource) {
+                    offerSource = 'mixed'; // Indicates both category and product offers
+                }
             }
 
             return item;
         });
 
+        total = subtotal - totalDiscount;
+
         // Update cart fields
-        cart.subtotal = total;
+        cart.subtotal = subtotal;
         cart.discount = totalDiscount;
-        cart.total = total - totalDiscount;
+        cart.total = total;
 
         await cart.save();
 
         res.render('user/cart', { 
             cart,
             user: req.user,
-            total,
+            subtotal,
             discount: totalDiscount,
+            total,
+            offerPercentage,
+            offerSource,
             hasValidItems,
             currentPage: 'cart'
         });
@@ -102,8 +123,11 @@ const getCart = async (req, res) => {
         res.render('user/cart', {
             cart: { items: [] },
             user: req.user,
-            total: 0,
+            subtotal: 0,
             discount: 0,
+            total: 0,
+            offerPercentage: 0,
+            offerSource: 'none',
             hasValidItems: false,
             error: 'Error loading your cart. Please try again later.',
             currentPage: 'cart'
