@@ -6,134 +6,133 @@ const Cart = require("../../models/cartSchema");
 const Wishlist = require("../../models/wishlistSchema");
 const Category = require("../../models/categorySchema");
 const getCart = async (req, res) => {
-    try {
-        const cart = await Cart.findOne({ userId: req.user._id })
-            .populate({
-                path: 'items.productId',
-                populate: { path: 'category' }
-            });
+  try {
+    const cart = await Cart.findOne({ userId: req.user._id })
+      .populate({
+        path: 'items.productId',
+        populate: { path: 'category' }
+      });
 
-        if (!cart) {
-            const newCart = new Cart({ userId: req.user._id, items: [] });
-            await newCart.save();
-            return res.render('user/cart', { 
-                cart: newCart, 
-                user: req.user,
-                subtotal: 0,
-                discount: 0,
-                total: 0,
-                offerPercentage: 0,
-                offerSource: 'none',
-                hasValidItems: false,
-                currentPage: 'cart'
-            });
+    if (!cart) {
+      const newCart = new Cart({ userId: req.user._id, items: [] });
+      await newCart.save();
+      return res.render('user/cart', {
+        cart: newCart,
+        user: req.user,
+        subtotal: 0,
+        discount: 0,
+        total: 0,
+        offerPercentage: 0,
+        offerSource: 'none',
+        hasValidItems: false,
+        currentPage: 'cart'
+      });
+    }
+
+    let subtotal = 0;
+    let totalDiscount = 0;
+    let total = 0;
+    let hasValidItems = false;
+    let offerPercentage = 0;
+    let offerSource = 'none';
+
+    cart.items = cart.items.map(item => {
+      const product = item.productId;
+      let isOutOfStock = false;
+      let isInvalid = false;
+      let itemOfferPercentage = 0;
+      let itemOfferSource = 'none';
+
+      if (
+        !product || product.isBlocked ||
+        product.status !== 'Available' ||
+        (product.category && !product.category.isListed) ||
+        product.quantity <= 0
+      ) {
+        isInvalid = true;
+        isOutOfStock = product && product.quantity <= 0;
+      } else {
+        hasValidItems = true;
+      }
+
+      const regularPrice = parseFloat(product?.regularPrice || 0);
+      let salePrice = regularPrice;
+      let itemDiscount = 0;
+
+      if (!isInvalid) {
+        const categoryOffer = product.category?.categoryOffer || 0;
+        const productOffer = product?.productOffer || 0;
+
+        const maxDiscount = Math.max(categoryOffer, productOffer);
+
+        if (maxDiscount > 0) {
+          itemDiscount = (regularPrice * maxDiscount) / 100;
+          salePrice = regularPrice - itemDiscount;
+          itemOfferPercentage = maxDiscount;
+          itemOfferSource = categoryOffer >= productOffer ? 'category' : 'product';
         }
 
-        let subtotal = 0;
-        let totalDiscount = 0;
-        let total = 0;
-        let hasValidItems = false;
-        let offerPercentage = 0;
-        let offerSource = 'none';
+        subtotal += regularPrice * item.quantity;
+        totalDiscount += itemDiscount * item.quantity;
+      }
 
-        cart.items = cart.items.map(item => {
-            const product = item.productId;
-            let isOutOfStock = false;
-            let isInvalid = false;
-            let itemOfferPercentage = 0;
-            let itemOfferSource = 'none';
+      item.salePrice = salePrice;
+      item.discount = itemDiscount;
+      item.totalPrice = salePrice * item.quantity;
+      item.isOutOfStock = isOutOfStock;
+      item.isInvalid = isInvalid;
+      item.offerPercentage = itemOfferPercentage;
+      item.offerSource = itemOfferSource;
 
-            if (!product || product.isBlocked || product.status !== 'Available' || 
-                (product.category && !product.category.isListed) || product.quantity <= 0) {
-                isInvalid = true;
-                isOutOfStock = product && product.quantity <= 0;
-            } else {
-                hasValidItems = true; 
-            }
+      if (itemOfferPercentage > 0) {
+        if (offerSource === 'none') {
+          offerSource = itemOfferSource;
+          offerPercentage = itemOfferPercentage;
+        } else if (offerSource !== itemOfferSource) {
+          offerSource = 'mixed'; // Both category and product offers exist
+        }
+      }
 
-            const originalPrice = product ? (product.salesPrice > 0 ? product.salesPrice : product.regularPrice) : item.price;
-            let salePrice = originalPrice;
-            let itemDiscount = 0;
+      return item;
+    });
 
-            if (!isInvalid) {
-                const categoryOffer = product.category && product.category.offer 
-                    ? product.category.offer.discountPercentage || 0 
-                    : 0;
+    total = subtotal - totalDiscount;
 
-                const productOffer = product.offer 
-                    ? product.offer.discountPercentage || 0 
-                    : 0;
+    cart.subtotal = subtotal;
+    cart.discount = totalDiscount;
+    cart.total = total;
 
-                const maxDiscountPercentage = Math.max(categoryOffer, productOffer);
-                
-                if (maxDiscountPercentage > 0) {
-                    itemDiscount = (originalPrice * maxDiscountPercentage) / 100;
-                    salePrice = originalPrice - itemDiscount;
-                    itemOfferPercentage = maxDiscountPercentage;
-                    itemOfferSource = categoryOffer >= productOffer ? 'category' : 'product';
-                }
+    await cart.save();
 
-                subtotal += originalPrice * item.quantity;
-                totalDiscount += itemDiscount * item.quantity;
-            }
+    res.render('user/cart', {
+      cart,
+      user: req.user,
+      subtotal,
+      discount: totalDiscount,
+      total,
+      offerPercentage,
+      offerSource,
+      hasValidItems,
+      currentPage: 'cart'
+    });
 
-            item.salePrice = salePrice;
-            item.discount = itemDiscount;
-            item.totalPrice = salePrice * item.quantity;
-            item.isOutOfStock = isOutOfStock;
-            item.isInvalid = isInvalid;
-            item.offerPercentage = itemOfferPercentage;
-            item.offerSource = itemOfferSource;
-
-            // Aggregate offer source and percentage for the cart
-            if (itemOfferPercentage > 0) {
-                if (offerSource === 'none') {
-                    offerSource = itemOfferSource;
-                    offerPercentage = itemOfferPercentage;
-                } else if (offerSource !== itemOfferSource) {
-                    offerSource = 'mixed'; // Indicates both category and product offers
-                }
-            }
-
-            return item;
-        });
-
-        total = subtotal - totalDiscount;
-
-        // Update cart fields
-        cart.subtotal = subtotal;
-        cart.discount = totalDiscount;
-        cart.total = total;
-
-        await cart.save();
-
-        res.render('user/cart', { 
-            cart,
-            user: req.user,
-            subtotal,
-            discount: totalDiscount,
-            total,
-            offerPercentage,
-            offerSource,
-            hasValidItems,
-            currentPage: 'cart'
-        });
-    } catch (error) {
-        console.error('Error in getCart:', error);
-        res.render('user/cart', {
-            cart: { items: [] },
-            user: req.user,
-            subtotal: 0,
-            discount: 0,
-            total: 0,
-            offerPercentage: 0,
-            offerSource: 'none',
-            hasValidItems: false,
-            error: 'Error loading your cart. Please try again later.',
-            currentPage: 'cart'
-        });
-    }
+  } catch (error) {
+    console.error('Error in getCart:', error);
+    res.render('user/cart', {
+      cart: { items: [] },
+      user: req.user,
+      subtotal: 0,
+      discount: 0,
+      total: 0,
+      offerPercentage: 0,
+      offerSource: 'none',
+      hasValidItems: false,
+      error: 'Error loading your cart. Please try again later.',
+      currentPage: 'cart'
+    });
+  }
 };
+
 const addToCart = async (req, res) => {
     try {
         const userId = req.session.user?.id;

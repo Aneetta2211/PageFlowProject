@@ -330,24 +330,18 @@
         </thead>
         <tbody>
            <tr>
-  <td class="font-semibold text-gray-700">Subtotal</td>
-  <td class="text-gray-800 font-medium">₹<%= subtotal.toFixed(2) %></td>
-</tr>
-<tr>
-  <td class="font-semibold text-gray-700">
-    Discount 
-    (<%= discount > 0 
-      ? (offerSource === 'mixed' 
-        ? `${offerPercentage}% - Category & Product Offers` 
-        : `${offerPercentage}% - ${offerSource.charAt(0).toUpperCase() + offerSource.slice(1)} Offer`) 
-      : 'No Offer' %>)
-  </td>
-  <td class="text-red-600 font-medium">-₹<%= discount ? discount.toFixed(2) : '0.00' %></td>
-</tr>
-<tr>
-  <td class="font-bold text-gray-900 text-lg">Total</td>
-  <td class="text-green-600 font-bold text-lg">₹<%= total.toFixed(2) %></td>
-</tr>
+  <p>Subtotal: ₹<%= subtotal.toFixed(2) %></p>
+<p>
+  Discount 
+  <% if (discount > 0) { %>
+    (Offer Applied)
+  <% } else { %>
+    (No Offer)
+  <% } %>
+  : -₹<%= discount.toFixed(2) %>
+</p>
+<p><strong>Total: ₹<%= total.toFixed(2) %></strong></p>
+
 
         </tbody>
     </table>
