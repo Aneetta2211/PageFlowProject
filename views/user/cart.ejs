@@ -320,32 +320,38 @@
 </tbody>
                     </table>
 
-                 <!-- Summary Table -->
+ <!-- Summary Table -->
 <div class="flex justify-end p-4">
-    <table class="summary-table">
-        <thead>
-            <tr>
-                <th colspan="2">Order Summary</th>
-            </tr>
-        </thead>
-        <tbody>
-           <tr>
-  <p>Subtotal: ₹<%= subtotal.toFixed(2) %></p>
-<p>
-  Discount 
-  <% if (discount > 0) { %>
-    (Offer Applied)
-  <% } else { %>
-    (No Offer)
-  <% } %>
-  : -₹<%= discount.toFixed(2) %>
-</p>
-<p><strong>Total: ₹<%= total.toFixed(2) %></strong></p>
-
-
-        </tbody>
-    </table>
+  <table class="summary-table">
+    <thead>
+      <tr>
+        <th colspan="2">Order Summary</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Subtotal</td>
+        <td>₹<%= subtotal.toFixed(2) %></td>
+      </tr>
+      <tr>
+        <td>
+          Discount
+          <% if (discount > 0) { %>
+            (Offer Applied)
+          <% } else { %>
+            (No Offer)
+          <% } %>
+        </td>
+        <td class="text-red-500">-₹<%= discount.toFixed(2) %></td>
+      </tr>
+      <tr>
+        <td>Total</td>
+        <td><strong>₹<%= total.toFixed(2) %></strong></td>
+      </tr>
+    </tbody>
+  </table>
 </div>
+
                     <div class="flex justify-end p-4">
                         <button class="checkout-btn" onclick="proceedToCheckout()"
                             <%= !hasValidItems ? 'disabled' : '' %>>

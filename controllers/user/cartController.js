@@ -89,7 +89,7 @@ const getCart = async (req, res) => {
           offerSource = itemOfferSource;
           offerPercentage = itemOfferPercentage;
         } else if (offerSource !== itemOfferSource) {
-          offerSource = 'mixed'; // Both category and product offers exist
+          offerSource = 'mixed'; 
         }
       }
 
