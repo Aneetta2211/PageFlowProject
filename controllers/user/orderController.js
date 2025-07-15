@@ -506,7 +506,7 @@ const downloadInvoice = async (req, res) => {
 
         function drawRow(y, columns, bold = false, strikethrough = false) {
             let x = 50;
-            doc.font(bold ? "Helvetica-Bold" : "Helvetica").fontSize(9);
+            doc.fillColor('black').font(bold ? "Helvetica-Bold" : "Helvetica").fontSize(9);
             columns.forEach((col, i) => {
                 doc.text(col, x + 2, y + 5, { width: colWidths[i] - 4 });
                 if (strikethrough) {
@@ -517,7 +517,7 @@ const downloadInvoice = async (req, res) => {
         }
 
         // Header
-        doc.fontSize(24).text("INVOICE", { align: "center" });
+        doc.fillColor('black').fontSize(24).text("INVOICE", { align: "center" });
         doc.fontSize(12).text("PAGEFLOW", { align: "center" });
         doc.text("123 Book Street, Literature City, LC 12345", { align: "center" });
         doc.text("Phone: +91 9876543210 | Email: support@pageflow.com", { align: "center" });
@@ -545,7 +545,7 @@ const downloadInvoice = async (req, res) => {
         // Items table header
         doc.fontSize(12).text("Order Items:");
         doc.moveDown(0.5);
-        doc.rect(50, doc.y, 450, rowHeight).fill('#eeeeee').stroke();
+        doc.fillColor('black').rect(50, doc.y, 450, rowHeight).fill('#cccccc').stroke();
         drawRow(doc.y, ["Item", "Qty", "Price", "Discount", "Total"], true);
         doc.moveDown(1);
 
@@ -578,8 +578,7 @@ const downloadInvoice = async (req, res) => {
             doc.moveDown(1);
 
             if (product.offerType && product.totalOffer) {
-                doc.fontSize(8).fillColor("gray").text(`Offer: ${product.offerType} (${product.totalOffer}%)`, 55, doc.y);
-                doc.fillColor("black");
+                doc.fontSize(8).fillColor("black").text(`Offer: ${product.offerType} (${product.totalOffer}%)`, 55, doc.y);
             }
 
             if (isCancelled) {
@@ -596,7 +595,7 @@ const downloadInvoice = async (req, res) => {
         const grand = discountedSubtotal - coupon + shipping;
 
         doc.moveDown(1);
-        doc.fontSize(12).text("Payment Summary:");
+        doc.fontSize(12).fillColor('black').text("Payment Summary:");
         doc.fontSize(10);
         doc.text('Original Subtotal: ₹' + originalSubtotal.toFixed(2));
         doc.text('Discounted Subtotal: ₹' + discountedSubtotal.toFixed(2));
@@ -610,6 +609,7 @@ const downloadInvoice = async (req, res) => {
         res.status(500).send("Failed to generate invoice");
     }
 };
+
 
 
 const getOrderDetails = async (req, res) => {
