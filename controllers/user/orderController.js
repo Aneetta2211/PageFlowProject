@@ -273,8 +273,8 @@ const cancelOrderItem = async (req, res) => {
 
         console.log('Order found:', { orderId: order.orderId, status: order.status, itemCount: order.orderedItems.length });
 
-        // Prevent cancellation for Delivered or Returned orders
-        if (['Delivered', 'Returned', 'Cancelled'].includes(order.status)) {
+        // Prevent cancellation for Delivered, Returned, Cancelled, or Return Request orders
+        if (['Delivered', 'Returned', 'Cancelled', 'Return Request'].includes(order.status)) {
             console.log('Cannot cancel items in order:', { orderID, status: order.status });
             return res.status(400).json({
                 success: false,
