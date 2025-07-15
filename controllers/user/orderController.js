@@ -649,24 +649,31 @@ const getOrderDetails = async (req, res) => {
         const shipping = order.shipping || 0;
         const grandTotal = discountedSubtotal - couponDiscount + shipping;
 
-        // 🛑 FIX: Get actual address document based on `order.address` (ObjectId)
-        let selectedAddress = {
-            name: 'N/A',
-            city: 'N/A',
-            landMark: 'N/A',
-            state: 'N/A',
-            pincode: 'N/A',
-            phone: 'N/A',
-            altPhone: 'N/A',
-            addressType: 'N/A'
-        };
+  let selectedAddress = {
+    name: 'N/A',
+    city: 'N/A',
+    landMark: 'N/A',
+    state: 'N/A',
+    pincode: 'N/A',
+    phone: 'N/A',
+    altPhone: 'N/A',
+    addressType: 'N/A'
+};
 
-        if (order.address) {
-            const addressDoc = await Address.findOne({ _id: order.address, userId: userId });
-            if (addressDoc && Array.isArray(addressDoc.address) && addressDoc.address.length > 0) {
-                selectedAddress = addressDoc.address.find(a => a.isDefault) || addressDoc.address[0];
-            }
-        }
+if (order.address) {
+    
+    const addressDoc = await Address.findById(order.address);
+
+    if (addressDoc && Array.isArray(addressDoc.address) && addressDoc.address.length > 0) {
+       
+        selectedAddress = addressDoc.address.find(a => a.isDefault) || addressDoc.address[0];
+        console.log(" Selected shipping address:", selectedAddress);
+    } else {
+        console.warn("Address document found but no address array inside.");
+    }
+} else {
+    console.warn(" Order has no address ObjectId.");
+}
 
         return res.render("user/orderDetails", {
             order: {
