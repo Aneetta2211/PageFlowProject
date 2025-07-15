@@ -593,9 +593,12 @@ const downloadReport = async (req, res) => {
                 throw new Error('Invalid filter type');
         }
 
+        // ✅ Fetch only Delivered + Paid orders
         const orders = await Order.find({
             createdOn: { $gte: start, $lte: end },
-        }).populate('user', 'name').populate('orderedItems.product', 'productName');
+            status: 'Delivered',
+            paymentStatus: 'Paid'
+        }).populate('user', 'name');
 
         let totalOrders = orders.length;
         let totalAmount = 0;
@@ -603,10 +606,8 @@ const downloadReport = async (req, res) => {
         let totalCoupons = 0;
 
         orders.forEach(order => {
-            if (['Placed', 'Processing', 'Shipped', 'Delivered'].includes(order.status)) {
-                totalAmount += order.finalAmount || 0;
-                totalDiscount += order.discount || 0;
-            }
+            totalAmount += order.finalAmount || 0;
+            totalDiscount += order.discount || 0;
             if (order.couponApplied) totalCoupons++;
         });
 
@@ -614,13 +615,9 @@ const downloadReport = async (req, res) => {
             const doc = new PDFDocument({ margin: 30, size: 'A4' });
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', `attachment; filename=sales-report-${filterType}.pdf`);
-
             doc.pipe(res);
 
-            doc.fontSize(22).fillColor('#333').text('Sales Report', { align: 'center' });
-            doc.moveDown(0.5);
-            
-            
+            doc.fontSize(22).fillColor('#333').text('Sales Report', { align: 'center' }).moveDown(0.5);
             doc.fontSize(12).fillColor('#666');
             doc.text(`Report Period: ${filterType.toUpperCase()}`, { align: 'center' });
             if (filterType === 'custom') {
@@ -629,10 +626,7 @@ const downloadReport = async (req, res) => {
             doc.text(`Generated on: ${new Date().toLocaleDateString()}`, { align: 'center' });
             doc.moveDown(1);
 
-            
-            doc.fontSize(14).fillColor('#333').text('Summary', { underline: true });
-            doc.moveDown(0.3);
-            
+            doc.fontSize(14).fillColor('#333').text('Summary', { underline: true }).moveDown(0.3);
             const summaryY = doc.y;
             doc.fontSize(11).fillColor('#444');
             doc.text(`Total Orders: ${totalOrders}`, 50, summaryY);
@@ -641,11 +635,6 @@ const downloadReport = async (req, res) => {
             doc.text(`Coupons Used: ${totalCoupons}`, 500, summaryY);
             doc.moveDown(1.5);
 
-           
-            // doc.fontSize(14).fillColor('#333').text('Order Details', { underline: true });
-            doc.moveDown(0.5);
-
-            
             const tableTop = doc.y;
             const itemHeight = 20;
             const tableHeaders = [
@@ -658,25 +647,19 @@ const downloadReport = async (req, res) => {
                 { title: 'Payment', x: 470, width: 70 }
             ];
 
-            
             doc.fontSize(10).fillColor('#fff');
             doc.rect(50, tableTop, 490, itemHeight).fill('#4472C4');
-            
             tableHeaders.forEach(header => {
                 doc.text(header.title, header.x + 5, tableTop + 6, { width: header.width - 10 });
             });
 
             let currentY = tableTop + itemHeight;
-            const pageHeight = doc.page.height - 100; 
+            const pageHeight = doc.page.height - 100;
 
-         
             orders.forEach((order, index) => {
-                
                 if (currentY > pageHeight) {
                     doc.addPage();
                     currentY = 50;
-                    
-                  
                     doc.fontSize(10).fillColor('#fff');
                     doc.rect(50, currentY, 490, itemHeight).fill('#4472C4');
                     tableHeaders.forEach(header => {
@@ -685,25 +668,21 @@ const downloadReport = async (req, res) => {
                     currentY += itemHeight;
                 }
 
-               
                 const rowColor = index % 2 === 0 ? '#f8f9fa' : '#ffffff';
                 doc.rect(50, currentY, 490, itemHeight).fill(rowColor).stroke('#ddd');
 
-               
                 doc.fontSize(9).fillColor('#333');
-                
                 const rowData = [
                     { text: order.orderId || 'N/A', x: 50, width: 80 },
                     { text: order.user ? order.user.name : 'Unknown', x: 130, width: 80 },
                     { text: new Date(order.createdOn).toLocaleDateString(), x: 210, width: 70 },
                     { text: `₹${(order.finalAmount || 0).toFixed(2)}`, x: 280, width: 60 },
                     { text: `₹${(order.discount || 0).toFixed(2)}`, x: 340, width: 60 },
-                    { text: order.status || 'Unknown', x: 400, width: 70 },
-                    { text: order.paymentStatus || 'Unknown', x: 470, width: 70 }
+                    { text: order.status, x: 400, width: 70 },
+                    { text: order.paymentStatus, x: 470, width: 70 }
                 ];
-
                 rowData.forEach(cell => {
-                    doc.text(cell.text, cell.x + 5, currentY + 6, { 
+                    doc.text(cell.text, cell.x + 5, currentY + 6, {
                         width: cell.width - 10,
                         ellipsis: true
                     });
@@ -712,7 +691,6 @@ const downloadReport = async (req, res) => {
                 currentY += itemHeight;
             });
 
-         
             if (currentY > pageHeight - 100) {
                 doc.addPage();
                 currentY = 50;
@@ -720,11 +698,9 @@ const downloadReport = async (req, res) => {
 
             doc.moveDown(1);
             currentY = doc.y + 20;
-            
-           
+
             doc.fontSize(12).fillColor('#333');
             doc.rect(50, currentY, 490, 80).fill('#f0f0f0').stroke('#ccc');
-            
             doc.text('Report Summary', 60, currentY + 10, { underline: true });
             doc.fontSize(10);
             doc.text(`Total Orders: ${totalOrders}`, 60, currentY + 30);
@@ -756,9 +732,9 @@ const downloadReport = async (req, res) => {
                     date: new Date(order.createdOn).toLocaleDateString(),
                     amount: (order.finalAmount || 0).toFixed(2),
                     discount: (order.discount || 0).toFixed(2),
-                    coupon: order.couponApplied ? order.appliedCoupon || 'Applied' : 'None',
-                    status: order.status || 'Unknown',
-                    paymentStatus: order.paymentStatus || 'Unknown'
+                    coupon: order.couponApplied ? (order.appliedCoupon || 'Applied') : 'None',
+                    status: order.status,
+                    paymentStatus: order.paymentStatus
                 });
             });
 
@@ -781,6 +757,7 @@ const downloadReport = async (req, res) => {
         res.redirect('/pageerror');
     }
 };
+
 module.exports = {
     loadLogin,
     login,
