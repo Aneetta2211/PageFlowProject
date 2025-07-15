@@ -603,7 +603,8 @@ const getOrderDetails = async (req, res) => {
             return res.redirect("/login"); // or handle gracefully
         }
 
-        const order = await Order.findOne({ _id: orderId, user: userId })
+        const order = await Order.findOne({ orderId: orderID, user: userId })
+
             .populate('orderedItems.product')
             .populate('cancelledItems.product')
             .populate('address');
