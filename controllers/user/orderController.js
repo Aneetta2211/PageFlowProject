@@ -74,7 +74,7 @@ const getOrdersPage = async (req, res) => {
             .limit(limit)
             .lean();
 
-        // Log orders to verify orderId presence
+       
         console.log("Fetched orders:", orders.map(o => ({
             orderId: o.orderId,
             status: o.status,
@@ -231,7 +231,7 @@ const cancelOrderItem = async (req, res) => {
 
         console.log('Attempting to cancel item:', { orderID, productID, userId: user._id, reason });
 
-        // Validate inputs
+        
         if (!orderID || !productID) {
             console.warn('Missing orderID or productID:', { orderID, productID });
             return res.status(400).json({
@@ -273,7 +273,7 @@ const cancelOrderItem = async (req, res) => {
 
         console.log('Order found:', { orderId: order.orderId, status: order.status, itemCount: order.orderedItems.length });
 
-        // Prevent cancellation for Delivered, Returned, Cancelled, or Return Request orders
+        
         if (['Delivered', 'Returned', 'Cancelled', 'Return Request'].includes(order.status)) {
             console.log('Cannot cancel items in order:', { orderID, status: order.status });
             return res.status(400).json({
@@ -282,7 +282,7 @@ const cancelOrderItem = async (req, res) => {
             });
         }
 
-        // Find the item to cancel
+       
         const itemIndex = order.orderedItems.findIndex(
             item => item.product && item.product._id.toString() === productID
         );
@@ -297,7 +297,7 @@ const cancelOrderItem = async (req, res) => {
 
         const item = order.orderedItems[itemIndex];
 
-        // Check if item is already cancelled
+       
         const isAlreadyCancelled = order.cancelledItems.some(
             cancelledItem => cancelledItem.product.toString() === productID
         );
@@ -310,14 +310,14 @@ const cancelOrderItem = async (req, res) => {
             });
         }
 
-        // Calculate refund amount
+        
         const itemTotal = item.price * item.quantity;
         const itemDiscount = item.discountApplied || 0;
         const refundAmount = (itemTotal - itemDiscount) + (order.orderedItems.length === 1 ? (order.shipping || 0) : 0);
 
         console.log('Item to cancel:', { productID, quantity: item.quantity, price: item.price, discountApplied: itemDiscount, refundAmount });
 
-        // Add to cancelledItems
+        
         order.cancelledItems = order.cancelledItems || [];
         order.cancelledItems.push({
             product: item.product._id,
@@ -328,10 +328,10 @@ const cancelOrderItem = async (req, res) => {
             cancelledAt: new Date()
         });
 
-        // Remove item from orderedItems
+        
         order.orderedItems.splice(itemIndex, 1);
 
-        // Update product stock
+      
         const productUpdate = await Product.findByIdAndUpdate(item.product._id, {
             $inc: { quantity: item.quantity }
         }, { new: true });
@@ -344,7 +344,7 @@ const cancelOrderItem = async (req, res) => {
             });
         }
 
-        // Recalculate totals
+        
         order.totalPrice = order.orderedItems.reduce((sum, item) => {
             return sum + (item.price * item.quantity);
         }, 0);
@@ -355,7 +355,7 @@ const cancelOrderItem = async (req, res) => {
         order.discount = order.totalPrice * discountFactor;
         order.finalAmount = order.totalPrice - order.discount + (order.orderedItems.length > 0 ? (order.shipping || 0) : 0);
 
-        // Process refund
+        
         if (refundAmount > 0) {
             try {
                 await addToWallet({
@@ -373,7 +373,7 @@ const cancelOrderItem = async (req, res) => {
             }
         }
 
-        // If all items are cancelled, mark the order as Cancelled
+        
         if (order.orderedItems.length === 0) {
             order.status = 'Cancelled';
             order.cancelReason = reason || 'All items cancelled';
@@ -570,16 +570,15 @@ const downloadInvoice = async (req, res) => {
             originalSubtotal += total;
             discountedSubtotal += discountedTotal;
 
-            // Check if this item is also in cancelledItems
             const cancelledItem = order.cancelledItems.find(c => c.product.equals(item.product._id));
             const isCancelled = !!cancelledItem;
 
             writeRow(doc, [
                 product.productName,
                 quantity.toString(),
-                `₹${regular}`,
-                `₹${discount.toFixed(2)}`,
-                `₹${discountedTotal.toFixed(2)}`
+                '₹' + regular,
+                '₹' + discount.toFixed(2),
+                '₹' + discountedTotal.toFixed(2)
             ], doc.y, isCancelled);
 
             if (product.offerType && product.totalOffer) {
@@ -603,11 +602,11 @@ const downloadInvoice = async (req, res) => {
         doc.moveDown(1);
         doc.fontSize(12).text("Payment Summary:");
         doc.fontSize(10);
-        doc.text(`Original Subtotal: ₹${originalSubtotal.toFixed(2)}`);
-        doc.text(`Discounted Subtotal: ₹${discountedSubtotal.toFixed(2)}`);
-        doc.text(`Coupon Discount: ₹${coupon.toFixed(2)}`);
-        doc.text(`Shipping: ₹${shipping.toFixed(2)}`);
-        doc.fontSize(12).text(`Grand Total: ₹${grand.toFixed(2)}`);
+        doc.text('Original Subtotal: ₹' + originalSubtotal.toFixed(2));
+        doc.text('Discounted Subtotal: ₹' + discountedSubtotal.toFixed(2));
+        doc.text('Coupon Discount: ₹' + coupon.toFixed(2));
+        doc.text('Shipping: ₹' + shipping.toFixed(2));
+        doc.fontSize(12).text('Grand Total: ₹' + grand.toFixed(2));
 
         doc.end();
     } catch (error) {
@@ -615,6 +614,7 @@ const downloadInvoice = async (req, res) => {
         res.status(500).send("Failed to generate invoice");
     }
 };
+
 
 
 const getOrderDetails = async (req, res) => {
@@ -631,11 +631,11 @@ const getOrderDetails = async (req, res) => {
 
         if (!order) return res.status(404).send("Order not found");
 
-        // Pricing breakdown
+  
         let originalSubtotal = 0;
         let discountedSubtotal = 0;
 
-        // Combine orderedItems and cancelledItems
+       
         const detailedItems = [
             ...order.orderedItems.map(item => {
                 const product = item.product;

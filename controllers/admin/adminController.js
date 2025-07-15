@@ -628,8 +628,8 @@ const downloadReport = async (req, res) => {
             doc.fontSize(11).fillColor('#444');
             const summaryY = doc.y;
             doc.text(`Total Orders: ${totalOrders}`, 50, summaryY);
-            doc.text(`Total Amount: ₹${totalAmount.toFixed(2)}`, 200, summaryY);
-            doc.text(`Total Discount: ₹${totalDiscount.toFixed(2)}`, 350, summaryY);
+            doc.text('Total Amount: ₹' + totalAmount.toFixed(2), 200, summaryY);
+            doc.text('Total Discount: ₹' + totalDiscount.toFixed(2), 350, summaryY);
             doc.text(`Coupons Used: ${totalCoupons}`, 500, summaryY);
             doc.moveDown(1.5);
 
@@ -646,7 +646,6 @@ const downloadReport = async (req, res) => {
                 { title: 'Payment', x: 470, width: 70 }
             ];
 
-            // Draw table header row
             doc.rect(50, tableTop, 490, itemHeight).fill('#4472C4');
             doc.fillColor('#fff').font('Helvetica-Bold').fontSize(10);
             tableHeaders.forEach(header => {
@@ -655,7 +654,6 @@ const downloadReport = async (req, res) => {
                 });
             });
 
-            // Table body
             let currentY = tableTop + itemHeight;
             const pageHeight = doc.page.height - 100;
 
@@ -663,8 +661,6 @@ const downloadReport = async (req, res) => {
                 if (currentY > pageHeight) {
                     doc.addPage();
                     currentY = 50;
-
-                    // Draw header again on new page
                     doc.rect(50, currentY, 490, itemHeight).fill('#4472C4');
                     doc.fillColor('#fff').font('Helvetica-Bold').fontSize(10);
                     tableHeaders.forEach(header => {
