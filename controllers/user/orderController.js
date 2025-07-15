@@ -501,17 +501,22 @@ const downloadInvoice = async (req, res) => {
             return res.status(404).send("Order not found");
         }
 
-      
         const doc = new PDFDocument({ margin: 50 });
         res.setHeader("Content-Type", "application/pdf");
         res.setHeader("Content-Disposition", `attachment; filename=invoice_${order.orderId}.pdf`);
         doc.pipe(res);
 
-       
-        function writeRow(doc, columns, y) {
+        function writeRow(doc, columns, y, strikethrough = false) {
             const colWidths = [180, 40, 70, 80, 80];
             let x = 50;
             columns.forEach((col, i) => {
+                if (strikethrough) {
+                    doc.save()
+                        .moveTo(x, y + 7)
+                        .lineTo(x + colWidths[i] - 5, y + 7)
+                        .stroke()
+                        .restore();
+                }
                 doc.text(col, x, y, {
                     width: colWidths[i],
                     align: 'left'
@@ -520,21 +525,21 @@ const downloadInvoice = async (req, res) => {
             });
         }
 
-        
+        // Header
         doc.fontSize(24).text("INVOICE", { align: "center" });
         doc.fontSize(12).text("PAGEFLOW", { align: "center" });
         doc.text("123 Book Street, Literature City, LC 12345", { align: "center" });
         doc.text("Phone: +91 9876543210 | Email: support@pageflow.com", { align: "center" });
         doc.moveDown(1);
 
-      
+        // Order info
         doc.fontSize(10).text(`Invoice Number: ${order.orderId}`);
         doc.text(`Order Date: ${order.createdOn.toLocaleDateString("en-IN")}`);
         doc.text(`Status: ${order.status}`);
         doc.text(`Payment Method: ${order.paymentMethod}`);
         doc.moveDown(1);
 
-        
+        // Billing Address
         if (order.address && order.address.address && order.address.address.length > 0) {
             const billing = order.address.address.find(a => a.isDefault) || order.address.address[0];
             doc.fontSize(14).text("Billing Address:");
@@ -546,18 +551,17 @@ const downloadInvoice = async (req, res) => {
             doc.moveDown(1);
         }
 
-        
+        // Items table
         doc.fontSize(12).text("Order Items:");
         doc.moveDown(0.3);
         doc.fontSize(10).font("Helvetica-Bold");
         writeRow(doc, ["Item", "Qty", "Price", "Discount", "Total"], doc.y + 5);
         doc.moveDown(1);
+        doc.font("Helvetica").fontSize(9);
 
-        
         let originalSubtotal = 0;
         let discountedSubtotal = 0;
 
-        doc.font("Helvetica").fontSize(9);
         order.orderedItems.forEach(item => {
             const product = item.product;
             const quantity = item.quantity;
@@ -570,36 +574,32 @@ const downloadInvoice = async (req, res) => {
             originalSubtotal += total;
             discountedSubtotal += discountedTotal;
 
+            // Check if this item is also in cancelledItems
+            const cancelledItem = order.cancelledItems.find(c => c.product.equals(item.product._id));
+            const isCancelled = !!cancelledItem;
+
             writeRow(doc, [
                 product.productName,
                 quantity.toString(),
                 `₹${regular}`,
                 `₹${discount.toFixed(2)}`,
                 `₹${discountedTotal.toFixed(2)}`
-            ], doc.y);
+            ], doc.y, isCancelled);
 
             if (product.offerType && product.totalOffer) {
                 doc.fontSize(8).fillColor("gray").text(`Offer: ${product.offerType} (${product.totalOffer}%)`, 60, doc.y + 12);
-                doc.fillColor("black").moveDown(1);
-            } else {
-                doc.moveDown(1);
+                doc.fillColor("black");
             }
+
+            if (isCancelled) {
+                doc.fontSize(8).fillColor("red").text(`Cancelled: ${cancelledItem.cancelReason || "N/A"}`, 60, doc.y + 24);
+                doc.fillColor("black");
+            }
+
+            doc.moveDown(2);
         });
 
-       
-        if (order.cancelledItems && order.cancelledItems.length > 0) {
-            doc.moveDown(1).fontSize(12).fillColor("red").text("Cancelled Items:");
-            doc.fillColor("black").fontSize(10);
-            order.cancelledItems.forEach(item => {
-                doc.text(item.product.productName, 50)
-                    .text(item.quantity.toString(), 250)
-                    .text(`₹${item.price}`, 300)
-                    .text(`Reason: ${item.cancelReason || 'N/A'}`, 370);
-                doc.moveDown(0.5);
-            });
-        }
-
-        
+        // Summary
         const coupon = order.discount || 0;
         const shipping = order.shipping || 0;
         const grand = discountedSubtotal - coupon + shipping;
@@ -613,114 +613,13 @@ const downloadInvoice = async (req, res) => {
         doc.text(`Shipping: ₹${shipping.toFixed(2)}`);
         doc.fontSize(12).text(`Grand Total: ₹${grand.toFixed(2)}`);
 
-        
         doc.end();
-
     } catch (error) {
         console.error("Error generating invoice:", error);
         res.status(500).send("Failed to generate invoice");
     }
 };
 
-const getOrderDetails = async (req, res) => {
-    try {
-        const orderID = req.params.orderID;
-        const userId = req.user?._id || req.session.user?._id;
-
-        if (!userId) return res.redirect("/login");
-        if (!orderID) return res.status(400).send("Order ID missing");
-
-        const order = await Order.findOne({ orderId: orderID, user: userId })
-            .populate('orderedItems.product')
-            .populate('cancelledItems.product');
-
-        if (!order) return res.status(404).send("Order not found");
-
-        // Pricing breakdown
-        let originalSubtotal = 0;
-        let discountedSubtotal = 0;
-
-        const detailedItems = order.orderedItems.map(item => {
-            const product = item.product;
-            const quantity = item.quantity || 1;
-            const regularPrice = product?.regularPrice || item.price || 0;
-            const salesPrice = product?.salesPrice || item.price || 0;
-            const totalRegular = regularPrice * quantity;
-            const totalSales = salesPrice * quantity;
-            const itemDiscount = totalRegular - totalSales;
-
-            originalSubtotal += totalRegular;
-            discountedSubtotal += totalSales;
-
-            return {
-                product: product || { productName: 'Unknown Product', productImage: [] },
-                quantity,
-                regularPrice,
-                salesPrice,
-                totalRegular,
-                totalSales,
-                itemDiscount,
-                offerType: product?.offerType || 'N/A',
-                totalOfferPercent: product?.totalOffer || 0
-            };
-        });
-
-        const couponDiscount = order.discount || 0;
-        const shipping = order.shipping || 0;
-        const grandTotal = discountedSubtotal - couponDiscount + shipping;
-
- let selectedAddress = null;
-
-if (order.address) {
-    const addressDoc = await Address.findOne({ userId: userId }).lean();
-
-    if (addressDoc && Array.isArray(addressDoc.address)) {
-        selectedAddress = addressDoc.address.find(a => a._id.toString() === order.address.toString());
-        if (!selectedAddress) {
-            console.warn(`No matching address found in user's address list for ID: ${order.address}`);
-        } else {
-            console.log("Selected shipping address:", selectedAddress);
-        }
-    } else {
-        console.warn("Address document found but no address array inside.");
-    }
-} else {
-    console.warn("Order has no address ObjectId.");
-}
-
-
-if (!selectedAddress) {
-    selectedAddress = {
-        name: 'N/A',
-        city: 'N/A',
-        landMark: 'N/A',
-        state: 'N/A',
-        pincode: 'N/A',
-        phone: 'N/A',
-        altPhone: 'N/A',
-        addressType: 'N/A'
-    };
-}
-
-        return res.render("user/orderDetails", {
-            order: {
-                ...order.toObject(),
-                address: selectedAddress
-            },
-            detailedItems,
-            originalSubtotal,
-            discountedSubtotal,
-            couponDiscount,
-            shipping,
-            grandTotal,
-            user: req.user
-        });
-
-    } catch (error) {
-        console.error("Error loading order details:", error);
-        return res.status(500).send("Internal Server Error");
-    }
-};
 
 
 const renderCheckout = async (req, res) => {
