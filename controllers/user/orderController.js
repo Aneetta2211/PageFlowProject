@@ -595,7 +595,13 @@ const downloadInvoice = async (req, res) => {
 const getOrderDetails = async (req, res) => {
     try {
         const orderId = req.params.orderId;
-        const userId = req.session.user?._id;
+        const userId = req.user?._id || req.session.user?._id;
+
+        console.log("Fetching order details for:", orderId, "by user:", userId);
+
+        if (!userId) {
+            return res.redirect("/login"); // or handle gracefully
+        }
 
         const order = await Order.findOne({ _id: orderId, user: userId })
             .populate('orderedItems.product')
@@ -603,10 +609,11 @@ const getOrderDetails = async (req, res) => {
             .populate('address');
 
         if (!order) {
-            return res.status(404).render("user/errorPage", { message: "Order not found" });
+            console.warn("Order not found for:", orderId);
+            return res.status(404).send("Order not found");
         }
 
-        // Calculate detailed pricing breakdown
+        // Pricing breakdown
         let originalSubtotal = 0;
         let discountedSubtotal = 0;
 
@@ -640,7 +647,7 @@ const getOrderDetails = async (req, res) => {
         const shipping = order.shipping || 0;
         const grandTotal = discountedSubtotal - couponDiscount + shipping;
 
-        res.render("user/orderDetails", {
+        return res.render("user/orderDetails", {
             order,
             detailedItems,
             originalSubtotal,
@@ -652,9 +659,10 @@ const getOrderDetails = async (req, res) => {
 
     } catch (error) {
         console.error("Error loading order details:", error);
-        res.status(500).render("user/errorPage", { message: "Server error while loading order details" });
+        return res.status(500).send("Error loading order details");
     }
 };
+
 
 
 
