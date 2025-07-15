@@ -626,17 +626,10 @@ const getOrderDetails = async (req, res) => {
             .populate({
                 path: 'address',
                 match: { userId: userId },
-                select: 'address' // Only populate the address array
+                select: 'address'
             })
             .populate('orderedItems.product')
             .populate('cancelledItems.product');
-
-        console.log("Raw order data after population:", {
-            orderId: order.orderId,
-            address: order.address ? order.address._id : null,
-            addressArray: order.address ? order.address.address : null,
-            user: order.user
-        });
 
         if (!order) {
             console.warn("Order not found for:", orderID);
@@ -646,56 +639,34 @@ const getOrderDetails = async (req, res) => {
             });
         }
 
-        // Extract the specific address from the populated document
+        // Extract address
         let selectedAddress = null;
-        if (order.address && order.address.address && order.address.address.length > 0) {
-            console.log('Address array:', order.address.address);
-            // Use the default address or the first one if no specific match is needed
+        if (order.address && Array.isArray(order.address.address) && order.address.address.length > 0) {
             selectedAddress = order.address.address.find(addr => addr.isDefault) || order.address.address[0];
-            if (!selectedAddress) {
-                console.warn(`No default or valid address found for order ${orderID}, using first address`);
-                selectedAddress = order.address.address[0];
-            }
-        } else if (order.address) {
-            console.warn(`Address document found but no address array for order ${orderID}`);
+            console.log("Using populated address:", selectedAddress);
         } else {
-            console.warn(`No address document found for order ${orderID}, attempting direct fetch`);
-            // Fallback: Fetch address directly if population failed
-            const addressDoc = await Address.findOne({ userId, _id: order.address });
-            if (addressDoc && addressDoc.address.length > 0) {
+            console.warn(`Populated address missing or invalid for order ${orderID}. Trying direct fetch.`);
+
+            const addressDoc = await Address.findOne({ _id: order.address, userId: userId });
+
+            if (addressDoc && Array.isArray(addressDoc.address) && addressDoc.address.length > 0) {
                 selectedAddress = addressDoc.address.find(addr => addr.isDefault) || addressDoc.address[0];
-                console.log('Fetched address directly:', selectedAddress);
+                console.log("Using directly fetched address:", selectedAddress);
             } else {
-                console.warn(`No address found for order ${orderID} with address ID: ${order.address}`);
+                console.warn(`No valid address found for order ${orderID}`);
             }
         }
 
-        // Pricing breakdown (unchanged)
+        // Calculate pricing
         let originalSubtotal = 0;
         let discountedSubtotal = 0;
 
         const detailedItems = order.orderedItems.map(item => {
             const product = item.product;
             const quantity = item.quantity || 1;
-            let regularPrice = 0;
-            let salesPrice = 0;
 
-            if (!product) {
-                console.warn(`Product missing for order item in order ${orderID}:`, item);
-            }
-
-            regularPrice = product?.regularPrice || item.price || 0;
-            salesPrice = product?.salesPrice || item.price || 0;
-
-            if (regularPrice === 0 || salesPrice === 0) {
-                console.warn(`Price data missing for order item in order ${orderID}:`, {
-                    itemId: item._id,
-                    productId: product?._id,
-                    itemPrice: item.price,
-                    regularPrice,
-                    salesPrice
-                });
-            }
+            const regularPrice = product?.regularPrice || item.price || 0;
+            const salesPrice = product?.salesPrice || item.price || 0;
 
             const totalRegular = regularPrice * quantity;
             const totalSales = salesPrice * quantity;
@@ -721,10 +692,20 @@ const getOrderDetails = async (req, res) => {
         const shipping = order.shipping || 0;
         const grandTotal = discountedSubtotal - couponDiscount + shipping;
 
+        // Final render
         return res.render("user/orderDetails", {
             order: {
                 ...order.toObject(),
-                address: selectedAddress || { name: 'N/A', city: 'N/A', landMark: 'N/A', state: 'N/A', pincode: 'N/A', phone: 'N/A', addressType: 'N/A' }
+                address: selectedAddress || {
+                    name: 'N/A',
+                    city: 'N/A',
+                    landMark: 'N/A',
+                    state: 'N/A',
+                    pincode: 'N/A',
+                    phone: 'N/A',
+                    altPhone: 'N/A',
+                    addressType: 'N/A'
+                }
             },
             detailedItems,
             originalSubtotal,
@@ -743,6 +724,7 @@ const getOrderDetails = async (req, res) => {
         });
     }
 };
+
 const renderCheckout = async (req, res) => {
     try {
         const userId = req.session.user?.id;
