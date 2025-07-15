@@ -243,8 +243,8 @@
                         allItems.push({
                             ...item,
                             isCancelled: true,
-                            isReturned: item.cancelReason === 'Returned' || (order.status === 'Returned' && order.returnStatus === 'Approved'),
-                            isReturnDenied: order.status === 'Return Denied',
+                            isReturned: false, // Cancelled items are never marked as Returned
+                            isReturnDenied: false, // Cancelled items are not affected by return denial
                             cancelReason: item.cancelReason
                         });
                     });
@@ -277,20 +277,17 @@
                             <td class="py-2 px-4 border-b"><%= item.quantity || 0 %></td>
                             <td class="py-2 px-4 border-b">₹<%= discountedItemTotal ? discountedItemTotal.toFixed(2) : '0.00' %></td>
                             <td class="py-2 px-4 border-b">
-                                <% if (item.isReturned) { %>
-                                    <span class="text-orange-600">Returned</span>
-                                    <% if (item.cancelReason && item.cancelReason !== 'Returned') { %>
-                                        <p class="text-sm text-gray-600">Reason: <%= item.cancelReason %></p>
-                                    <% } %>
-                                <% } else if (item.isCancelled) { %>
+                                <% if (item.isCancelled) { %>
                                     <span class="text-red-600">Cancelled</span>
-                                    <% if (item.cancelReason && item.cancelReason !== 'Returned') { %>
+                                    <% if (item.cancelReason) { %>
                                         <p class="text-sm text-gray-600">Reason: <%= item.cancelReason %></p>
                                     <% } %>
+                                <% } else if (item.isReturned) { %>
+                                    <span class="text-orange-600">Returned</span>
                                 <% } else if (item.isReturnDenied) { %>
                                     <span class="text-red-600">Return Denied</span>
                                 <% } else { %>
-                                    Active
+                                    <span class="text-green-600">Active</span>
                                 <% } %>
                             </td>
                         </tr>
@@ -302,7 +299,6 @@
         <p class="text-lg font-semibold">Grand Total: ₹<%= order.finalAmount ? order.finalAmount.toFixed(2) : '0.00' %></p>
     </div>
 </div>
-
             <div class="mb-8">
                 <h2 class="text-lg font-semibold mb-4">Shipping Address</h2>
                 <div class="address-container">
