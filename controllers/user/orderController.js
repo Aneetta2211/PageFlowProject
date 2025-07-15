@@ -202,12 +202,8 @@ const cancelOrder = async (req, res) => {
         }
 
 
-        order.orderedItems = [];
-        order.status = 'Cancelled';
+       order.status = 'Cancelled';
         order.cancelReason = reason || 'No reason provided';
-        order.totalPrice = 0;
-        order.discount = 0;
-        order.finalAmount = 0;
         await order.save();
 
         console.log('Order cancelled successfully:', { orderID, cancelledItems: order.cancelledItems, refundAmount });
