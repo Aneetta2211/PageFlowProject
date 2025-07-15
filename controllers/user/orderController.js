@@ -594,7 +594,7 @@ const downloadInvoice = async (req, res) => {
 };
 const getOrderDetails = async (req, res) => {
     try {
-        const orderId = req.params.orderID;
+        const orderId = req.params.orderId;
         const userId = req.user?._id || req.session.user?._id;
 
         console.log("Fetching order details for:", orderId, "by user:", userId);
@@ -603,8 +603,7 @@ const getOrderDetails = async (req, res) => {
             return res.redirect("/login"); // or handle gracefully
         }
 
-        const order = await Order.findOne({ orderId: orderID, user: userId })
-
+        const order = await Order.findOne({ orderId: orderId, user: userId })
             .populate('orderedItems.product')
             .populate('cancelledItems.product')
             .populate('address');
@@ -663,6 +662,7 @@ const getOrderDetails = async (req, res) => {
         return res.status(500).send("Error loading order details");
     }
 };
+
 
 
 
