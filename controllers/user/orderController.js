@@ -649,30 +649,37 @@ const getOrderDetails = async (req, res) => {
         const shipping = order.shipping || 0;
         const grandTotal = discountedSubtotal - couponDiscount + shipping;
 
-  let selectedAddress = {
-    name: 'N/A',
-    city: 'N/A',
-    landMark: 'N/A',
-    state: 'N/A',
-    pincode: 'N/A',
-    phone: 'N/A',
-    altPhone: 'N/A',
-    addressType: 'N/A'
-};
+ let selectedAddress = null;
 
 if (order.address) {
-    
-    const addressDoc = await Address.findById(order.address);
+    const addressDoc = await Address.findOne({ userId: userId }).lean();
 
-    if (addressDoc && Array.isArray(addressDoc.address) && addressDoc.address.length > 0) {
-       
-        selectedAddress = addressDoc.address.find(a => a.isDefault) || addressDoc.address[0];
-        console.log(" Selected shipping address:", selectedAddress);
+    if (addressDoc && Array.isArray(addressDoc.address)) {
+        selectedAddress = addressDoc.address.find(a => a._id.toString() === order.address.toString());
+        if (!selectedAddress) {
+            console.warn(`No matching address found in user's address list for ID: ${order.address}`);
+        } else {
+            console.log("Selected shipping address:", selectedAddress);
+        }
     } else {
         console.warn("Address document found but no address array inside.");
     }
 } else {
-    console.warn(" Order has no address ObjectId.");
+    console.warn("Order has no address ObjectId.");
+}
+
+// Fallback if not found
+if (!selectedAddress) {
+    selectedAddress = {
+        name: 'N/A',
+        city: 'N/A',
+        landMark: 'N/A',
+        state: 'N/A',
+        pincode: 'N/A',
+        phone: 'N/A',
+        altPhone: 'N/A',
+        addressType: 'N/A'
+    };
 }
 
         return res.render("user/orderDetails", {
