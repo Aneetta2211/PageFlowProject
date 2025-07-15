@@ -622,57 +622,105 @@ const downloadInvoice = async (req, res) => {
 
 
 const getOrderDetails = async (req, res) => {
-  try {
-    const userId = req.session.userId;
-    const orderId = req.params.orderId;
+    try {
+        const orderID = req.params.orderID;
+        const userId = req.user?._id || req.session.user?._id;
 
-    const order = await Order.findOne({ orderId })
-      .populate('user')
-      .populate('orderedItems.productId')
-      .populate('cancelledItems.productId');
+        if (!userId) return res.redirect("/login");
+        if (!orderID) return res.status(400).send("Order ID missing");
 
-    if (!order) {
-      return res.status(404).render('user/404', { message: 'Order not found' });
+        const order = await Order.findOne({ orderId: orderID, user: userId })
+            .populate('orderedItems.product')
+            .populate('cancelledItems.product');
+
+        if (!order) return res.status(404).send("Order not found");
+
+        // Pricing breakdown
+        let originalSubtotal = 0;
+        let discountedSubtotal = 0;
+
+        const detailedItems = order.orderedItems.map(item => {
+            const product = item.product;
+            const quantity = item.quantity || 1;
+            const regularPrice = product?.regularPrice || item.price || 0;
+            const salesPrice = product?.salesPrice || item.price || 0;
+            const totalRegular = regularPrice * quantity;
+            const totalSales = salesPrice * quantity;
+            const itemDiscount = totalRegular - totalSales;
+
+            originalSubtotal += totalRegular;
+            discountedSubtotal += totalSales;
+
+            return {
+                product: product || { productName: 'Unknown Product', productImage: [] },
+                quantity,
+                regularPrice,
+                salesPrice,
+                totalRegular,
+                totalSales,
+                itemDiscount,
+                offerType: product?.offerType || 'N/A',
+                totalOfferPercent: product?.totalOffer || 0
+            };
+        });
+
+        const couponDiscount = order.discount || 0;
+        const shipping = order.shipping || 0;
+        const grandTotal = discountedSubtotal - couponDiscount + shipping;
+
+  let selectedAddress = null;
+
+if (order.address) {
+    const addressDoc = await Address.findOne({ userId: userId }).lean();
+
+    if (addressDoc && Array.isArray(addressDoc.address)) {
+        selectedAddress = addressDoc.address.find(a => a._id.toString() === order.address.toString());
+        if (!selectedAddress) {
+            console.warn(`No matching address found in user's address list for ID: ${order.address}`);
+        } else {
+            console.log("Selected shipping address:", selectedAddress);
+        }
+    } else {
+        console.warn("Address document found but no address array inside.");
     }
+} else {
+    console.warn("Order has no address ObjectId.");
+}
 
-    let address = null;
+// Fallback if not found
+if (!selectedAddress) {
+    selectedAddress = {
+        name: 'N/A',
+        city: 'N/A',
+        landMark: 'N/A',
+        state: 'N/A',
+        pincode: 'N/A',
+        phone: 'N/A',
+        altPhone: 'N/A',
+        addressType: 'N/A'
+    };
+}
 
-    if (order.address && order.address._id) {
-      // Check embedded or referenced address
-      address = order.address;
-    } else if (order.address && typeof order.address === 'string') {
-      // Referenced address stored as ID
-      address = await Address.findById(order.address);
+        return res.render("user/orderDetails", {
+            order: {
+                ...order.toObject(),
+                address: selectedAddress
+            },
+            detailedItems,
+            originalSubtotal,
+            discountedSubtotal,
+            couponDiscount,
+            shipping,
+            grandTotal,
+            user: req.user
+        });
+
+    } catch (error) {
+        console.error("Error loading order details:", error);
+        return res.status(500).send("Internal Server Error");
     }
-
-    // Calculate totals
-    let subtotal = 0;
-    let cancelledTotal = 0;
-
-    order.orderedItems.forEach(item => {
-      subtotal += item.price * item.quantity;
-    });
-
-    order.cancelledItems.forEach(item => {
-      cancelledTotal += item.price * item.quantity;
-    });
-
-    const finalSubtotal = subtotal - cancelledTotal;
-
-    res.render('user/orderDetails', {
-      order,
-      address,
-      subtotal,
-      cancelledTotal,
-      finalSubtotal,
-      user: req.session.user
-    });
-
-  } catch (error) {
-    console.error('Error in getOrderDetails:', error);
-    res.status(500).render('user/500', { message: 'Internal Server Error' });
-  }
 };
+
 
 
 const renderCheckout = async (req, res) => {
