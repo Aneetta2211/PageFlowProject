@@ -596,12 +596,35 @@ const downloadInvoice = async (req, res) => {
 
         doc.moveDown(1);
         doc.fontSize(12).fillColor('black').text("Payment Summary:");
-        doc.fontSize(10);
-        doc.text('Original Subtotal: ₹' + originalSubtotal.toFixed(2));
-        doc.text('Discounted Subtotal: ₹' + discountedSubtotal.toFixed(2));
-        doc.text('Coupon Discount: ₹' + coupon.toFixed(2));
-        doc.text('Shipping: ₹' + shipping.toFixed(2));
-        doc.fontSize(12).text('Grand Total: ₹' + grand.toFixed(2));
+
+        // Payment Summary Table
+        const summaryX = 300;
+        let summaryY = doc.y + 10;
+        const summaryRowHeight = 20;
+        const summaryColWidths = [150, 150];
+
+        const paymentData = [
+            ["Original Subtotal", '₹' + originalSubtotal.toFixed(2)],
+            ["Discounted Subtotal", '₹' + discountedSubtotal.toFixed(2)],
+            ["Coupon Discount", '₹' + coupon.toFixed(2)],
+            ["Shipping", '₹' + shipping.toFixed(2)],
+            ["Grand Total", '₹' + grand.toFixed(2)]
+        ];
+
+        doc.fontSize(10).font("Helvetica-Bold");
+        doc.rect(summaryX, summaryY, summaryColWidths[0] + summaryColWidths[1], summaryRowHeight).fill('#cccccc');
+        doc.fillColor('black').text("Label", summaryX + 5, summaryY + 5, { width: summaryColWidths[0] - 10 });
+        doc.text("Amount", summaryX + summaryColWidths[0] + 5, summaryY + 5, { width: summaryColWidths[1] - 10 });
+
+        summaryY += summaryRowHeight;
+        doc.font("Helvetica");
+
+        paymentData.forEach(([label, value]) => {
+            doc.rect(summaryX, summaryY, summaryColWidths[0] + summaryColWidths[1], summaryRowHeight).stroke();
+            doc.text(label, summaryX + 5, summaryY + 5, { width: summaryColWidths[0] - 10 });
+            doc.text(value, summaryX + summaryColWidths[0] + 5, summaryY + 5, { width: summaryColWidths[1] - 10 });
+            summaryY += summaryRowHeight;
+        });
 
         doc.end();
     } catch (error) {
@@ -609,6 +632,7 @@ const downloadInvoice = async (req, res) => {
         res.status(500).send("Failed to generate invoice");
     }
 };
+
 
 
 
