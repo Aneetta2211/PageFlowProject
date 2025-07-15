@@ -635,13 +635,19 @@ const getOrderDetails = async (req, res) => {
             });
         }
 
+        // Extract the specific address from the Address document
+        let selectedAddress = null;
+        if (order.address && order.address.address) {
+            selectedAddress = order.address.address.find(addr => addr._id.toString() === order.address._id.toString()) || order.address.address[0];
+        }
+
         // Pricing breakdown
         let originalSubtotal = 0;
         let discountedSubtotal = 0;
 
         const detailedItems = order.orderedItems.map(item => {
             const product = item.product;
-            const quantity = item.quantity || 1; // Fallback to 1 if quantity is missing
+            const quantity = item.quantity || 1;
             let regularPrice = 0;
             let salesPrice = 0;
 
@@ -649,7 +655,6 @@ const getOrderDetails = async (req, res) => {
                 console.warn(`Product missing for order item in order ${orderID}:`, item);
             }
 
-            // Set regularPrice and salesPrice with fallbacks
             regularPrice = product?.regularPrice || item.price || 0;
             salesPrice = product?.salesPrice || item.price || 0;
 
@@ -671,7 +676,7 @@ const getOrderDetails = async (req, res) => {
             discountedSubtotal += totalSales;
 
             return {
-                product: product || { productName: 'Unknown Product', images: [] }, // Fallback product
+                product: product || { productName: 'Unknown Product', images: [] },
                 quantity,
                 regularPrice,
                 salesPrice,
@@ -688,7 +693,10 @@ const getOrderDetails = async (req, res) => {
         const grandTotal = discountedSubtotal - couponDiscount + shipping;
 
         return res.render("user/orderDetails", {
-            order,
+            order: {
+                ...order.toObject(),
+                address: selectedAddress || { name: 'N/A', city: 'N/A', landMark: 'N/A', state: 'N/A', pincode: 'N/A', phone: 'N/A', addressType: 'N/A' }
+            },
             detailedItems,
             originalSubtotal,
             discountedSubtotal,
@@ -706,7 +714,6 @@ const getOrderDetails = async (req, res) => {
         });
     }
 };
-
 
 const renderCheckout = async (req, res) => {
     try {
