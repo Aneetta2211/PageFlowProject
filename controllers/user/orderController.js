@@ -231,7 +231,7 @@ const cancelOrderItem = async (req, res) => {
 
         console.log('Attempting to cancel item:', { orderID, productID, userId: user._id, reason });
 
-
+        // Validate inputs
         if (!orderID || !productID) {
             console.warn('Missing orderID or productID:', { orderID, productID });
             return res.status(400).json({
@@ -239,7 +239,6 @@ const cancelOrderItem = async (req, res) => {
                 error: 'Order ID and Product ID are required'
             });
         }
-
 
         const orderIdRegex = /^OR-\d{4}$/;
         if (!orderIdRegex.test(orderID)) {
@@ -250,7 +249,6 @@ const cancelOrderItem = async (req, res) => {
             });
         }
 
-
         if (!mongoose.Types.ObjectId.isValid(productID)) {
             console.warn('Invalid productID format:', productID);
             return res.status(400).json({
@@ -259,7 +257,7 @@ const cancelOrderItem = async (req, res) => {
             });
         }
 
-
+        // Find the order
         const order = await Order.findOne({
             orderId: orderID,
             user: user._id
@@ -275,8 +273,8 @@ const cancelOrderItem = async (req, res) => {
 
         console.log('Order found:', { orderId: order.orderId, status: order.status, itemCount: order.orderedItems.length });
 
-
-        if (['Cancelled', 'Delivered', 'Returned'].includes(order.status)) {
+        // Prevent cancellation for Delivered or Returned orders
+        if (['Delivered', 'Returned', 'Cancelled'].includes(order.status)) {
             console.log('Cannot cancel items in order:', { orderID, status: order.status });
             return res.status(400).json({
                 success: false,
@@ -284,6 +282,7 @@ const cancelOrderItem = async (req, res) => {
             });
         }
 
+        // Find the item to cancel
         const itemIndex = order.orderedItems.findIndex(
             item => item.product && item.product._id.toString() === productID
         );
@@ -297,15 +296,28 @@ const cancelOrderItem = async (req, res) => {
         }
 
         const item = order.orderedItems[itemIndex];
+
+        // Check if item is already cancelled
+        const isAlreadyCancelled = order.cancelledItems.some(
+            cancelledItem => cancelledItem.product.toString() === productID
+        );
+
+        if (isAlreadyCancelled) {
+            console.warn('Item already cancelled:', { orderID, productID });
+            return res.status(400).json({
+                success: false,
+                error: 'Item is already cancelled'
+            });
+        }
+
+        // Calculate refund amount
         const itemTotal = item.price * item.quantity;
         const itemDiscount = item.discountApplied || 0;
         const refundAmount = (itemTotal - itemDiscount) + (order.orderedItems.length === 1 ? (order.shipping || 0) : 0);
 
-
-
         console.log('Item to cancel:', { productID, quantity: item.quantity, price: item.price, discountApplied: itemDiscount, refundAmount });
 
-
+        // Add to cancelledItems
         order.cancelledItems = order.cancelledItems || [];
         order.cancelledItems.push({
             product: item.product._id,
@@ -316,10 +328,10 @@ const cancelOrderItem = async (req, res) => {
             cancelledAt: new Date()
         });
 
-
+        // Remove item from orderedItems
         order.orderedItems.splice(itemIndex, 1);
 
-
+        // Update product stock
         const productUpdate = await Product.findByIdAndUpdate(item.product._id, {
             $inc: { quantity: item.quantity }
         }, { new: true });
@@ -332,30 +344,18 @@ const cancelOrderItem = async (req, res) => {
             });
         }
 
-
+        // Recalculate totals
         order.totalPrice = order.orderedItems.reduce((sum, item) => {
             return sum + (item.price * item.quantity);
         }, 0);
-
 
         const originalItemTotal = itemTotal - itemDiscount;
         const originalTotalPrice = order.totalPrice + originalItemTotal;
         const discountFactor = order.discount && originalTotalPrice > 0 ? order.discount / originalTotalPrice : 0;
         order.discount = order.totalPrice * discountFactor;
-        order.finalAmount = order.totalPrice - order.discount;
+        order.finalAmount = order.totalPrice - order.discount + (order.orderedItems.length > 0 ? (order.shipping || 0) : 0);
 
-
-        if (order.orderedItems.length > 0 && discountFactor > 0) {
-            order.orderedItems.forEach(item => {
-                const itemTotal = item.price * item.quantity;
-                item.discountApplied = itemTotal * discountFactor;
-            });
-        } else {
-            order.orderedItems.forEach(item => {
-                item.discountApplied = 0;
-            });
-        }
-
+        // Process refund
         if (refundAmount > 0) {
             try {
                 await addToWallet({
@@ -373,7 +373,7 @@ const cancelOrderItem = async (req, res) => {
             }
         }
 
-
+        // If all items are cancelled, mark the order as Cancelled
         if (order.orderedItems.length === 0) {
             order.status = 'Cancelled';
             order.cancelReason = reason || 'All items cancelled';
@@ -635,67 +635,94 @@ const getOrderDetails = async (req, res) => {
         let originalSubtotal = 0;
         let discountedSubtotal = 0;
 
-        const detailedItems = order.orderedItems.map(item => {
-            const product = item.product;
-            const quantity = item.quantity || 1;
-            const regularPrice = product?.regularPrice || item.price || 0;
-            const salesPrice = product?.salesPrice || item.price || 0;
-            const totalRegular = regularPrice * quantity;
-            const totalSales = salesPrice * quantity;
-            const itemDiscount = totalRegular - totalSales;
+        // Combine orderedItems and cancelledItems
+        const detailedItems = [
+            ...order.orderedItems.map(item => {
+                const product = item.product;
+                const quantity = item.quantity || 1;
+                const regularPrice = product?.regularPrice || item.price || 0;
+                const salesPrice = product?.salesPrice || item.price || 0;
+                const totalRegular = regularPrice * quantity;
+                const totalSales = salesPrice * quantity;
+                const itemDiscount = totalRegular - totalSales;
 
-            originalSubtotal += totalRegular;
-            discountedSubtotal += totalSales;
+                originalSubtotal += totalRegular;
+                discountedSubtotal += totalSales;
 
-            return {
-                product: product || { productName: 'Unknown Product', productImage: [] },
-                quantity,
-                regularPrice,
-                salesPrice,
-                totalRegular,
-                totalSales,
-                itemDiscount,
-                offerType: product?.offerType || 'N/A',
-                totalOfferPercent: product?.totalOffer || 0
-            };
-        });
+                return {
+                    product: product || { productName: 'Unknown Product', productImage: [] },
+                    quantity,
+                    regularPrice,
+                    salesPrice,
+                    totalRegular,
+                    totalSales,
+                    itemDiscount,
+                    offerType: product?.offerType || 'N/A',
+                    totalOfferPercent: product?.totalOffer || 0,
+                    isCancelled: false
+                };
+            }),
+            ...order.cancelledItems.map(item => {
+                const product = item.product;
+                const quantity = item.quantity || 1;
+                const regularPrice = product?.regularPrice || item.price || 0;
+                const salesPrice = product?.salesPrice || item.price || 0;
+                const totalRegular = regularPrice * quantity;
+                const totalSales = salesPrice * quantity;
+                const itemDiscount = totalRegular - totalSales;
+
+                originalSubtotal += totalRegular;
+                discountedSubtotal += totalSales;
+
+                return {
+                    product: product || { productName: 'Unknown Product', productImage: [] },
+                    quantity,
+                    regularPrice,
+                    salesPrice,
+                    totalRegular,
+                    totalSales,
+                    itemDiscount,
+                    offerType: product?.offerType || 'N/A',
+                    totalOfferPercent: product?.totalOffer || 0,
+                    isCancelled: true,
+                    cancelReason: item.cancelReason || 'No reason provided',
+                    cancelledAt: item.cancelledAt
+                };
+            })
+        ];
 
         const couponDiscount = order.discount || 0;
         const shipping = order.shipping || 0;
         const grandTotal = discountedSubtotal - couponDiscount + shipping;
 
-  let selectedAddress = null;
+        let selectedAddress = null;
 
-if (order.address) {
-    const addressDoc = await Address.findOne({ userId: userId }).lean();
-
-    if (addressDoc && Array.isArray(addressDoc.address)) {
-        selectedAddress = addressDoc.address.find(a => a._id.toString() === order.address.toString());
-        if (!selectedAddress) {
-            console.warn(`No matching address found in user's address list for ID: ${order.address}`);
-        } else {
-            console.log("Selected shipping address:", selectedAddress);
+        if (order.address) {
+            const addressDoc = await Address.findOne({ userId }).lean();
+            if (addressDoc && Array.isArray(addressDoc.address)) {
+                selectedAddress = addressDoc.address.find(a => a._id.toString() === order.address.toString());
+                if (!selectedAddress) {
+                    console.warn(`No matching address found in user's address list for ID: ${order.address}`);
+                } else {
+                    console.log("Selected shipping address:", selectedAddress);
+                }
+            } else {
+                console.warn("Address document found but no address array inside.");
+            }
         }
-    } else {
-        console.warn("Address document found but no address array inside.");
-    }
-} else {
-    console.warn("Order has no address ObjectId.");
-}
 
-// Fallback if not found
-if (!selectedAddress) {
-    selectedAddress = {
-        name: 'N/A',
-        city: 'N/A',
-        landMark: 'N/A',
-        state: 'N/A',
-        pincode: 'N/A',
-        phone: 'N/A',
-        altPhone: 'N/A',
-        addressType: 'N/A'
-    };
-}
+        if (!selectedAddress) {
+            selectedAddress = {
+                name: 'N/A',
+                city: 'N/A',
+                landMark: 'N/A',
+                state: 'N/A',
+                pincode: 'N/A',
+                phone: 'N/A',
+                altPhone: 'N/A',
+                addressType: 'N/A'
+            };
+        }
 
         return res.render("user/orderDetails", {
             order: {
@@ -710,13 +737,11 @@ if (!selectedAddress) {
             grandTotal,
             user: req.user
         });
-
     } catch (error) {
         console.error("Error loading order details:", error);
         return res.status(500).send("Internal Server Error");
     }
 };
-
 
 
 const renderCheckout = async (req, res) => {
