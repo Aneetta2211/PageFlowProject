@@ -621,6 +621,59 @@ const downloadInvoice = async (req, res) => {
 };
 
 
+const getOrderDetails = async (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const orderId = req.params.orderId;
+
+    const order = await Order.findOne({ orderId })
+      .populate('user')
+      .populate('orderedItems.productId')
+      .populate('cancelledItems.productId');
+
+    if (!order) {
+      return res.status(404).render('user/404', { message: 'Order not found' });
+    }
+
+    let address = null;
+
+    if (order.address && order.address._id) {
+      // Check embedded or referenced address
+      address = order.address;
+    } else if (order.address && typeof order.address === 'string') {
+      // Referenced address stored as ID
+      address = await Address.findById(order.address);
+    }
+
+    // Calculate totals
+    let subtotal = 0;
+    let cancelledTotal = 0;
+
+    order.orderedItems.forEach(item => {
+      subtotal += item.price * item.quantity;
+    });
+
+    order.cancelledItems.forEach(item => {
+      cancelledTotal += item.price * item.quantity;
+    });
+
+    const finalSubtotal = subtotal - cancelledTotal;
+
+    res.render('user/orderDetails', {
+      order,
+      address,
+      subtotal,
+      cancelledTotal,
+      finalSubtotal,
+      user: req.session.user
+    });
+
+  } catch (error) {
+    console.error('Error in getOrderDetails:', error);
+    res.status(500).render('user/500', { message: 'Internal Server Error' });
+  }
+};
+
 
 const renderCheckout = async (req, res) => {
     try {
