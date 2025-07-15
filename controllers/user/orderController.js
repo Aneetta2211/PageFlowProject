@@ -604,7 +604,7 @@ const downloadInvoice = async (req, res) => {
 };
 const getOrderDetails = async (req, res) => {
     try {
-        const orderID = req.params.orderID; // Changed from orderId to orderID
+        const orderID = req.params.orderID;
         const userId = req.user?._id || req.session.user?._id;
 
         console.log("Fetching order details for:", orderID, "by user:", userId);
@@ -641,9 +641,27 @@ const getOrderDetails = async (req, res) => {
 
         const detailedItems = order.orderedItems.map(item => {
             const product = item.product;
-            const quantity = item.quantity;
-            const regularPrice = product?.regularPrice || item.price;
-            const salesPrice = product?.salesPrice || item.price;
+            const quantity = item.quantity || 1; // Fallback to 1 if quantity is missing
+            let regularPrice = 0;
+            let salesPrice = 0;
+
+            if (!product) {
+                console.warn(`Product missing for order item in order ${orderID}:`, item);
+            }
+
+            // Set regularPrice and salesPrice with fallbacks
+            regularPrice = product?.regularPrice || item.price || 0;
+            salesPrice = product?.salesPrice || item.price || 0;
+
+            if (regularPrice === 0 || salesPrice === 0) {
+                console.warn(`Price data missing for order item in order ${orderID}:`, {
+                    itemId: item._id,
+                    productId: product?._id,
+                    itemPrice: item.price,
+                    regularPrice,
+                    salesPrice
+                });
+            }
 
             const totalRegular = regularPrice * quantity;
             const totalSales = salesPrice * quantity;
@@ -653,15 +671,15 @@ const getOrderDetails = async (req, res) => {
             discountedSubtotal += totalSales;
 
             return {
-                product,
+                product: product || { productName: 'Unknown Product', images: [] }, // Fallback product
                 quantity,
                 regularPrice,
                 salesPrice,
                 totalRegular,
                 totalSales,
                 itemDiscount,
-                offerType: product?.offerType,
-                totalOfferPercent: product?.totalOffer
+                offerType: product?.offerType || 'N/A',
+                totalOfferPercent: product?.totalOffer || 0
             };
         });
 
@@ -688,9 +706,6 @@ const getOrderDetails = async (req, res) => {
         });
     }
 };
-
-
-
 
 
 const renderCheckout = async (req, res) => {
