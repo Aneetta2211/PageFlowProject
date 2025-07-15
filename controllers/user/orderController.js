@@ -635,10 +635,19 @@ const getOrderDetails = async (req, res) => {
             });
         }
 
-        // Extract the specific address from the Address document
+        // Extract the specific address with enhanced logging and fallback
         let selectedAddress = null;
         if (order.address && order.address.address) {
-            selectedAddress = order.address.address.find(addr => addr._id.toString() === order.address._id.toString()) || order.address.address[0];
+            console.log('Address array:', order.address.address);
+            selectedAddress = order.address.address.find(addr => addr._id.toString() === order.address._id.toString());
+            if (!selectedAddress && order.address.address.length > 0) {
+                console.warn(`No matching address found for order ${orderID}, using first address as fallback`);
+                selectedAddress = order.address.address[0];
+            }
+        } else if (order.address) {
+            console.warn(`Address document found but no address array for order ${orderID}`);
+        } else {
+            console.warn(`No address document found for order ${orderID}`);
         }
 
         // Pricing breakdown
@@ -676,7 +685,7 @@ const getOrderDetails = async (req, res) => {
             discountedSubtotal += totalSales;
 
             return {
-                product: product || { productName: 'Unknown Product', images: [] },
+                product: product || { productName: 'Unknown Product', productImage: [] },
                 quantity,
                 regularPrice,
                 salesPrice,
@@ -714,7 +723,6 @@ const getOrderDetails = async (req, res) => {
         });
     }
 };
-
 const renderCheckout = async (req, res) => {
     try {
         const userId = req.session.user?.id;
