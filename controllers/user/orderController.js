@@ -476,274 +476,185 @@ const downloadInvoice = async (req, res) => {
         const { orderID } = req.params;
         const user = req.user;
 
-        // Validate order ID format
-        const orderIdRegex = /^OR-\d{4}$/;
-        if (!orderIdRegex.test(orderID)) {
-            console.warn('Invalid orderID format:', orderID);
-            return res.status(400).json({
-                success: false,
-                error: 'Invalid order ID format'
-            });
-        }
-
         const order = await Order.findOne({ orderId: orderID, user: user._id })
             .populate({
-                path: 'orderedItems.product',
-                select: 'productName regularPrice salesPrice'
+                path: "orderedItems.product",
+                select: "productName regularPrice salesPrice offerType totalOffer"
             })
             .populate({
-                path: 'cancelledItems.product',
-                select: 'productName regularPrice salesPrice'
+                path: "cancelledItems.product",
+                select: "productName regularPrice salesPrice"
             })
             .populate({
-                path: 'address',
-                select: 'address',
-                populate: {
-                    path: 'address',
-                    match: { _id: { $eq: '$address' } }
-                }
+                path: "address"
             });
 
         if (!order) {
-            return res.status(404).send('Order not found');
+            return res.status(404).send("Order not found");
         }
 
         const doc = new PDFDocument({ margin: 50 });
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename=invoice_${order.orderId}.pdf`);
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `attachment; filename=invoice_${order.orderId}.pdf`);
         doc.pipe(res);
 
-
-        doc.fontSize(24).fillColor('#2c3e50').text('INVOICE', { align: 'center' });
-        doc.moveDown(0.5);
-
-
-        doc.fontSize(12).fillColor('#7f8c8d')
-            .text('PAGEFLOW', { align: 'center' })
-            .text('123 Book Street, Literature City, LC 12345', { align: 'center' })
-            .text('Phone: +1 (123) 456-7890| Email: pageflow@gmail.com', { align: 'center' });
-
+        // Header
+        doc.fontSize(24).text("INVOICE", { align: "center" });
+        doc.fontSize(12).text("PAGEFLOW", { align: "center" });
+        doc.text("123 Book Street, Literature City, LC 12345", { align: "center" });
+        doc.text("Phone: +91 9876543210 | Email: support@pageflow.com", { align: "center" });
         doc.moveDown(1);
 
+        // Invoice Details
+        doc.text(`Invoice Number: ${order.orderId}`);
+        doc.text(`Order Date: ${order.createdOn.toLocaleDateString("en-IN")}`);
+        doc.text(`Status: ${order.status}`);
+        doc.text(`Payment Method: ${order.paymentMethod}`);
+        doc.moveDown(1);
 
-        doc.strokeColor('#bdc3c7').lineWidth(1)
-            .moveTo(50, doc.y).lineTo(550, doc.y).stroke();
-        doc.moveDown(0.5);
-
-
-        const leftColumn = 50;
-        const rightColumn = 350;
-
-        doc.fontSize(14).fillColor('#2c3e50').text('Invoice Details:', leftColumn, doc.y);
-        doc.fontSize(11).fillColor('#34495e')
-            .text(`Invoice Number: ${order.orderId}`, leftColumn, doc.y + 20)
-            .text(`Order Date: ${order.createdOn.toLocaleDateString('en-IN')}`, leftColumn, doc.y + 15)
-            .text(`Status: ${order.status}`, leftColumn, doc.y + 15)
-            .text(`Payment Method: ${order.paymentMethod || 'Not specified'}`, leftColumn, doc.y + 15);
-
-
-        const address = order.address && order.address.address && order.address.address.length > 0
-            ? order.address.address[0]
-            : null;
-
-        if (address) {
-            doc.fontSize(14).fillColor('#2c3e50').text('Billing Address:', rightColumn, doc.y - 80);
-            doc.fontSize(11).fillColor('#34495e')
-                .text(address.name || 'N/A', rightColumn, doc.y + 20)
-                .text(address.landMark || 'N/A', rightColumn, doc.y + 15)
-                .text(`${address.city || 'N/A'}, ${address.state || 'N/A'} ${address.pincode || 'N/A'}`, rightColumn, doc.y + 15)
-                .text(`Phone: ${address.phone || 'N/A'}`, rightColumn, doc.y + 15);
-            if (address.altPhone) {
-                doc.text(`Alt Phone: ${address.altPhone}`, rightColumn, doc.y + 15);
+        // Address
+        if (order.address && order.address.address && order.address.address.length > 0) {
+            const billing = order.address.address.find(addr => addr.isDefault) || order.address.address[0];
+            doc.fontSize(14).text("Billing Address:");
+            doc.fontSize(10).text(`${billing.name}`);
+            doc.text(`${billing.landMark}`);
+            doc.text(`${billing.city}, ${billing.state} - ${billing.pincode}`);
+            doc.text(`Phone: ${billing.phone}`);
+            if (billing.altPhone) {
+                doc.text(`Alt Phone: ${billing.altPhone}`);
             }
-        }
-
-        doc.moveDown(2);
-
-
-        doc.fontSize(14).fillColor('#2c3e50').text('Order Items:', leftColumn, doc.y);
-        doc.moveDown(0.5);
-
-
-        const tableTop = doc.y;
-        const itemHeight = 25;
-
-
-        const columns = {
-            item: { x: leftColumn, width: 250 },
-            qty: { x: leftColumn + 250, width: 60 },
-            price: { x: leftColumn + 310, width: 80 },
-            discount: { x: leftColumn + 390, width: 80 },
-            total: { x: leftColumn + 470, width: 80 }
-        };
-
-
-        doc.rect(leftColumn, tableTop, 500, itemHeight).fillAndStroke('#ecf0f1', '#bdc3c7');
-
-        doc.fontSize(10).fillColor('#2c3e50')
-            .text('Item', columns.item.x + 5, tableTop + 8)
-            .text('Qty', columns.qty.x + 5, tableTop + 8)
-            .text('Price', columns.price.x + 5, tableTop + 8)
-            .text('Discount', columns.discount.x + 5, tableTop + 8)
-            .text('Total', columns.total.x + 5, tableTop + 8);
-
-        let currentY = tableTop + itemHeight;
-
-
-        if (order.orderedItems && order.orderedItems.length > 0) {
-            order.orderedItems.forEach((item, index) => {
-                const isEven = index % 2 === 0;
-                const rowColor = isEven ? '#ffffff' : '#f8f9fa';
-
-
-                doc.rect(leftColumn, currentY, 500, itemHeight).fillAndStroke(rowColor, '#ecf0f1');
-
-                const itemTotal = item.quantity * item.price;
-                const discountAmount = item.discountApplied || 0;
-                const finalTotal = itemTotal - discountAmount;
-
-                doc.fontSize(9).fillColor('#2c3e50')
-                    .text(item.product.productName || 'N/A', columns.item.x + 5, currentY + 8, { width: columns.item.width - 10 })
-                    .text(item.quantity.toString(), columns.qty.x + 5, currentY + 8)
-                    .text(`₹${item.price.toFixed(2)}`, columns.price.x + 5, currentY + 8)
-                    .text(`₹${discountAmount.toFixed(2)}`, columns.discount.x + 5, currentY + 8)
-                    .text(`₹${finalTotal.toFixed(2)}`, columns.total.x + 5, currentY + 8);
-
-                currentY += itemHeight;
-            });
-        }
-
-
-        if (order.cancelledItems && order.cancelledItems.length > 0) {
             doc.moveDown(1);
-            doc.fontSize(12).fillColor('#e74c3c').text('Cancelled Items:', leftColumn, currentY + 10);
-            currentY += 35;
+        }
 
+        // Table Headers
+        doc.fontSize(12).text("Order Items:");
+        doc.moveDown(0.5);
+        doc.fontSize(10).text("Item", 50).text("Qty", 250).text("Price", 300).text("Discount", 370).text("Total", 450);
 
-            doc.rect(leftColumn, currentY, 500, itemHeight).fillAndStroke('#ffebee', '#ef5350');
+        doc.moveDown(0.3);
 
-            doc.fontSize(10).fillColor('#c62828')
-                .text('Item', columns.item.x + 5, currentY + 8)
-                .text('Qty', columns.qty.x + 5, currentY + 8)
-                .text('Price', columns.price.x + 5, currentY + 8)
-                .text('Reason', columns.discount.x + 5, currentY + 8, { width: 160 });
+        let originalSubtotal = 0;
+        let discountedSubtotal = 0;
 
-            currentY += itemHeight;
+        order.orderedItems.forEach(item => {
+            const product = item.product;
+            const quantity = item.quantity;
+            const regular = product.regularPrice;
+            const sales = product.salesPrice;
+            const itemTotal = regular * quantity;
+            const discountedTotal = sales * quantity;
+            const discountAmount = itemTotal - discountedTotal;
 
-            order.cancelledItems.forEach((item, index) => {
-                const isEven = index % 2 === 0;
-                const rowColor = isEven ? '#fff5f5' : '#ffebee';
+            originalSubtotal += itemTotal;
+            discountedSubtotal += discountedTotal;
 
-                doc.rect(leftColumn, currentY, 500, itemHeight).fillAndStroke(rowColor, '#ffcdd2');
+            doc.fontSize(9)
+                .text(product.productName, 50)
+                .text(quantity.toString(), 250)
+                .text(`₹${regular}`, 300)
+                .text(`₹${discountAmount.toFixed(2)}`, 370)
+                .text(`₹${discountedTotal.toFixed(2)}`, 450);
 
-                doc.fontSize(9).fillColor('#c62828')
-                    .text(item.product.productName || 'N/A', columns.item.x + 5, currentY + 8, { width: columns.item.width - 10 })
-                    .text(item.quantity.toString(), columns.qty.x + 5, currentY + 8)
-                    .text(`₹${item.price.toFixed(2)}`, columns.price.x + 5, currentY + 8)
-                    .text(item.cancelReason || 'No reason', columns.discount.x + 5, currentY + 8, { width: 160 });
+            if (product.offerType && product.totalOffer) {
+                doc.fontSize(8).fillColor("gray").text(`Offer: ${product.offerType} (${product.totalOffer}%)`, 60);
+                doc.fillColor("black");
+            }
 
-                currentY += itemHeight;
+            doc.moveDown(0.5);
+        });
+
+        // Cancelled Items
+        if (order.cancelledItems && order.cancelledItems.length > 0) {
+            doc.moveDown(1).fontSize(12).fillColor("red").text("Cancelled Items:");
+            doc.fillColor("black").fontSize(10);
+            order.cancelledItems.forEach(item => {
+                doc.text(item.product.productName, 50)
+                    .text(item.quantity.toString(), 250)
+                    .text(`₹${item.price}`, 300)
+                    .text(`Reason: ${item.cancelReason || 'N/A'}`, 370);
+                doc.moveDown(0.5);
             });
         }
 
-
-        doc.moveDown(2);
-
-
-        const totalsStartY = Math.max(currentY + 20, doc.y);
-        const totalsX = 350;
-
-
-        doc.rect(totalsX, totalsStartY, 200, 120).fillAndStroke('#f8f9fa', '#dee2e6');
-
-        doc.fontSize(12).fillColor('#2c3e50')
-            .text('Order Summary', totalsX + 10, totalsStartY + 10);
-
-        doc.fontSize(10).fillColor('#495057')
-            .text(`Subtotal: ₹${order.totalPrice.toFixed(2)}`, totalsX + 10, totalsStartY + 35)
-            .text(`Shipping: ₹${order.shipping ? order.shipping.toFixed(2) : '0.00'}`, totalsX + 10, totalsStartY + 50)
-            .text(`Discount: ₹${order.discount.toFixed(2)}`, totalsX + 10, totalsStartY + 65);
-
-
-        doc.fontSize(12).fillColor('#2c3e50')
-            .text(`Total: ₹${order.finalAmount.toFixed(2)}`, totalsX + 10, totalsStartY + 85);
-
-
-        doc.fontSize(8).fillColor('#7f8c8d')
-            .text('Thank you for your business!', 50, doc.page.height - 100, { align: 'center' })
-            .text('This is a computer generated invoice.', 50, doc.page.height - 85, { align: 'center' });
+        // Summary
+        doc.moveDown(1);
+        doc.fontSize(12).text("Order Summary:");
+        doc.fontSize(10).text(`Original Subtotal: ₹${originalSubtotal.toFixed(2)}`);
+        doc.text(`Discounted Subtotal: ₹${discountedSubtotal.toFixed(2)}`);
+        doc.text(`Coupon Discount: ₹${order.discount.toFixed(2)}`);
+        doc.text(`Shipping: ₹${order.shipping.toFixed(2)}`);
+        doc.fontSize(12).text(`Grand Total: ₹${order.finalAmount.toFixed(2)}`);
 
         doc.end();
+
     } catch (error) {
-        console.error('Error generating invoice:', error);
-        res.status(500).send('Error generating invoice');
+        console.error("Error generating invoice:", error);
+        res.status(500).send("Failed to generate invoice");
     }
 };
 const getOrderDetails = async (req, res) => {
     try {
-        console.log("Fetching order details for order ID:", req.params.orderID);
-        const { orderID } = req.params;
-        const user = req.user;
+        const orderId = req.params.orderId;
+        const userId = req.session.user?._id;
 
-        const order = await Order.findOne({ orderId: orderID, user: user._id })
-            .populate({
-                path: 'orderedItems.product',
-                select: 'productName sku productImage regularPrice salesPrice',
-                match: { isBlocked: { $ne: true } }
-            })
-            .populate({
-                path: 'cancelledItems.product',
-                select: 'productName sku productImage regularPrice salesPrice',
-                match: { isBlocked: { $ne: true } }
-            });
+        const order = await Order.findOne({ _id: orderId, user: userId })
+            .populate('orderedItems.product')
+            .populate('cancelledItems.product')
+            .populate('address');
 
         if (!order) {
-            console.log("Order not found for ID:", orderID);
-            return res.status(404).render('error', { message: 'Order not found' });
+            return res.status(404).render("user/errorPage", { message: "Order not found" });
         }
 
+        // Calculate detailed pricing breakdown
+        let originalSubtotal = 0;
+        let discountedSubtotal = 0;
 
-        console.log('Ordered Items:', order.orderedItems.map(item => ({
-            productId: item.product?._id,
-            productName: item.product?.productName || 'Not populated',
-            productImage: item.product?.productImage || 'Not populated'
-        })));
+        const detailedItems = order.orderedItems.map(item => {
+            const product = item.product;
+            const quantity = item.quantity;
+            const regularPrice = product.regularPrice;
+            const salesPrice = product.salesPrice;
 
-        console.log('Cancelled Items:', order.cancelledItems.map(item => ({
-            productId: item.product?._id,
-            productName: item.product?.productName || 'Not populated',
-            productImage: item.product?.productImage || 'Not populated',
-            cancelReason: item.cancelReason
-        })));
+            const totalRegular = regularPrice * quantity;
+            const totalSales = salesPrice * quantity;
+            const itemDiscount = totalRegular - totalSales;
 
-        let address = null;
-        if (order.address) {
-            const addressDoc = await Address.findOne({
-                userId: user._id,
-                'address._id': order.address
-            });
-            if (addressDoc) {
-                address = addressDoc.address.find(addr => addr._id.equals(order.address));
-            }
-        }
+            originalSubtotal += totalRegular;
+            discountedSubtotal += totalSales;
 
-        console.log('Fetched Address:', address);
-
-        res.render('user/orderDetails', {
-            order: {
-                ...order.toObject(),
-                address,
-                cancelledItems: order.cancelledItems
-            },
-            user: req.user,
-            currentPage: 'orders'
+            return {
+                product,
+                quantity,
+                regularPrice,
+                salesPrice,
+                totalRegular,
+                totalSales,
+                itemDiscount,
+                offerType: product.offerType,
+                totalOfferPercent: product.totalOffer
+            };
         });
+
+        const couponDiscount = order.discount || 0;
+        const shipping = order.shipping || 0;
+        const grandTotal = discountedSubtotal - couponDiscount + shipping;
+
+        res.render("user/orderDetails", {
+            order,
+            detailedItems,
+            originalSubtotal,
+            discountedSubtotal,
+            couponDiscount,
+            shipping,
+            grandTotal
+        });
+
     } catch (error) {
-        console.error('Error fetching order details:', error);
-        res.status(500).render('error', { message: 'Failed to load order details' });
+        console.error("Error loading order details:", error);
+        res.status(500).render("user/errorPage", { message: "Server error while loading order details" });
     }
 };
-
 
 
 
