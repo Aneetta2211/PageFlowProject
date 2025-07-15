@@ -493,30 +493,25 @@ const downloadInvoice = async (req, res) => {
             })
             .populate("address");
 
-        if (!order) {
-            return res.status(404).send("Order not found");
-        }
+        if (!order) return res.status(404).send("Order not found");
 
         const doc = new PDFDocument({ margin: 50 });
         res.setHeader("Content-Type", "application/pdf");
         res.setHeader("Content-Disposition", `attachment; filename=invoice_${order.orderId}.pdf`);
         doc.pipe(res);
 
-        function writeRow(doc, columns, y, strikethrough = false) {
-            const colWidths = [180, 40, 70, 80, 80];
+        const tableTop = doc.y + 20;
+        const rowHeight = 20;
+        const colWidths = [180, 40, 70, 80, 80];
+
+        function drawRow(y, columns, bold = false, strikethrough = false) {
             let x = 50;
+            doc.font(bold ? "Helvetica-Bold" : "Helvetica").fontSize(9);
             columns.forEach((col, i) => {
+                doc.text(col, x + 2, y + 5, { width: colWidths[i] - 4 });
                 if (strikethrough) {
-                    doc.save()
-                        .moveTo(x, y + 7)
-                        .lineTo(x + colWidths[i] - 5, y + 7)
-                        .stroke()
-                        .restore();
+                    doc.moveTo(x, y + 12).lineTo(x + colWidths[i], y + 12).stroke();
                 }
-                doc.text(col, x, y, {
-                    width: colWidths[i],
-                    align: 'left'
-                });
                 x += colWidths[i];
             });
         }
@@ -536,7 +531,7 @@ const downloadInvoice = async (req, res) => {
         doc.moveDown(1);
 
         // Billing Address
-        if (order.address && order.address.address && order.address.address.length > 0) {
+        if (order.address?.address?.length > 0) {
             const billing = order.address.address.find(a => a.isDefault) || order.address.address[0];
             doc.fontSize(14).text("Billing Address:");
             doc.fontSize(10).text(`${billing.name}`);
@@ -547,13 +542,12 @@ const downloadInvoice = async (req, res) => {
             doc.moveDown(1);
         }
 
-        // Items table
+        // Items table header
         doc.fontSize(12).text("Order Items:");
-        doc.moveDown(0.3);
-        doc.fontSize(10).font("Helvetica-Bold");
-        writeRow(doc, ["Item", "Qty", "Price", "Discount", "Total"], doc.y + 5);
+        doc.moveDown(0.5);
+        doc.rect(50, doc.y, 450, rowHeight).fill('#eeeeee').stroke();
+        drawRow(doc.y, ["Item", "Qty", "Price", "Discount", "Total"], true);
         doc.moveDown(1);
-        doc.font("Helvetica").fontSize(9);
 
         let originalSubtotal = 0;
         let discountedSubtotal = 0;
@@ -573,21 +567,23 @@ const downloadInvoice = async (req, res) => {
             const cancelledItem = order.cancelledItems.find(c => c.product.equals(item.product._id));
             const isCancelled = !!cancelledItem;
 
-            writeRow(doc, [
+            drawRow(doc.y, [
                 product.productName,
                 quantity.toString(),
-                '₹' + regular,
+                '₹' + regular.toFixed(2),
                 '₹' + discount.toFixed(2),
                 '₹' + discountedTotal.toFixed(2)
-            ], doc.y, isCancelled);
+            ], false, isCancelled);
+
+            doc.moveDown(1);
 
             if (product.offerType && product.totalOffer) {
-                doc.fontSize(8).fillColor("gray").text(`Offer: ${product.offerType} (${product.totalOffer}%)`, 60, doc.y + 12);
+                doc.fontSize(8).fillColor("gray").text(`Offer: ${product.offerType} (${product.totalOffer}%)`, 55, doc.y);
                 doc.fillColor("black");
             }
 
             if (isCancelled) {
-                doc.fontSize(8).fillColor("red").text(`Cancelled: ${cancelledItem.cancelReason || "N/A"}`, 60, doc.y + 24);
+                doc.fontSize(8).fillColor("red").text(`Cancelled: ${cancelledItem.cancelReason || "N/A"}`, 55, doc.y + 10);
                 doc.fillColor("black");
             }
 
@@ -614,7 +610,6 @@ const downloadInvoice = async (req, res) => {
         res.status(500).send("Failed to generate invoice");
     }
 };
-
 
 
 const getOrderDetails = async (req, res) => {
