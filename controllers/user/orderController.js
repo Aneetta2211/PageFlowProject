@@ -495,85 +495,98 @@ const downloadInvoice = async (req, res) => {
                 path: "cancelledItems.product",
                 select: "productName regularPrice salesPrice"
             })
-            .populate({
-                path: "address"
-            });
+            .populate("address");
 
         if (!order) {
             return res.status(404).send("Order not found");
         }
 
+      
         const doc = new PDFDocument({ margin: 50 });
         res.setHeader("Content-Type", "application/pdf");
         res.setHeader("Content-Disposition", `attachment; filename=invoice_${order.orderId}.pdf`);
         doc.pipe(res);
 
-        // Header
+       
+        function writeRow(doc, columns, y) {
+            const colWidths = [180, 40, 70, 80, 80];
+            let x = 50;
+            columns.forEach((col, i) => {
+                doc.text(col, x, y, {
+                    width: colWidths[i],
+                    align: 'left'
+                });
+                x += colWidths[i];
+            });
+        }
+
+        
         doc.fontSize(24).text("INVOICE", { align: "center" });
         doc.fontSize(12).text("PAGEFLOW", { align: "center" });
         doc.text("123 Book Street, Literature City, LC 12345", { align: "center" });
         doc.text("Phone: +91 9876543210 | Email: support@pageflow.com", { align: "center" });
         doc.moveDown(1);
 
-        // Invoice Details
-        doc.text(`Invoice Number: ${order.orderId}`);
+      
+        doc.fontSize(10).text(`Invoice Number: ${order.orderId}`);
         doc.text(`Order Date: ${order.createdOn.toLocaleDateString("en-IN")}`);
         doc.text(`Status: ${order.status}`);
         doc.text(`Payment Method: ${order.paymentMethod}`);
         doc.moveDown(1);
 
-        // Address
+        
         if (order.address && order.address.address && order.address.address.length > 0) {
-            const billing = order.address.address.find(addr => addr.isDefault) || order.address.address[0];
+            const billing = order.address.address.find(a => a.isDefault) || order.address.address[0];
             doc.fontSize(14).text("Billing Address:");
             doc.fontSize(10).text(`${billing.name}`);
             doc.text(`${billing.landMark}`);
             doc.text(`${billing.city}, ${billing.state} - ${billing.pincode}`);
             doc.text(`Phone: ${billing.phone}`);
-            if (billing.altPhone) {
-                doc.text(`Alt Phone: ${billing.altPhone}`);
-            }
+            if (billing.altPhone) doc.text(`Alt Phone: ${billing.altPhone}`);
             doc.moveDown(1);
         }
 
-        // Table Headers
+        
         doc.fontSize(12).text("Order Items:");
-        doc.moveDown(0.5);
-        doc.fontSize(10).text("Item", 50).text("Qty", 250).text("Price", 300).text("Discount", 370).text("Total", 450);
-
         doc.moveDown(0.3);
+        doc.fontSize(10).font("Helvetica-Bold");
+        writeRow(doc, ["Item", "Qty", "Price", "Discount", "Total"], doc.y + 5);
+        doc.moveDown(1);
 
+        
         let originalSubtotal = 0;
         let discountedSubtotal = 0;
 
+        doc.font("Helvetica").fontSize(9);
         order.orderedItems.forEach(item => {
             const product = item.product;
             const quantity = item.quantity;
             const regular = product.regularPrice;
             const sales = product.salesPrice;
-            const itemTotal = regular * quantity;
+            const total = regular * quantity;
             const discountedTotal = sales * quantity;
-            const discountAmount = itemTotal - discountedTotal;
+            const discount = total - discountedTotal;
 
-            originalSubtotal += itemTotal;
+            originalSubtotal += total;
             discountedSubtotal += discountedTotal;
 
-            doc.fontSize(9)
-                .text(product.productName, 50)
-                .text(quantity.toString(), 250)
-                .text(`₹${regular}`, 300)
-                .text(`₹${discountAmount.toFixed(2)}`, 370)
-                .text(`₹${discountedTotal.toFixed(2)}`, 450);
+            writeRow(doc, [
+                product.productName,
+                quantity.toString(),
+                `₹${regular}`,
+                `₹${discount.toFixed(2)}`,
+                `₹${discountedTotal.toFixed(2)}`
+            ], doc.y);
 
             if (product.offerType && product.totalOffer) {
-                doc.fontSize(8).fillColor("gray").text(`Offer: ${product.offerType} (${product.totalOffer}%)`, 60);
-                doc.fillColor("black");
+                doc.fontSize(8).fillColor("gray").text(`Offer: ${product.offerType} (${product.totalOffer}%)`, 60, doc.y + 12);
+                doc.fillColor("black").moveDown(1);
+            } else {
+                doc.moveDown(1);
             }
-
-            doc.moveDown(0.5);
         });
 
-        // Cancelled Items
+       
         if (order.cancelledItems && order.cancelledItems.length > 0) {
             doc.moveDown(1).fontSize(12).fillColor("red").text("Cancelled Items:");
             doc.fillColor("black").fontSize(10);
@@ -586,15 +599,21 @@ const downloadInvoice = async (req, res) => {
             });
         }
 
-        // Summary
-        doc.moveDown(1);
-        doc.fontSize(12).text("Order Summary:");
-        doc.fontSize(10).text(`Original Subtotal: ₹${originalSubtotal.toFixed(2)}`);
-        doc.text(`Discounted Subtotal: ₹${discountedSubtotal.toFixed(2)}`);
-        doc.text(`Coupon Discount: ₹${order.discount.toFixed(2)}`);
-        doc.text(`Shipping: ₹${order.shipping.toFixed(2)}`);
-        doc.fontSize(12).text(`Grand Total: ₹${order.finalAmount.toFixed(2)}`);
+        
+        const coupon = order.discount || 0;
+        const shipping = order.shipping || 0;
+        const grand = discountedSubtotal - coupon + shipping;
 
+        doc.moveDown(1);
+        doc.fontSize(12).text("Payment Summary:");
+        doc.fontSize(10);
+        doc.text(`Original Subtotal: ₹${originalSubtotal.toFixed(2)}`);
+        doc.text(`Discounted Subtotal: ₹${discountedSubtotal.toFixed(2)}`);
+        doc.text(`Coupon Discount: ₹${coupon.toFixed(2)}`);
+        doc.text(`Shipping: ₹${shipping.toFixed(2)}`);
+        doc.fontSize(12).text(`Grand Total: ₹${grand.toFixed(2)}`);
+
+        
         doc.end();
 
     } catch (error) {
@@ -602,6 +621,7 @@ const downloadInvoice = async (req, res) => {
         res.status(500).send("Failed to generate invoice");
     }
 };
+
 const getOrderDetails = async (req, res) => {
     try {
         const orderID = req.params.orderID;
@@ -668,7 +688,7 @@ if (order.address) {
     console.warn("Order has no address ObjectId.");
 }
 
-// Fallback if not found
+
 if (!selectedAddress) {
     selectedAddress = {
         name: 'N/A',
