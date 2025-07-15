@@ -165,66 +165,74 @@
 
                 <div id="orderList" class="space-y-6">
                     <% orders.forEach(order => { %>
-                        <div class="bg-white p-6 rounded-lg shadow-md order-card" data-order-id="<%= order.orderId %>">
-                            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                                <div class="space-y-2">
-                                    <h2 class="text-xl font-semibold"><%= order.orderId %></h2>
-                                    <p class="text-gray-600">
-                                        <i class="far fa-calendar-alt mr-1"></i>
-                                        <%= new Date(order.createdOn).toLocaleDateString('en-US', { 
-                                            year: 'numeric', 
-                                            month: 'long', 
-                                            day: 'numeric' 
-                                        }) %>
-                                    </p>
-                                    <p class="text-gray-600">
-                                        Status: 
-                                        <span class="font-medium status-<%= order.status.toLowerCase().replace(' ', '-') %>">
-                                            <%= order.status %>
-                                            <% if (order.returnRequested && order.returnStatus === 'Approved') { %>
-                                                (Return Accepted)
-                                            <% } else if (order.returnRequested && order.returnStatus === 'Denied') { %>
-                                                (Return Denied)
-                                            <% } else if (order.returnRequested && order.returnStatus === 'Pending') { %>
-                                                (Return Pending)
-                                            <% } %>
-                                        </span>
-                                    </p>
-                                    <p class="text-gray-600">
-                                        <i class="fas fa-receipt mr-1"></i>
-                                        Total: ₹<%= order.finalAmount.toFixed(2) %>
-                                    </p>
-                                </div>
-                                <div class="flex flex-wrap gap-2">
-                                    <a href="/orders/<%= order.orderId %>" 
-                                       class="flex items-center px-3 py-2 bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 transition">
-                                        <i class="fas fa-eye mr-2"></i> Details
-                                    </a>
-                                   <% if (order.status === 'Payment Failed') { %>
-    <button onclick="retryPayment('<%= order.orderId %>', '<%= order.finalAmount %>')" 
-            class="flex items-center px-3 py-2 bg-yellow-100 text-yellow-800 rounded-lg hover:bg-yellow-200 transition">
-        <i class="fas fa-redo-alt mr-2"></i> Retry Payment
-    </button>
-                                    <% } else if (order.status !== 'Cancelled' && order.status !== 'Delivered' && order.status !== 'Returned' && order.status !== 'Return Request') { %>
-                                        <button onclick="openCancelModal('<%= order.orderId %>')" 
-                                                class="flex items-center px-3 py-2 bg-red-100 text-red-800 rounded-lg hover:bg-red-200 transition">
-                                            <i class="fas fa-times-circle mr-2"></i> Cancel
-                                        </button>
-                                    <% } %>
-                                    <% if (order.status === 'Delivered' && !order.returnRequested) { %>
-                                        <button onclick="openReturnModal('<%= order.orderId %>')" 
-                                                class="flex items-center px-3 py-2 bg-orange-100 text-orange-800 rounded-lg hover:bg-orange-200 transition">
-                                            <i class="fas fa-undo-alt mr-2"></i> Return
-                                        </button>
-                                    <% } %>
-                                    <a href="/api/orders/<%= order.orderId %>/invoice" 
-                                       class="flex items-center px-3 py-2 bg-green-100 text-green-800 rounded-lg hover:bg-green-200 transition">
-                                        <i class="fas fa-file-download mr-2"></i> Invoice
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    <% }) %>
+    <div class="bg-white p-6 rounded-lg shadow-md order-card" data-order-id="<%= order.orderId %>">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div class="space-y-2">
+                <h2 class="text-xl font-semibold"><%= order.orderId || 'N/A' %></h2>
+                <p class="text-gray-600">
+                    <i class="far fa-calendar-alt mr-1"></i>
+                    <%= new Date(order.createdOn).toLocaleDateString('en-US', { 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                    }) %>
+                </p>
+                <p class="text-gray-600">
+                    Status: 
+                    <span class="font-medium status-<%= order.status.toLowerCase().replace(' ', '-') %>">
+                        <%= order.status %>
+                        <% if (order.returnRequested && order.returnStatus === 'Approved') { %>
+                            (Return Accepted)
+                        <% } else if (order.returnRequested && order.returnStatus === 'Denied') { %>
+                            (Return Denied)
+                        <% } else if (order.returnRequested && order.returnStatus === 'Pending') { %>
+                            (Return Pending)
+                        <% } %>
+                    </span>
+                </p>
+                <p class="text-gray-600">
+                    <i class="fas fa-receipt mr-1"></i>
+                    Total: ₹<%= order.finalAmount.toFixed(2) %>
+                </p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <% if (order.orderId) { %>
+                    <a href="/orders/<%= order.orderId %>" 
+                       class="flex items-center px-3 py-2 bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 transition">
+                        <i class="fas fa-eye mr-2"></i> Details
+                    </a>
+                <% } else { %>
+                    <span class="flex items-center px-3 py-2 bg-gray-300 text-gray-600 rounded-lg cursor-not-allowed">
+                        <i class="fas fa-eye mr-2"></i> Details Unavailable
+                    </span>
+                <% } %>
+                <% if (order.status === 'Payment Failed') { %>
+                    <button onclick="retryPayment('<%= order.orderId %>', '<%= order.finalAmount %>')" 
+                            class="flex items-center px-3 py-2 bg-yellow-100 text-yellow-800 rounded-lg hover:bg-yellow-200 transition">
+                        <i class="fas fa-redo-alt mr-2"></i> Retry Payment
+                    </button>
+                <% } else if (order.status !== 'Cancelled' && order.status !== 'Delivered' && order.status !== 'Returned' && order.status !== 'Return Request') { %>
+                    <button onclick="openCancelModal('<%= order.orderId %>')" 
+                            class="flex items-center px-3 py-2 bg-red-100 text-red-800 rounded-lg hover:bg-red-200 transition">
+                        <i class="fas fa-times-circle mr-2"></i> Cancel
+                    </button>
+                <% } %>
+                <% if (order.status === 'Delivered' && !order.returnRequested) { %>
+                    <button onclick="openReturnModal('<%= order.orderId %>')" 
+                            class="flex items-center px-3 py-2 bg-orange-100 text-orange-800 rounded-lg hover:bg-orange-200 transition">
+                        <i class="fas fa-undo-alt mr-2"></i> Return
+                    </button>
+                <% } %>
+                <% if (order.orderId) { %>
+                    <a href="/api/orders/<%= order.orderId %>/invoice" 
+                       class="flex items-center px-3 py-2 bg-green-100 text-green-800 rounded-lg hover:bg-green-200 transition">
+                        <i class="fas fa-file-download mr-2"></i> Invoice
+                    </a>
+                <% } %>
+            </div>
+        </div>
+    </div>
+<% }) %>
                 </div>
 
                 <% if (pagination.totalPages > 1) { %>

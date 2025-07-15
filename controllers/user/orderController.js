@@ -46,6 +46,7 @@ const getOrdersPage = async (req, res) => {
     try {
         const user = req.user;
         if (!user) {
+            console.log("No user found, redirecting to login");
             return res.status(401).redirect('/login');
         }
 
@@ -73,11 +74,21 @@ const getOrdersPage = async (req, res) => {
             .limit(limit)
             .lean();
 
+        // Log orders to verify orderId presence
+        console.log("Fetched orders:", orders.map(o => ({
+            orderId: o.orderId,
+            status: o.status,
+            createdOn: o.createdOn
+        })));
+
         const totalPages = Math.ceil(totalOrders / limit);
         const hasPrev = page > 1;
         const hasNext = page < totalPages;
 
         const formattedOrders = orders.map(order => {
+            if (!order.orderId) {
+                console.warn("Order missing orderId:", order);
+            }
             const address = order.address && order.address.address && order.address.address.length > 0
                 ? order.address.address[0]
                 : {
@@ -117,7 +128,6 @@ const getOrdersPage = async (req, res) => {
         });
     }
 };
-
 const cancelOrder = async (req, res) => {
     try {
         const { orderID } = req.params;
@@ -594,23 +604,35 @@ const downloadInvoice = async (req, res) => {
 };
 const getOrderDetails = async (req, res) => {
     try {
-        const orderId = req.params.orderId;
+        const orderID = req.params.orderID; // Changed from orderId to orderID
         const userId = req.user?._id || req.session.user?._id;
 
-        console.log("Fetching order details for:", orderId, "by user:", userId);
+        console.log("Fetching order details for:", orderID, "by user:", userId);
 
         if (!userId) {
-            return res.redirect("/login"); // or handle gracefully
+            console.log("No user ID found, redirecting to login");
+            return res.redirect("/login");
         }
 
-        const order = await Order.findOne({ orderId: orderId, user: userId })
+        if (!orderID) {
+            console.warn("No orderID provided in request parameters");
+            return res.status(400).render("error", {
+                message: "Invalid order ID",
+                error: process.env.NODE_ENV === 'development' ? new Error("Order ID is missing") : null
+            });
+        }
+
+        const order = await Order.findOne({ orderId: orderID, user: userId })
             .populate('orderedItems.product')
             .populate('cancelledItems.product')
             .populate('address');
 
         if (!order) {
-            console.warn("Order not found for:", orderId);
-            return res.status(404).send("Order not found");
+            console.warn("Order not found for:", orderID);
+            return res.status(404).render("error", {
+                message: "Order not found",
+                error: process.env.NODE_ENV === 'development' ? new Error(`Order ${orderID} not found`) : null
+            });
         }
 
         // Pricing breakdown
@@ -620,8 +642,8 @@ const getOrderDetails = async (req, res) => {
         const detailedItems = order.orderedItems.map(item => {
             const product = item.product;
             const quantity = item.quantity;
-            const regularPrice = product.regularPrice;
-            const salesPrice = product.salesPrice;
+            const regularPrice = product?.regularPrice || item.price;
+            const salesPrice = product?.salesPrice || item.price;
 
             const totalRegular = regularPrice * quantity;
             const totalSales = salesPrice * quantity;
@@ -638,8 +660,8 @@ const getOrderDetails = async (req, res) => {
                 totalRegular,
                 totalSales,
                 itemDiscount,
-                offerType: product.offerType,
-                totalOfferPercent: product.totalOffer
+                offerType: product?.offerType,
+                totalOfferPercent: product?.totalOffer
             };
         });
 
@@ -654,12 +676,16 @@ const getOrderDetails = async (req, res) => {
             discountedSubtotal,
             couponDiscount,
             shipping,
-            grandTotal
+            grandTotal,
+            user: req.user
         });
 
     } catch (error) {
         console.error("Error loading order details:", error);
-        return res.status(500).send("Error loading order details");
+        return res.status(500).render("error", {
+            message: "Error loading order details",
+            error: process.env.NODE_ENV === 'development' ? error : null
+        });
     }
 };
 
