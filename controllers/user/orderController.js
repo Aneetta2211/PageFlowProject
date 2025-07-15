@@ -623,9 +623,20 @@ const getOrderDetails = async (req, res) => {
         }
 
         const order = await Order.findOne({ orderId: orderID, user: userId })
+            .populate({
+                path: 'address',
+                match: { userId: userId },
+                select: 'address' // Only populate the address array
+            })
             .populate('orderedItems.product')
-            .populate('cancelledItems.product')
-            .populate('address');
+            .populate('cancelledItems.product');
+
+        console.log("Raw order data after population:", {
+            orderId: order.orderId,
+            address: order.address ? order.address._id : null,
+            addressArray: order.address ? order.address.address : null,
+            user: order.user
+        });
 
         if (!order) {
             console.warn("Order not found for:", orderID);
@@ -635,22 +646,31 @@ const getOrderDetails = async (req, res) => {
             });
         }
 
-        // Extract the specific address with enhanced logging and fallback
+        // Extract the specific address from the populated document
         let selectedAddress = null;
-        if (order.address && order.address.address) {
+        if (order.address && order.address.address && order.address.address.length > 0) {
             console.log('Address array:', order.address.address);
-            selectedAddress = order.address.address.find(addr => addr._id.toString() === order.address._id.toString());
-            if (!selectedAddress && order.address.address.length > 0) {
-                console.warn(`No matching address found for order ${orderID}, using first address as fallback`);
+            // Use the default address or the first one if no specific match is needed
+            selectedAddress = order.address.address.find(addr => addr.isDefault) || order.address.address[0];
+            if (!selectedAddress) {
+                console.warn(`No default or valid address found for order ${orderID}, using first address`);
                 selectedAddress = order.address.address[0];
             }
         } else if (order.address) {
             console.warn(`Address document found but no address array for order ${orderID}`);
         } else {
-            console.warn(`No address document found for order ${orderID}`);
+            console.warn(`No address document found for order ${orderID}, attempting direct fetch`);
+            // Fallback: Fetch address directly if population failed
+            const addressDoc = await Address.findOne({ userId, _id: order.address });
+            if (addressDoc && addressDoc.address.length > 0) {
+                selectedAddress = addressDoc.address.find(addr => addr.isDefault) || addressDoc.address[0];
+                console.log('Fetched address directly:', selectedAddress);
+            } else {
+                console.warn(`No address found for order ${orderID} with address ID: ${order.address}`);
+            }
         }
 
-        // Pricing breakdown
+        // Pricing breakdown (unchanged)
         let originalSubtotal = 0;
         let discountedSubtotal = 0;
 
