@@ -624,17 +624,16 @@ const downloadReport = async (req, res) => {
             doc.text(`Generated on: ${new Date().toLocaleDateString()}`, { align: 'center' });
             doc.moveDown(1);
 
-            // Summary
-            doc.fontSize(14).fillColor('#333').text('Summary', { underline: true }).moveDown(0.3);
-            const summaryY = doc.y;
+            // Summary Line
             doc.fontSize(11).fillColor('#444');
+            const summaryY = doc.y;
             doc.text(`Total Orders: ${totalOrders}`, 50, summaryY);
             doc.text(`Total Amount: ₹${totalAmount.toFixed(2)}`, 200, summaryY);
             doc.text(`Total Discount: ₹${totalDiscount.toFixed(2)}`, 350, summaryY);
             doc.text(`Coupons Used: ${totalCoupons}`, 500, summaryY);
             doc.moveDown(1.5);
 
-            // Table Header
+            // Table Headers
             const tableTop = doc.y;
             const itemHeight = 20;
             const tableHeaders = [
@@ -647,12 +646,16 @@ const downloadReport = async (req, res) => {
                 { title: 'Payment', x: 470, width: 70 }
             ];
 
-            doc.fontSize(10).fillColor('#fff');
+            // Draw table header row
             doc.rect(50, tableTop, 490, itemHeight).fill('#4472C4');
+            doc.fillColor('#fff').font('Helvetica-Bold').fontSize(10);
             tableHeaders.forEach(header => {
-                doc.text(header.title, header.x + 5, tableTop + 6, { width: header.width - 10 });
+                doc.text(header.title, header.x + 5, tableTop + 6, {
+                    width: header.width - 10
+                });
             });
 
+            // Table body
             let currentY = tableTop + itemHeight;
             const pageHeight = doc.page.height - 100;
 
@@ -660,10 +663,14 @@ const downloadReport = async (req, res) => {
                 if (currentY > pageHeight) {
                     doc.addPage();
                     currentY = 50;
-                    doc.fontSize(10).fillColor('#fff');
+
+                    // Draw header again on new page
                     doc.rect(50, currentY, 490, itemHeight).fill('#4472C4');
+                    doc.fillColor('#fff').font('Helvetica-Bold').fontSize(10);
                     tableHeaders.forEach(header => {
-                        doc.text(header.title, header.x + 5, currentY + 6, { width: header.width - 10 });
+                        doc.text(header.title, header.x + 5, currentY + 6, {
+                            width: header.width - 10
+                        });
                     });
                     currentY += itemHeight;
                 }
@@ -671,7 +678,7 @@ const downloadReport = async (req, res) => {
                 const rowColor = index % 2 === 0 ? '#f8f9fa' : '#ffffff';
                 doc.rect(50, currentY, 490, itemHeight).fill(rowColor).stroke('#ddd');
 
-                doc.fontSize(9).fillColor('#333');
+                doc.font('Helvetica').fontSize(9).fillColor('#333');
                 const rowData = [
                     { text: order.orderId || 'N/A', x: 50, width: 80 },
                     { text: order.user ? order.user.name : 'Unknown', x: 130, width: 80 },
@@ -684,24 +691,12 @@ const downloadReport = async (req, res) => {
                 rowData.forEach(cell => {
                     doc.text(cell.text, cell.x + 5, currentY + 6, {
                         width: cell.width - 10,
-                        ellipsis: true,
-                        align: ['Amount', 'Discount'].includes(cell.title) ? 'right' : 'left'
+                        ellipsis: true
                     });
                 });
 
                 currentY += itemHeight;
             });
-
-            doc.addPage(); // Add one more page for footer summary if needed
-            currentY = 50;
-            doc.rect(50, currentY, 490, 80).fill('#f0f0f0').stroke('#ccc');
-            doc.fontSize(12).fillColor('#333').text('Report Summary', 60, currentY + 10, { underline: true });
-            doc.fontSize(10).fillColor('#000');
-            doc.text(`Total Orders: ${totalOrders}`, 60, currentY + 30);
-            doc.text(`Total Revenue: ₹${totalAmount.toFixed(2)}`, 200, currentY + 30);
-            doc.text(`Total Discounts: ₹${totalDiscount.toFixed(2)}`, 350, currentY + 30);
-            doc.text(`Coupons Applied: ${totalCoupons}`, 60, currentY + 50);
-            doc.text(`Average Order Value: ₹${totalOrders > 0 ? (totalAmount / totalOrders).toFixed(2) : '0.00'}`, 200, currentY + 50);
 
             doc.end();
         }
