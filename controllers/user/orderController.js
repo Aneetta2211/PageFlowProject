@@ -594,7 +594,7 @@ const downloadInvoice = async (req, res) => {
 };
 const getOrderDetails = async (req, res) => {
     try {
-        const orderId = req.params.orderId;
+        const orderId = req.body.orderId;
         const userId = req.user?._id || req.session.user?._id;
 
         console.log("Fetching order details for:", orderId, "by user:", userId);
