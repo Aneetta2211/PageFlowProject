@@ -607,67 +607,24 @@ const getOrderDetails = async (req, res) => {
         const orderID = req.params.orderID;
         const userId = req.user?._id || req.session.user?._id;
 
-        console.log("Fetching order details for:", orderID, "by user:", userId);
-
-        if (!userId) {
-            console.log("No user ID found, redirecting to login");
-            return res.redirect("/login");
-        }
-
-        if (!orderID) {
-            console.warn("No orderID provided in request parameters");
-            return res.status(400).render("error", {
-                message: "Invalid order ID",
-                error: process.env.NODE_ENV === 'development' ? new Error("Order ID is missing") : null
-            });
-        }
+        if (!userId) return res.redirect("/login");
+        if (!orderID) return res.status(400).send("Order ID missing");
 
         const order = await Order.findOne({ orderId: orderID, user: userId })
-            .populate({
-                path: 'address',
-                match: { userId: userId },
-                select: 'address'
-            })
             .populate('orderedItems.product')
             .populate('cancelledItems.product');
 
-        if (!order) {
-            console.warn("Order not found for:", orderID);
-            return res.status(404).render("error", {
-                message: "Order not found",
-                error: process.env.NODE_ENV === 'development' ? new Error(`Order ${orderID} not found`) : null
-            });
-        }
+        if (!order) return res.status(404).send("Order not found");
 
-        // Extract address
-        let selectedAddress = null;
-        if (order.address && Array.isArray(order.address.address) && order.address.address.length > 0) {
-            selectedAddress = order.address.address.find(addr => addr.isDefault) || order.address.address[0];
-            console.log("Using populated address:", selectedAddress);
-        } else {
-            console.warn(`Populated address missing or invalid for order ${orderID}. Trying direct fetch.`);
-
-            const addressDoc = await Address.findOne({ _id: order.address, userId: userId });
-
-            if (addressDoc && Array.isArray(addressDoc.address) && addressDoc.address.length > 0) {
-                selectedAddress = addressDoc.address.find(addr => addr.isDefault) || addressDoc.address[0];
-                console.log("Using directly fetched address:", selectedAddress);
-            } else {
-                console.warn(`No valid address found for order ${orderID}`);
-            }
-        }
-
-        // Calculate pricing
+        // Pricing breakdown
         let originalSubtotal = 0;
         let discountedSubtotal = 0;
 
         const detailedItems = order.orderedItems.map(item => {
             const product = item.product;
             const quantity = item.quantity || 1;
-
             const regularPrice = product?.regularPrice || item.price || 0;
             const salesPrice = product?.salesPrice || item.price || 0;
-
             const totalRegular = regularPrice * quantity;
             const totalSales = salesPrice * quantity;
             const itemDiscount = totalRegular - totalSales;
@@ -692,20 +649,29 @@ const getOrderDetails = async (req, res) => {
         const shipping = order.shipping || 0;
         const grandTotal = discountedSubtotal - couponDiscount + shipping;
 
-        // Final render
+        // 🛑 FIX: Get actual address document based on `order.address` (ObjectId)
+        let selectedAddress = {
+            name: 'N/A',
+            city: 'N/A',
+            landMark: 'N/A',
+            state: 'N/A',
+            pincode: 'N/A',
+            phone: 'N/A',
+            altPhone: 'N/A',
+            addressType: 'N/A'
+        };
+
+        if (order.address) {
+            const addressDoc = await Address.findOne({ _id: order.address, userId: userId });
+            if (addressDoc && Array.isArray(addressDoc.address) && addressDoc.address.length > 0) {
+                selectedAddress = addressDoc.address.find(a => a.isDefault) || addressDoc.address[0];
+            }
+        }
+
         return res.render("user/orderDetails", {
             order: {
                 ...order.toObject(),
-                address: selectedAddress || {
-                    name: 'N/A',
-                    city: 'N/A',
-                    landMark: 'N/A',
-                    state: 'N/A',
-                    pincode: 'N/A',
-                    phone: 'N/A',
-                    altPhone: 'N/A',
-                    addressType: 'N/A'
-                }
+                address: selectedAddress
             },
             detailedItems,
             originalSubtotal,
@@ -718,12 +684,10 @@ const getOrderDetails = async (req, res) => {
 
     } catch (error) {
         console.error("Error loading order details:", error);
-        return res.status(500).render("error", {
-            message: "Error loading order details",
-            error: process.env.NODE_ENV === 'development' ? error : null
-        });
+        return res.status(500).send("Internal Server Error");
     }
 };
+
 
 const renderCheckout = async (req, res) => {
     try {
