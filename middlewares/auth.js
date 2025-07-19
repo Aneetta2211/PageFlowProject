@@ -41,7 +41,13 @@ const adminAuth = (req, res, next) => {
     }
 };
 
+const nocache = (req, res, next) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    next();
+};
+
 module.exports = {
     userAuth,
-    adminAuth
+    adminAuth,
+    nocache
 };

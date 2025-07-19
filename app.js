@@ -32,9 +32,14 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
+
 app.use((req, res, next) => {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
     next();
 });
+
 
 app.use((req, res, next) => {
     if (!req.user && req.session.user) {
