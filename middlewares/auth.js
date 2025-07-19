@@ -5,7 +5,7 @@ const userAuth = (req, res, next) => {
         User.findById(req.session.user.id)
             .then(data => {
                 if (data && !data.isBlocked) {
-                
+                    res.setHeader('Cache-Control', 'no-store'); 
                     req.user = data;
                     next();
                 } else {
@@ -20,6 +20,7 @@ const userAuth = (req, res, next) => {
         res.redirect("/login");
     }
 };
+
 
 const adminAuth = (req, res, next) => {
     if (req.session.admin) {
