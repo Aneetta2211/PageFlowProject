@@ -91,12 +91,28 @@ const registerUser = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
+       
+        let referalCode;
+        let isUnique = false;
+        for (let i = 0; i < 5; i++) {
+            referalCode = shortid.generate();
+            const existingCode = await User.findOne({ referalCode });
+            if (!existingCode) {
+                isUnique = true;
+                break;
+            }
+        }
+
+        if (!isUnique) {
+            return res.render("user/signup", { error: "Something went wrong. Try again later." });
+        }
+
         const newUser = new User({
             name,
             email,
             phone: phone || null,
             password: hashedPassword,
-            referalCode: shortid.generate(),
+            referalCode,
         });
 
         let referrer = null;
@@ -108,7 +124,7 @@ const registerUser = async (req, res) => {
         }
 
         try {
-            await newUser.save(); // ✅ Now it's defined
+            await newUser.save();
         } catch (err) {
             if (err.code === 11000) {
                 return res.render("user/signup", { error: "Email already registered" });
