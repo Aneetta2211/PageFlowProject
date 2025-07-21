@@ -69,11 +69,16 @@ const registerUser = async (req, res) => {
             return res.render("user/signup", { error: "Name is required" });
         }
 
-        const existingUser = await User.findOne({ email });
-        if (existingUser) {
-            console.log("Signup Error: User already exists");
-            return res.render("user/signup", { error: "User already exists" });
-        }
+        try {
+    await newUser.save();
+} catch (err) {
+    if (err.code === 11000) {
+        console.log("Signup Error: Duplicate email detected at save");
+        return res.render("user/signup", { error: "Email already registered" });
+    }
+    throw err; 
+}
+
 
         if (phone) {
             const phonePattern = /^\d{10}$/;
