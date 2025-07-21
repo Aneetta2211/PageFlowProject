@@ -65,14 +65,10 @@ const registerUser = async (req, res) => {
         const name = `${firstName} ${lastName}`.trim();
         const email = rawEmail.trim().toLowerCase();
 
-        if (!name) {
-            return res.render("user/signup", { error: "Name is required" });
-        }
+        if (!name) return res.render("user/signup", { error: "Name is required" });
 
         const existingUser = await User.findOne({ email });
-        if (existingUser) {
-            return res.render("user/signup", { error: "Email already registered" });
-        }
+        if (existingUser) return res.render("user/signup", { error: "Email already registered" });
 
         if (phone) {
             const phonePattern = /^\d{10}$/;
@@ -91,9 +87,7 @@ const registerUser = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
-       
-        let referalCode;
-        let isUnique = false;
+        let referalCode, isUnique = false;
         for (let i = 0; i < 5; i++) {
             referalCode = shortid.generate();
             const existingCode = await User.findOne({ referalCode });
@@ -107,14 +101,6 @@ const registerUser = async (req, res) => {
             return res.render("user/signup", { error: "Something went wrong. Try again later." });
         }
 
-        const newUser = new User({
-            name,
-            email,
-            phone: phone || null,
-            password: hashedPassword,
-            referalCode,
-        });
-
         let referrer = null;
         if (referralCode) {
             referrer = await User.findOne({ referalCode: referralCode });
@@ -123,13 +109,33 @@ const registerUser = async (req, res) => {
             }
         }
 
-        try {
-            await newUser.save();
-        } catch (err) {
-            if (err.code === 11000) {
-                return res.render("user/signup", { error: "Email already registered" });
+        let newUser;
+        let saved = false;
+        for (let i = 0; i < 3 && !saved; i++) {
+            try {
+                newUser = new User({
+                    name,
+                    email,
+                    phone: phone || null,
+                    password: hashedPassword,
+                    referalCode,
+                });
+                await newUser.save();
+                saved = true;
+            } catch (err) {
+                if (err.code === 11000 && err.keyPattern?.referalCode) {
+                    referalCode = shortid.generate(); // Retry with a new referral code
+                    continue;
+                }
+                if (err.code === 11000 && err.keyPattern?.email) {
+                    return res.render("user/signup", { error: "Email already registered" });
+                }
+                throw err;
             }
-            throw err;
+        }
+
+        if (!saved) {
+            return res.render("user/signup", { error: "Failed to register user. Please try again." });
         }
 
         if (referrer) {
@@ -172,6 +178,7 @@ const registerUser = async (req, res) => {
         return res.status(500).send("Internal Server Error");
     }
 };
+
 
 
 const verifyOTP = async (req, res) => {
