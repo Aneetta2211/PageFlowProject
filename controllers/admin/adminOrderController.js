@@ -62,24 +62,30 @@ if (searchQuery) {
             .lean();
 
         
-        const formattedOrders = await Promise.all(orders.map(async (order) => {
-            const addressDoc = await Address.findOne({
-                userId: order.user._id,
-                'address._id': order.address
-            }).lean();
+       const formattedOrders = await Promise.all(orders.map(async (order) => {
+    let addressDetails = null;
 
-            let addressDetails = null;
-            if (addressDoc && addressDoc.address) {
-                addressDetails = addressDoc.address.find(addr => 
-                    addr._id.toString() === order.address.toString()
-                );
-            }
+    if (order.user) {
+        const addressDoc = await Address.findOne({
+            userId: order.user._id,
+            'address._id': order.address
+        }).lean();
 
-            return {
-                ...order,
-                address: addressDetails || null
-            };
-        }));
+        if (addressDoc && addressDoc.address) {
+            addressDetails = addressDoc.address.find(addr =>
+                addr._id.toString() === order.address?.toString()
+            );
+        }
+    } else {
+        console.warn(`User missing for order ${order.orderId}`);
+    }
+
+    return {
+        ...order,
+        address: addressDetails,
+    };
+}));
+
 
         
         const totalOrders = await Order.countDocuments(query);
