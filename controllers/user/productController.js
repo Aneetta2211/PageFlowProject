@@ -33,7 +33,7 @@ const loadShoppingPage = async (req, res) => {
 
     const categoryIds = categories.map((cat) => cat._id.toString());
     const page = parseInt(req.query.page) || 1;
-    const limit = 6;
+    const limit = 8;
     const skip = (page - 1) * limit;
 
     const searchQuery = req.query.query || '';
