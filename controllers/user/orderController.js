@@ -1269,65 +1269,63 @@ const paymentFailed = async (req, res) => {
 
 
 const retryPayment = async (req, res) => {
-    try {
-        const { orderId } = req.body
-      
-        const userId = req.user._id;
+  try {
+    const orderId = String(req.body.orderId).trim();
+    const userId = req.user._id;
 
-        console.log('Initiating retry payment for:', { orderId, userId });
+    console.log('Initiating retry payment for:', { orderId, userId });
 
-        const order = await Order.findOne({ orderId, user: userId });
-        if (!order) {
-            console.warn('Order not found:', { orderId, userId });
-            return res.status(404).json({
-                success: false,
-                message: 'Order not found'
-            });
-        }
+    const order = await Order.findOne({
+      $or: [
+        { _id: orderId },
+        { orderId: orderId }
+      ],
+      user: userId
+    });
 
-        if (order.paymentStatus === 'Paid') {
-            console.warn('Order already paid:', { orderId });
-            return res.status(400).json({
-                success: false,
-                message: 'Order is already paid'
-            });
-        }
-
-        if (order.status !== 'Payment Failed') { 
-            console.warn('Order not in retryable state:', { orderId, status: order.status });
-            return res.status(400).json({
-                success: false,
-                message: 'Order is not in a retryable state'
-            });
-        }
-
-        const receipt = `retry_${order.orderId}`;
-        const razorpayOrder = await razorpay.orders.create({
-            amount: Math.round(order.finalAmount * 100), 
-            currency: 'INR',
-            receipt: receipt
-        });
-
-        console.log('Razorpay order created for retry:', { razorpayOrderId: razorpayOrder.id, receipt });
-
-        return res.json({
-            success: true,
-            orderId: order.orderId,
-            razorpayOrderId: razorpayOrder.id,
-            amount: order.finalAmount * 100, 
-            currency: 'INR',
-            key: process.env.RAZORPAY_ID, 
-            message: 'Retry payment initiated'
-        });
-    } catch (error) {
-        console.error('Error initiating retry payment:', error);
-        return res.status(500).json({
-            success: false,
-            message: 'Server error while initiating retry payment',
-            error: process.env.NODE_ENV === 'development' ? error.message : undefined
-        });
+    if (!order) {
+      console.warn('Order not found:', { orderId, userId });
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
     }
+
+    if (order.paymentStatus === 'Paid') {
+      return res.status(400).json({ success: false, message: 'Order already paid' });
+    }
+
+    if (order.status !== 'Payment Failed') {
+      return res.status(400).json({ success: false, message: 'Order is not in a retryable state' });
+    }
+
+    const receipt = `retry_${order.orderId}`;
+    const razorpayOrder = await razorpay.orders.create({
+      amount: Math.round(order.finalAmount * 100),
+      currency: 'INR',
+      receipt
+    });
+
+    return res.json({
+      success: true,
+      orderId: order.orderId,
+      razorpayOrderId: razorpayOrder.id,
+      amount: order.finalAmount * 100,
+      currency: 'INR',
+      key: process.env.RAZORPAY_ID,
+      message: 'Retry payment initiated'
+    });
+
+  } catch (error) {
+    console.error('Error initiating retry payment:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while initiating retry payment',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
 };
+
 
 
 const applyCoupon = async (req, res) => {
