@@ -1270,7 +1270,7 @@ const paymentFailed = async (req, res) => {
 
 const retryPayment = async (req, res) => {
     try {
-        const { orderId } = req.body
+       const { orderId } = req.params;
       
         const userId = req.user._id;
 
