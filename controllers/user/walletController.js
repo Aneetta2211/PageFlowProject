@@ -205,11 +205,16 @@ const processReturnRequest = async (req, res) => {
 
         const refundAmount = calculateRefundAmount(product, order);
 
-        await addToWallet({
-            userId: userId,
-            amount: refundAmount,
-            description: `Refund for order #${orderId}, product: ${product.productName || 'Unknown Product'} (including shipping)`
-        });
+        if (order.paymentStatus !== 'Paid') {
+    console.log('Skipping refund: payment not completed for order', orderId);
+} else {
+    await addToWallet({
+        userId: userId,
+        amount: refundAmount,
+        description: `Refund for order #${orderId}, product: ${product.productName || 'Unknown Product'} (including shipping)`
+    });
+}
+
 
         order.status = 'Returned';
         order.returnStatus = 'Returned';
