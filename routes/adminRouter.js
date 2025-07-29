@@ -60,6 +60,7 @@ router.get('/orders/details/:orderId', adminAuth, orderController.renderOrderDet
 router.post('/orders/update-status', adminAuth, orderController.updateOrderStatus);
 router.post('/orders/verify-return', adminAuth, orderController.verifyReturnRequest);
 
+
 // Coupon Management
 router.get('/coupons', adminAuth, couponController.couponInfo);
 router.post('/coupons/add', adminAuth, couponController.addCoupon);

@@ -159,7 +159,7 @@ const addMoney = async (req, res) => {
 const processReturnRequest = async (req, res) => {
     try {
         const { orderId } = req.params;
-        const { productId, returnReason, status } = req.body; // Added status for approve/deny
+        const { productId, returnReason } = req.body;
         const userId = req.session.user?._id;
 
         if (!userId) {
@@ -169,9 +169,7 @@ const processReturnRequest = async (req, res) => {
             });
         }
 
-        const order = await Order.findOne({ orderId, user: userId })
-            .populate('orderedItems.product')
-            .populate('returnedItems.product');
+        const order = await Order.findOne({ orderId: orderId, user: userId });
         if (!order) {
             return res.status(404).json({
                 success: false,
@@ -179,90 +177,72 @@ const processReturnRequest = async (req, res) => {
             });
         }
 
-        let refundAmount = 0;
-        let isIndividualReturn = false;
-
-        if (productId) {
-            // Handle individual item return
-            const returnItemIndex = order.returnedItems.findIndex(p => p.product.toString() === productId);
-            if (returnItemIndex === -1) {
-                return res.status(404).json({
-                    success: false,
-                    message: 'Returned item not found in order'
-                });
-            }
-
-            const returnItem = order.returnedItems[returnItemIndex];
-            if (returnItem.returnStatus !== 'Pending') {
-                return res.status(400).json({
-                    success: false,
-                    message: `Item return already ${returnItem.returnStatus.toLowerCase()}`
-                });
-            }
-
-            isIndividualReturn = true;
-            if (status === 'Approved') {
-                refundAmount = (returnItem.price * returnItem.quantity);
-                returnItem.returnStatus = 'Approved';
-                returnItem.returnDate = new Date();
-                order.refundedAmount = (order.refundedAmount || 0) + refundAmount;
-            } else if (status === 'Denied') {
-                returnItem.returnStatus = 'Denied';
-                returnItem.returnDenyReason = returnReason || 'No reason provided';
-            }
-        } else {
-            // Handle whole-order return
-            if (order.status !== 'Return Request' || !order.returnRequested) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'No valid return request found for this order'
-                });
-            }
-
-            if (status === 'Approved') {
-                refundAmount = order.finalAmount;
-                order.status = 'Returned';
-                order.returnStatus = 'Approved';
-                order.returnDate = new Date();
-                order.refundedAmount = refundAmount;
-                order.returnedItems.forEach(item => {
-                    item.returnStatus = 'Approved';
-                    item.returnDate = new Date();
-                });
-            } else if (status === 'Denied') {
-                order.status = 'Return Denied';
-                order.returnStatus = 'Denied';
-                order.returnDenyReason = returnReason || 'No reason provided';
-                order.returnedItems.forEach(item => {
-                    item.returnStatus = 'Denied';
-                    item.returnDenyReason = returnReason || 'No reason provided';
-                });
-            }
-        }
-
-        // Process refund if approved and payment was completed
-        if (status === 'Approved' && order.paymentStatus === 'Paid' && refundAmount > 0) {
-            await addToWallet({
-                userId,
-                amount: refundAmount,
-                description: `Refund for ${isIndividualReturn ? 'item in' : ''} order #${orderId}${isIndividualReturn ? `, product: ${returnItem.product.productName || 'Unknown Product'}` : ''}`
+        const productIndex = order.orderedItems.findIndex(p => p.product.toString() === productId);
+        if (productIndex === -1) {
+            return res.status(404).json({
+                success: false,
+                message: 'Product not found in order'
             });
         }
 
-        // Update order status if all items are processed
-        if (isIndividualReturn && order.returnedItems.every(item => item.returnStatus !== 'Pending')) {
-            order.returnStatus = order.returnedItems.every(item => item.returnStatus === 'Approved') ? 'Approved' : 'Denied';
-            order.status = order.returnedItems.every(item => item.returnStatus === 'Approved') ? 'Returned' : 'Return Denied';
-            order.returnDate = order.returnedItems.every(item => item.returnStatus === 'Approved') ? new Date() : null;
-            order.returnDenyReason = order.returnedItems.some(item => item.returnStatus === 'Denied') ? 'Some items denied' : null;
+        const product = order.orderedItems[productIndex];
+
+        if (order.status === 'Returned') {
+            return res.status(400).json({
+                success: false,
+                message: 'Order already returned'
+            });
+        }
+
+        const isReturnVerified = verifyReturnRequest(product, returnReason);
+        
+        if (!isReturnVerified) {
+            return res.status(400).json({
+                success: false,
+                message: 'Return request rejected'
+            });
+        }
+
+        const refundAmount = calculateRefundAmount(product, order);
+
+        if (order.paymentStatus !== 'Paid') {
+    console.log('Skipping refund: payment not completed for order', orderId);
+} else {
+    await addToWallet({
+        userId: userId,
+        amount: refundAmount,
+        description: `Refund for order #${orderId}, product: ${product.productName || 'Unknown Product'} (including shipping)`
+    });
+}
+
+
+        order.status = 'Returned';
+        order.returnStatus = 'Returned';
+        order.returnReason = returnReason;
+        order.returnDate = new Date();
+        order.refundedAmount = refundAmount;
+
+        order.orderedItems.splice(productIndex, 1);
+        if (order.orderedItems.length === 0) {
+            order.totalPrice = 0;
+            order.discount = 0;
+            order.finalAmount = 0;
+        } else {
+            order.totalPrice = order.orderedItems.reduce((sum, item) => {
+                return sum + (item.price * item.quantity);
+            }, 0);
+            const originalTotalPrice = order.totalPrice + (product.price * product.quantity);
+            const discountFactor = order.discount && originalTotalPrice > 0 ? order.discount / originalTotalPrice : 0;
+            order.discount = order.totalPrice * discountFactor;
+            order.finalAmount = order.totalPrice - order.discount;
         }
 
         await order.save();
 
         return res.status(200).json({
             success: true,
-            message: `Return request ${status.toLowerCase()} successfully. ${refundAmount > 0 ? `₹${refundAmount.toFixed(2)} refunded to wallet.` : ''}`,
-            refundAmount
+            message: `Return processed successfully. ₹${refundAmount.toFixed(2)}  refunded to wallet.`,
+            refundAmount: refundAmount
         });
     } catch (error) {
         console.error('Error processing return request:', error);
@@ -273,12 +253,13 @@ const processReturnRequest = async (req, res) => {
     }
 };
 
-function verifyReturnRequest(item, returnReason) {
-    const maxReturnDays = 7;
-    const daysSincePurchase = (new Date() - new Date(item.deliveryDate || item.createdOn)) / (1000 * 60 * 60 * 24);
+
+function verifyReturnRequest(product, returnReason) {
+    const maxReturnDays = 7; 
+    const daysSincePurchase = (new Date() - new Date(product.deliveryDate)) / (1000 * 60 * 60 * 24);
     
     if (daysSincePurchase > maxReturnDays) {
-        return false;
+        return false; 
     }
     
     if (!returnReason || returnReason.length < 10) {
@@ -288,8 +269,9 @@ function verifyReturnRequest(item, returnReason) {
     return true;
 }
 
-function calculateRefundAmount(item, order) {
-    return (item.price * item.quantity);
+
+function calculateRefundAmount(product, order) {
+    return (product.price * product.quantity) + (order.shipping || 0);
 }
 
 module.exports = {

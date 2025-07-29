@@ -429,43 +429,51 @@ const returnOrder = async (req, res) => {
 
 const returnOrderItem = async (req, res) => {
     try {
-        const { orderId, productId } = req.params;
-        const { reason } = req.body;
-        const user = req.user;
+        const { orderID, productID } = req.params;
+        const { returnReason } = req.body;
+        const userId = req.session.user._id;
 
-        if (!orderId || !productId) {
-            return res.status(400).json({ success: false, message: 'Invalid order or product ID.' });
+        const order = await Order.findById(orderID);
+
+        if (!order) {
+            return res.status(404).json({ error: 'Order not found' });
         }
 
-        const order = await Order.findOne({ orderId, user: user._id }).populate('orderedItems.product');
-        if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
+        const item = order.orderedItems.find(item => item.product.toString() === productID);
+        if (!item) {
+            return res.status(404).json({ error: 'Product not found in order' });
+        }
 
-        const itemIndex = order.orderedItems.findIndex(item => item.product._id.toString() === productId);
-        if (itemIndex === -1) return res.status(404).json({ success: false, message: 'Product not found in order' });
+        // Prevent duplicate return request
+        const alreadyRequested = order.returnedItems.some(
+            returned => returned.product.toString() === productID
+        );
+        if (alreadyRequested) {
+            return res.status(400).json({ error: 'Return already requested for this product' });
+        }
 
-        const item = order.orderedItems[itemIndex];
-
-        
         order.returnedItems.push({
-            product: item.product._id,
+            product: item.product,
             quantity: item.quantity,
             price: item.price,
-            returnReason: reason,
+            discountApplied: item.discountApplied,
+            returnReason: returnReason,
             returnStatus: 'Pending',
             returnRequestDate: new Date()
         });
 
-        
-        order.orderedItems.splice(itemIndex, 1);
+        order.returnRequested = true;
+        order.status = 'Return Request';
+
         await order.save();
 
-        res.json({ success: true, message: 'Item return requested.' });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ success: false, message: 'Error returning item' });
+        res.status(200).json({ message: 'Return request submitted successfully' });
+
+    } catch (err) {
+        console.error('Error in returnOrderItem:', err);
+        res.status(500).json({ error: 'Failed to return item' });
     }
 };
-
 
 const downloadInvoice = async (req, res) => {
     try {
