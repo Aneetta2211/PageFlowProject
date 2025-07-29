@@ -189,7 +189,7 @@
                         <% } %>
                     </div>
 
-                    <!-- Payment Information -->
+    <!-- Payment Information -->
 <div class="text-sm text-gray-700 leading-6">
     <p><strong>Offer Type:</strong>
         <% 
@@ -202,15 +202,15 @@
         %>
         <%= offerTypes.size > 0 ? Array.from(offerTypes).join(', ') + ' Offer' : 'None' %>
     </p>
-    <p><strong>Original Subtotal:</strong> ₹<%= order.orderedItems.reduce((sum, item) => {
-        const price = item.product?.regularPrice || item.price;
-        return sum + (price * item.quantity);
+    <p><strong>Original Subtotal:</strong> ₹<%= allItems.reduce((sum, item) => {
+        const price = item.product?.regularPrice || item.price || 0;
+        return sum + (price * (item.quantity || 0));
     }, 0).toFixed(2) %></p>
     <p><strong>Offer Discount:</strong> -₹<%= (
-        order.orderedItems.reduce((sum, item) => {
-            const regularPrice = item.product?.regularPrice || item.price;
-            const salesPrice = item.product?.salesPrice || item.price;
-            return sum + ((regularPrice - salesPrice) * item.quantity);
+        allItems.reduce((sum, item) => {
+            const regularPrice = item.product?.regularPrice || item.price || 0;
+            const salesPrice = item.product?.salesPrice || item.price || 0;
+            return sum + ((regularPrice - salesPrice) * (item.quantity || 0));
         }, 0)
     ).toFixed(2) %></p>
     <p><strong>Coupon Discount:</strong> -₹<%= order.discount?.toFixed(2) || '0.00' %></p>
