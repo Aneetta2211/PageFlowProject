@@ -392,10 +392,11 @@ const verifyReturnRequest = async (req, res) => {
         });
 
         let refundAmount = 0;
+        let returnItemIndex; // Declare outside to use later if needed
 
         if (productId) {
             // Handle individual item return
-            const returnItemIndex = order.returnedItems.findIndex(item => {
+            returnItemIndex = order.returnedItems.findIndex(item => {
                 const match = item.product?._id?.toString() === productId;
                 console.log('Checking returned item:', {
                     itemProductId: item.product?._id?.toString(),
@@ -505,7 +506,9 @@ const verifyReturnRequest = async (req, res) => {
             userWallet.transactions.push({
                 amount: refundAmount,
                 type: 'credit',
-                description: `Refund for ${productId ? 'item in' : ''} order ${orderId}${productId ? `, product: ${order.returnedItems[returnItemIndex]?.product?.productName || 'Unknown Product'}` : ''}`,
+                description: productId 
+                    ? `Refund for item in order ${orderId}, product: ${order.returnedItems[returnItemIndex]?.product?.productName || 'Unknown Product'}`
+                    : `Refund for order ${orderId}`,
                 date: new Date()
             });
 
