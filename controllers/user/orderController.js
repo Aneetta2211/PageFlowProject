@@ -702,7 +702,12 @@ const getOrderDetails = async (req, res) => {
                 select: 'productName productImage regularPrice salesPrice offerType totalOffer'
             });
 
-        if (!order) return res.status(404).send("Order not found");
+       if (!order) {
+    return res.status(404).render("user/page-404", {
+        errorMessage: "Order not found. Please check the URL.",
+    });
+}
+
 
   
         let originalSubtotal = 0;
