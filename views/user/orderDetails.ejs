@@ -303,11 +303,12 @@
                                         Cancel Item
                                     </button>
                                 <% } else if (canReturn) { %>
-                                    <button 
+    <button 
   class="return-item-btn bg-orange-500 text-white px-3 py-1 rounded text-sm hover:bg-orange-600"
-  onclick="returnItem('<%= order._id %>', '<%= item.product?._id %>')">
+  onclick="returnItem('<%= order.orderId %>', '<%= item.product?._id %>')">
   Return Item
 </button>
+
 
                                 <% } else if (item.isCancelled) { %>
                                     <span class="text-xs text-red-600 italic">Already Cancelled</span>
@@ -870,7 +871,7 @@ async function retryPayment(orderId, amount) {
                 'Accept': 'application/json'
             },
             credentials: 'include',
-            body: JSON.stringify({ orderId, productId, reason: finalReason }) // Include orderId and productId in body for consistency
+            body: JSON.stringify({ orderId, productId, reason: finalReason }) 
         });
 
         console.log('Fetch response status:', response.status, 'OK:', response.ok);
@@ -1110,12 +1111,11 @@ async function confirmReturnItem() {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Existing listeners remain unchanged
     const cancelOrderBtn = document.getElementById('cancel-order-btn');
     const returnOrderBtn = document.getElementById('return-order-btn');
     const retryPaymentBtn = document.getElementById('retry-payment-btn');
     const cancelItemButtons = document.querySelectorAll('.cancel-item-btn');
-    const returnItemButtons = document.querySelectorAll('.return-item-btn');
+    const returnButtons = document.querySelectorAll(".return-item-btn");
 
     if (cancelOrderBtn) {
         cancelOrderBtn.addEventListener('click', function() {
@@ -1147,14 +1147,48 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    returnItemButtons.forEach(button => {
-        button.addEventListener('click', function() {
-            const orderId = escapeString(this.getAttribute('data-order-id'));
-            const productId = escapeString(this.getAttribute('data-product-id'));
-            openReturnItemModal(orderId, productId);
+     returnButtons.forEach(button => {
+      button.addEventListener("click", async () => {
+        const orderId = button.getAttribute("data-order-id");
+        const productId = button.getAttribute("data-product-id");
+
+        const { value: reason } = await Swal.fire({
+          title: "Return Reason",
+          input: "text",
+          inputLabel: "Why are you returning this item?",
+          inputPlaceholder: "Enter reason...",
+          showCancelButton: true,
+          inputValidator: (value) => {
+            if (!value) return "You must provide a reason!";
+          }
         });
+
+        if (!reason) return;
+
+        try {
+          const response = await fetch(`/api/orders/${orderId}/return-item/${productId}`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ reason })
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            Swal.fire("Success", data.message, "success").then(() => location.reload());
+          } else {
+            Swal.fire("Error", data.error || "Failed to return item", "error");
+          }
+
+        } catch (error) {
+          console.error("Return error:", error);
+          Swal.fire("Error", "Something went wrong", "error");
+        }
+      });
     });
-});
+  });
     </script>
 </body>
 </html>
