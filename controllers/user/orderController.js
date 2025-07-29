@@ -430,17 +430,24 @@ const returnOrder = async (req, res) => {
 const returnOrderItem = async (req, res) => {
     try {
         const { orderId, productId } = req.params;
-        const { returnReason } = req.body;
-        const userId = req.session.user?._id;
+        const { reason } = req.body; // Changed from returnReason to match client-side
+        const userId = req.session.user?._id || req.user?._id;
 
-        console.log('Received return item request:', { orderId, productId, userId, returnReason });
+        console.log('Received return item request:', { orderId, productId, userId, reason });
 
         if (!userId) {
+            console.error('User not authenticated:', req.session.user, req.user);
             return res.status(401).json({ error: 'User not authenticated' });
         }
 
-        const order = await Order.findOne({ orderId: orderId.trim(), user: userId });
-        console.log('Order query result:', order);
+        // Try querying by orderId first, then by _id if necessary
+        let order = await Order.findOne({ orderId: orderId.trim(), user: userId });
+        if (!order) {
+            order = await Order.findOne({ _id: orderId.trim(), user: userId });
+            console.log('Tried querying by _id instead of orderId');
+        }
+
+        console.log('Order query result:', order ? order : 'No order found');
 
         if (!order) {
             return res.status(404).json({ error: 'Order not found' });
@@ -448,6 +455,7 @@ const returnOrderItem = async (req, res) => {
 
         const item = order.orderedItems.find(item => item.product.toString() === productId);
         if (!item) {
+            console.log('Product not found in order:', { productId, orderedItems: order.orderedItems });
             return res.status(404).json({ error: 'Product not found in order' });
         }
 
@@ -458,12 +466,20 @@ const returnOrderItem = async (req, res) => {
             return res.status(400).json({ error: 'Return already requested for this product' });
         }
 
+        // Validate return window
+        const maxReturnDays = 7;
+        const deliveryDate = item.deliveryDate || order.createdOn;
+        const daysSinceDelivery = (new Date() - new Date(deliveryDate)) / (1000 * 60 * 60 * 24);
+        if (order.status !== 'Delivered' || daysSinceDelivery > maxReturnDays) {
+            return res.status(400).json({ error: 'Item cannot be returned. Only delivered items within 7 days are eligible.' });
+        }
+
         order.returnedItems.push({
             product: item.product,
             quantity: item.quantity,
             price: item.price,
             discountApplied: item.discountApplied,
-            returnReason: returnReason,
+            returnReason: reason,
             returnStatus: 'Pending',
             returnRequestDate: new Date()
         });
