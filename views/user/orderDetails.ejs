@@ -304,11 +304,11 @@
                                     </button>
                                 <% } else if (canReturn) { %>
                                     <button 
-                                        class="return-item-btn bg-orange-500 text-white px-3 py-1 rounded text-sm hover:bg-orange-600"
-                                        data-order-id="<%= order.orderId %>"
-                                        data-product-id="<%= item.product?._id %>">
-                                        Return Item
-                                    </button>
+  class="return-item-btn bg-orange-500 text-white px-3 py-1 rounded text-sm hover:bg-orange-600"
+  onclick="returnItem('<%= order._id %>', '<%= item.product?._id %>')">
+  Return Item
+</button>
+
                                 <% } else if (item.isCancelled) { %>
                                     <span class="text-xs text-red-600 italic">Already Cancelled</span>
                                 <% } else if (isReturned) { %>
