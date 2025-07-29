@@ -429,24 +429,26 @@ const returnOrder = async (req, res) => {
 
 const returnOrderItem = async (req, res) => {
     try {
-        const { orderID, productID } = req.params;
+        const { orderId, productId } = req.params;  
+
         const { returnReason } = req.body;
         const userId = req.session.user._id;
 
-        const order = await Order.findById(orderID);
+       
+        const order = await Order.findOne({ orderId, user: userId });
 
         if (!order) {
             return res.status(404).json({ error: 'Order not found' });
         }
 
-        const item = order.orderedItems.find(item => item.product.toString() === productID);
+        const item = order.orderedItems.find(item => item.product.toString() === productId);
         if (!item) {
             return res.status(404).json({ error: 'Product not found in order' });
         }
 
-        // Prevent duplicate return request
+       
         const alreadyRequested = order.returnedItems.some(
-            returned => returned.product.toString() === productID
+            returned => returned.product.toString() === productId
         );
         if (alreadyRequested) {
             return res.status(400).json({ error: 'Return already requested for this product' });
@@ -474,6 +476,7 @@ const returnOrderItem = async (req, res) => {
         res.status(500).json({ error: 'Failed to return item' });
     }
 };
+
 
 const downloadInvoice = async (req, res) => {
     try {
