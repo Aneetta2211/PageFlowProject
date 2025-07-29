@@ -243,11 +243,10 @@
                                     <%= offerTypes.size> 0 ? Array.from(offerTypes).join(', ') + ' Offer' : 'None' %>
                             </p>
 
-                        <p><strong>Original Subtotal:</strong> ₹<%= order.orderedItems.reduce((sum, item)=> {
-    const regularPrice = item.product?.regularPrice ?? item.price ?? 0;
-    return sum + (regularPrice * item.quantity);
-}, 0).toFixed(2) %></p>
-
+                            <p><strong>Original Subtotal:</strong> ₹<%= order.orderedItems.reduce((sum, item)=> {
+                                    const regularPrice = item.product?.regularPrice;
+                                    return sum + ((regularPrice ?? 0) * item.quantity);
+                                    }, 0).toFixed(2) %></p>
 
                             <p><strong>Offer Discount:</strong> -₹<%= ( order.orderedItems.reduce((sum, item)=> {
                                     const regularPrice = item.product?.regularPrice ?? 0;
