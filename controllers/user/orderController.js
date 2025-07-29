@@ -392,88 +392,72 @@ const cancelOrderItem = async (req, res) => {
 
 const returnOrder = async (req, res) => {
     try {
-        const { orderID } = req.params;
+        const { orderId } = req.params;
         const { reason } = req.body;
-        const user = req.user;
+        const userId = req.session.user;
 
-        const order = await Order.findOne({ orderId: orderID, user: user._id });
-        if (!order) return res.status(404).json({ error: 'Order not found' });
+        const order = await Order.findOne({ orderId, user: userId }).populate('orderedItems.product');
+        if (!order) {
+            return res.status(404).json({ success: false, message: 'Order not found' });
+        }
 
         if (order.status !== 'Delivered') {
-            return res.status(400).json({ error: 'Only delivered orders can be returned' });
+            return res.status(400).json({ success: false, message: 'Order must be delivered to request a return' });
         }
+
+        if (order.returnRequested) {
+            return res.status(400).json({ success: false, message: 'Return already requested for this order' });
+        }
+
+        // Mark order as return requested
+        order.returnRequested = true;
+        order.returnReason = reason;
+        order.returnStatus = 'Pending';
+        order.status = 'Return Request';
 
         
         order.returnedItems = order.orderedItems.map(item => ({
-            product: item.product,
+            product: item.product._id,
             quantity: item.quantity,
             price: item.price,
+            discountApplied: item.discountApplied,
             returnReason: reason,
             returnStatus: 'Pending',
             returnRequestDate: new Date()
         }));
 
-        order.orderedItems = [];
-        order.status = 'Return Request';
-        order.returnRequested = true;
-        order.returnReason = reason;
-        order.returnStatus = 'Pending';
-
         await order.save();
-        res.json({ success: true, message: 'Return requested successfully.' });
+        res.json({ success: true, message: 'Return request submitted successfully' });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Server error while returning order.' });
+        console.error('Error in returnOrder:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
     }
 };
-
 const returnOrderItem = async (req, res) => {
     try {
         const { orderId, productId } = req.params;
-        const { reason } = req.body; // Changed from returnReason to match client-side
-        const userId = req.session.user?._id || req.user?._id;
+        const { reason } = req.body;
+        const userId = req.session.user;
 
-        console.log('Received return item request:', { orderId, productId, userId, reason });
-
-        if (!userId) {
-            console.error('User not authenticated:', req.session.user, req.user);
-            return res.status(401).json({ error: 'User not authenticated' });
+        const order = await Order.findOne({ orderId, user: userId }).populate('orderedItems.product');
+        if (!order) {
+            return res.status(404).json({ success: false, message: 'Order not found' });
         }
 
-        // Try querying by orderId first, then by _id if necessary
-        let order = await Order.findOne({ orderId: orderId.trim(), user: userId });
-        if (!order) {
-            order = await Order.findOne({ _id: orderId.trim(), user: userId });
-            console.log('Tried querying by _id instead of orderId');
-        }
-
-        console.log('Order query result:', order ? order : 'No order found');
-
-        if (!order) {
-            return res.status(404).json({ error: 'Order not found' });
+        if (order.status !== 'Delivered') {
+            return res.status(400).json({ success: false, message: 'Order must be delivered to request a return' });
         }
 
         const item = order.orderedItems.find(item => item.product.toString() === productId);
         if (!item) {
-            console.log('Product not found in order:', { productId, orderedItems: order.orderedItems });
-            return res.status(404).json({ error: 'Product not found in order' });
+            return res.status(404).json({ success: false, message: 'Item not found in order' });
         }
 
-        const alreadyRequested = order.returnedItems.some(
-            returned => returned.product.toString() === productId
-        );
-        if (alreadyRequested) {
-            return res.status(400).json({ error: 'Return already requested for this product' });
+        if (order.returnedItems.some(returnedItem => returnedItem.product.toString() === productId)) {
+            return res.status(400).json({ success: false, message: 'Return already requested for this item' });
         }
 
-        // Validate return window
-        const maxReturnDays = 7;
-        const deliveryDate = item.deliveryDate || order.createdOn;
-        const daysSinceDelivery = (new Date() - new Date(deliveryDate)) / (1000 * 60 * 60 * 24);
-        if (order.status !== 'Delivered' || daysSinceDelivery > maxReturnDays) {
-            return res.status(400).json({ error: 'Item cannot be returned. Only delivered items within 7 days are eligible.' });
-        }
-
+        // Add item to returnedItems without removing from orderedItems
         order.returnedItems.push({
             product: item.product,
             quantity: item.quantity,
@@ -484,15 +468,19 @@ const returnOrderItem = async (req, res) => {
             returnRequestDate: new Date()
         });
 
-        order.returnRequested = true;
-        order.status = 'Return Request';
+        // Update order status if all items are requested for return
+        if (order.orderedItems.every(item => order.returnedItems.some(r => r.product.toString() === item.product.toString()))) {
+            order.status = 'Return Request';
+            order.returnRequested = true;
+            order.returnStatus = 'Pending';
+            order.returnReason = reason;
+        }
 
         await order.save();
-
-        res.status(200).json({ message: 'Return request submitted successfully' });
-    } catch (err) {
-        console.error('Error in returnOrderItem:', err);
-        res.status(500).json({ error: 'Failed to return item' });
+        res.json({ success: true, message: 'Item return request submitted successfully' });
+    } catch (error) {
+        console.error('Error in returnOrderItem:', error);
+        res.status(500).json({ success: false, message: 'Server error' });
     }
 };
 

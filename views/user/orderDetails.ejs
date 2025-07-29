@@ -221,110 +221,131 @@
 
                 <!-- Order Items -->
                 <div class="mb-8">
-                    <h2 class="text-lg font-semibold mb-4">Order Items</h2>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full bg-white">
-                            <thead>
-                                <tr>
-                                    <th class="py-2 px-4 border-b text-left">Product</th>
-                                    <th class="py-2 px-4 border-b text-left">Price</th>
-                                    <th class="py-2 px-4 border-b text-left">Quantity</th>
-                                    <th class="py-2 px-4 border-b text-left">Total</th>
-                                    <th class="py-2 px-4 border-b text-left">Discount</th>
-                                    <th class="py-2 px-4 border-b text-left">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <% if (!detailedItems || detailedItems.length === 0) { %>
-                                    <tr>
-                                        <td colspan="6" class="py-2 px-4 border-b text-center text-gray-500">
-                                            No items available for this order.
-                                        </td>
-                                    </tr>
+    <h2 class="text-lg font-semibold mb-4">Order Items</h2>
+    <div class="overflow-x-auto">
+        <table class="min-w-full bg-white">
+            <thead>
+                <tr>
+                    <th class="py-2 px-4 border-b text-left">Product</th>
+                    <th class="py-2 px-4 border-b text-left">Price</th>
+                    <th class="py-2 px-4 border-b text-left">Quantity</th>
+                    <th class="py-2 px-4 border-b text-left">Total</th>
+                    <th class="py-2 px-4 border-b text-left">Discount</th>
+                    <th class="py-2 px-4 border-b text-left">Status</th> <!-- New Status Column -->
+                    <th class="py-2 px-4 border-b text-left">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% if (!detailedItems || detailedItems.length === 0) { %>
+                    <tr>
+                        <td colspan="7" class="py-2 px-4 border-b text-center text-gray-500">
+                            No items available for this order.
+                        </td>
+                    </tr>
+                <% } else { %>
+                    <% detailedItems.forEach(item => { %>
+                        <% 
+                            const isReturned = order.returnedItems?.some(returned => 
+                                returned.product.toString() === item.product?._id?.toString()
+                            );
+                            const returnDetails = isReturned ? order.returnedItems.find(returned => 
+                                returned.product.toString() === item.product?._id?.toString()
+                            ) : null;
+                            const maxReturnDays = 7;
+                            const deliveryDate = item.deliveryDate || order.createdOn;
+                            const daysSinceDelivery = (new Date() - new Date(deliveryDate)) / (1000 * 60 * 60 * 24);
+                            const canReturn = order.status === 'Delivered' && daysSinceDelivery <= maxReturnDays && !isReturned && !item.isCancelled;
+                        %>
+                        <tr class="<%= item.isCancelled ? 'line-through text-gray-400' : '' %>">
+                            <td class="py-2 px-4 border-b">
+                                <div class="flex items-center gap-4">
+                                    <% if (item.product && item.product.productImage?.length > 0) { %>
+                                        <img src="<%= item.product.productImage[0] %>" alt="Product Image" class="w-16 h-16 object-cover rounded" />
+                                    <% } else { %>
+                                        <img src="/images/placeholder.png" alt="No Image" class="w-16 h-16 object-cover rounded" />
+                                    <% } %>
+                                    <div>
+                                        <p class="font-medium"><%= item.product?.productName || 'Unknown Product' %></p>
+                                        <% if (item.offerType && item.offerType !== 'N/A') { %>
+                                            <p class="text-sm text-gray-600"><%= item.offerType %>: <%= item.totalOfferPercent %>%</p>
+                                        <% } %>
+                                        <% if (item.isCancelled) { %>
+                                            <p class="text-xs text-red-600 italic">Cancelled: <%= item.cancelReason || 'No reason given' %></p>
+                                        <% } %>
+                                        <% if (isReturned) { %>
+                                            <p class="text-xs text-orange-600 italic">
+                                                Return Status: <%= returnDetails.returnStatus %>
+                                                <% if (returnDetails.returnReason) { %>
+                                                    (<%= returnDetails.returnReason %>)
+                                                <% } %>
+                                            </p>
+                                        <% } %>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="py-2 px-4 border-b">₹<%= (item.regularPrice || 0).toFixed(2) %></td>
+                            <td class="py-2 px-4 border-b"><%= item.quantity || 0 %></td>
+                            <td class="py-2 px-4 border-b">₹<%= (item.totalSales || 0).toFixed(2) %></td>
+                            <td class="py-2 px-4 border-b">
+                                <% if (item.itemDiscount && item.itemDiscount > 0) { %>
+                                    ₹<%= item.itemDiscount.toFixed(2) %>
                                 <% } else { %>
-                                    <% detailedItems.forEach(item => { %>
-                                        <% 
-                                            const isReturned = order.returnedItems?.some(returned => 
-                                                returned.product.toString() === item.product?._id?.toString()
-                                            );
-                                            const returnDetails = isReturned ? order.returnedItems.find(returned => 
-                                                returned.product.toString() === item.product?._id?.toString()
-                                            ) : null;
-                                            const maxReturnDays = 7;
-                                            const deliveryDate = item.deliveryDate || order.createdOn;
-                                            const daysSinceDelivery = (new Date() - new Date(deliveryDate)) / (1000 * 60 * 60 * 24);
-                                            const canReturn = order.status === 'Delivered' && daysSinceDelivery <= maxReturnDays && !isReturned && !item.isCancelled;
-                                        %>
-                                        <tr class="<%= item.isCancelled ? 'line-through text-gray-400' : '' %>">
-                                            <td class="py-2 px-4 border-b">
-                                                <div class="flex items-center gap-4">
-                                                    <% if (item.product && item.product.productImage?.length > 0) { %>
-                                                        <img src="<%= item.product.productImage[0] %>" alt="Product Image" class="w-16 h-16 object-cover rounded" />
-                                                    <% } else { %>
-                                                        <img src="/images/placeholder.png" alt="No Image" class="w-16 h-16 object-cover rounded" />
-                                                    <% } %>
-                                                    <div>
-                                                        <p class="font-medium"><%= item.product?.productName || 'Unknown Product' %></p>
-                                                        <% if (item.offerType && item.offerType !== 'N/A') { %>
-                                                            <p class="text-sm text-gray-600"><%= item.offerType %>: <%= item.totalOfferPercent %>%</p>
-                                                        <% } %>
-                                                        <% if (item.isCancelled) { %>
-                                                            <p class="text-xs text-red-600 italic">Cancelled: <%= item.cancelReason || 'No reason given' %></p>
-                                                        <% } %>
-                                                        <% if (isReturned) { %>
-                                                            <p class="text-xs text-orange-600 italic">
-                                                                Return Status: <%= returnDetails.returnStatus %>
-                                                                <% if (returnDetails.returnReason) { %>
-                                                                    (<%= returnDetails.returnReason %>)
-                                                                <% } %>
-                                                            </p>
-                                                        <% } %>
-                                                    </div>
-                                                </div>
-                                            </td>
-                                            <td class="py-2 px-4 border-b">₹<%= (item.regularPrice || 0).toFixed(2) %></td>
-                                            <td class="py-2 px-4 border-b"><%= item.quantity || 0 %></td>
-                                            <td class="py-2 px-4 border-b">₹<%= (item.totalSales || 0).toFixed(2) %></td>
-                                            <td class="py-2 px-4 border-b">
-                                                <% if (item.itemDiscount && item.itemDiscount > 0) { %>
-                                                    ₹<%= item.itemDiscount.toFixed(2) %>
-                                                <% } else { %>
-                                                    N/A
-                                                <% } %>
-                                            </td>
-                                            <td class="py-2 px-4 border-b text-center">
-                                                <% if (!item.isCancelled && !isReturned && !['Cancelled', 'Delivered', 'Returned', 'Return Request'].includes(order.status)) { %>
-                                                    <button 
-                                                        class="cancel-item-btn bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600"
-                                                        data-order-id="<%= order.orderId %>"
-                                                        data-product-id="<%= item.product?._id %>">
-                                                        Cancel Item
-                                                    </button>
-                                                <% } else if (canReturn) { %>
-                                                    <button 
-                                                        class="return-item-btn bg-orange-500 text-white px-3 py-1 rounded text-sm hover:bg-orange-600"
-                                                        data-order-id="<%= order.orderId %>"
-                                                        data-product-id="<%= item.product?._id %>">
-                                                        Return Item
-                                                    </button>
-                                                <% } else if (item.isCancelled) { %>
-                                                    <span class="text-xs text-red-600 italic">Already Cancelled</span>
-                                                <% } else if (isReturned) { %>
-                                                    <span class="text-xs text-orange-600 italic">Return <%= returnDetails.returnStatus %></span>
-                                                <% } else { %>
-                                                    <span class="text-xs text-gray-400 italic">No Actions Available</span>
-                                                <% } %>
-                                            </td>
-                                        </tr>
-                                    <% }) %>
+                                    N/A
                                 <% } %>
-                            </tbody>
-                        </table>
-                    </div>
-                    <div class="mt-4 text-right">
-                        <p class="text-lg font-semibold">Grand Total: ₹<%= order.finalAmount ? order.finalAmount.toFixed(2) : '0.00' %></p>
-                    </div>
-                </div>
+                            </td>
+                            <!-- New Status Column -->
+                            <td class="py-2 px-4 border-b">
+                                <% if (item.isCancelled) { %>
+                                    <span class="text-red-600">Cancelled</span>
+                                    <% if (item.cancelReason) { %>
+                                        <p class="text-sm text-gray-600">Reason: <%= item.cancelReason %></p>
+                                    <% } %>
+                                <% } else if (isReturned && returnDetails.returnStatus === 'Approved') { %>
+                                    <span class="text-orange-600">Returned</span>
+                                <% } else if (isReturned && returnDetails.returnStatus === 'Denied') { %>
+                                    <span class="text-red-600">Return Denied</span>
+                                    <% if (returnDetails.returnDenyReason) { %>
+                                        <p class="text-sm text-gray-600">Reason: <%= returnDetails.returnDenyReason %></p>
+                                    <% } %>
+                                <% } else if (isReturned && returnDetails.returnStatus === 'Pending') { %>
+                                    <span class="text-yellow-600">Return Pending</span>
+                                <% } else { %>
+                                    <span class="text-green-600">Active</span>
+                                <% } %>
+                            </td>
+                            <td class="py-2 px-4 border-b text-center">
+                                <% if (!item.isCancelled && !isReturned && !['Cancelled', 'Delivered', 'Returned', 'Return Request'].includes(order.status)) { %>
+                                    <button 
+                                        class="cancel-item-btn bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600"
+                                        data-order-id="<%= order.orderId %>"
+                                        data-product-id="<%= item.product?._id %>">
+                                        Cancel Item
+                                    </button>
+                                <% } else if (canReturn) { %>
+                                    <button 
+                                        class="return-item-btn bg-orange-500 text-white px-3 py-1 rounded text-sm hover:bg-orange-600"
+                                        data-order-id="<%= order.orderId %>"
+                                        data-product-id="<%= item.product?._id %>">
+                                        Return Item
+                                    </button>
+                                <% } else if (item.isCancelled) { %>
+                                    <span class="text-xs text-red-600 italic">Already Cancelled</span>
+                                <% } else if (isReturned) { %>
+                                    <span class="text-xs text-orange-600 italic">Return <%= returnDetails.returnStatus %></span>
+                                <% } else { %>
+                                    <span class="text-xs text-gray-400 italic">No Actions Available</span>
+                                <% } %>
+                            </td>
+                        </tr>
+                    <% }) %>
+                <% } %>
+            </tbody>
+        </table>
+    </div>
+    <div class="mt-4 text-right">
+        <p class="text-lg font-semibold">Grand Total: ₹<%= order.finalAmount ? order.finalAmount.toFixed(2) : '0.00' %></p>
+    </div>
+</div>      </div>
 
                 <!-- Shipping Address -->
                 <div class="mb-8">
