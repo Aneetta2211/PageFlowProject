@@ -457,11 +457,12 @@ const returnOrder = async (req, res) => {
         });
     }
 };
-
 const downloadInvoice = async (req, res) => {
     try {
         const { orderID } = req.params;
         const user = req.user;
+
+        console.log('Generating invoice for:', { orderID, userId: user._id });
 
         const order = await Order.findOne({ orderId: orderID, user: user._id })
             .populate({
@@ -474,7 +475,10 @@ const downloadInvoice = async (req, res) => {
             })
             .populate("address");
 
-        if (!order) return res.status(404).send("Order not found");
+        if (!order) {
+            console.warn('Order not found:', { orderID, userId: user._id });
+            return res.status(404).send("Order not found");
+        }
 
         const doc = new PDFDocument({ margin: 50 });
         res.setHeader("Content-Type", "application/pdf");
@@ -489,7 +493,9 @@ const downloadInvoice = async (req, res) => {
             let x = 50;
             doc.fillColor('black').font(bold ? "Helvetica-Bold" : "Helvetica").fontSize(9);
             columns.forEach((col, i) => {
-                doc.text(col, x + 2, y + 5, { width: colWidths[i] - 4 });
+                // Truncate long text to fit within column width
+                const text = col.length > 30 ? col.substring(0, 27) + '...' : col;
+                doc.text(text, x + 2, y + 5, { width: colWidths[i] - 4 });
                 if (strikethrough) {
                     doc.moveTo(x, y + 12).lineTo(x + colWidths[i], y + 12).stroke();
                 }
@@ -509,17 +515,24 @@ const downloadInvoice = async (req, res) => {
         doc.text(`Order Date: ${order.createdOn.toLocaleDateString("en-IN")}`);
         doc.text(`Status: ${order.status}`);
         doc.text(`Payment Method: ${order.paymentMethod}`);
+        if (order.paymentStatus) {
+            doc.text(`Payment Status: ${order.paymentStatus}`);
+        }
         doc.moveDown(1);
 
         // Billing Address
         if (order.address?.address?.length > 0) {
             const billing = order.address.address.find(a => a.isDefault) || order.address.address[0];
             doc.fontSize(14).text("Billing Address:");
-            doc.fontSize(10).text(`${billing.name}`);
-            doc.text(`${billing.landMark}`);
-            doc.text(`${billing.city}, ${billing.state} - ${billing.pincode}`);
-            doc.text(`Phone: ${billing.phone}`);
+            doc.fontSize(10).text(`${billing.name || 'N/A'}`);
+            doc.text(`${billing.landMark || 'N/A'}`);
+            doc.text(`${billing.city || 'N/A'}, ${billing.state || 'N/A'} - ${billing.pincode || 'N/A'}`);
+            doc.text(`Phone: ${billing.phone || 'N/A'}`);
             if (billing.altPhone) doc.text(`Alt Phone: ${billing.altPhone}`);
+            doc.moveDown(1);
+        } else {
+            doc.fontSize(14).text("Billing Address:");
+            doc.fontSize(10).text("N/A");
             doc.moveDown(1);
         }
 
@@ -534,24 +547,33 @@ const downloadInvoice = async (req, res) => {
         let discountedSubtotal = 0;
 
         order.orderedItems.forEach(item => {
-            const product = item.product;
-            const quantity = item.quantity;
-            const regular = product.regularPrice;
-            const sales = product.salesPrice;
-            const total = regular * quantity;
-            const discountedTotal = sales * quantity;
-            const discount = total - discountedTotal;
+            const product = item.product || {};
+            const productName = product.productName || 'Unknown Product';
+            const quantity = item.quantity || 0;
+            const price = item.price || product.salesPrice || product.regularPrice || 0;
+            const discount = item.discountApplied || 0;
+            const total = price * quantity;
+            const discountedTotal = total - discount;
 
             originalSubtotal += total;
             discountedSubtotal += discountedTotal;
 
-            const cancelledItem = order.cancelledItems.find(c => c.product.equals(item.product._id));
+            const cancelledItem = order.cancelledItems.find(c => c.product && c.product._id.equals(item.product?._id));
             const isCancelled = !!cancelledItem;
 
+            console.log('Rendering item:', {
+                productName,
+                quantity,
+                price,
+                discount,
+                discountedTotal,
+                isCancelled
+            });
+
             drawRow(doc.y, [
-                product.productName,
+                productName,
                 quantity.toString(),
-                '₹' + regular.toFixed(2),
+                '₹' + price.toFixed(2),
                 '₹' + discount.toFixed(2),
                 '₹' + discountedTotal.toFixed(2)
             ], false, isCancelled);
@@ -573,7 +595,15 @@ const downloadInvoice = async (req, res) => {
         // Summary
         const coupon = order.discount || 0;
         const shipping = order.shipping || 0;
-        const grand = discountedSubtotal - coupon + shipping;
+        const grand = order.finalAmount || discountedSubtotal - coupon + shipping;
+
+        console.log('Payment summary:', {
+            originalSubtotal,
+            discountedSubtotal,
+            coupon,
+            shipping,
+            grand
+        });
 
         doc.moveDown(1);
         doc.fontSize(12).fillColor('black').text("Payment Summary:");
@@ -613,8 +643,6 @@ const downloadInvoice = async (req, res) => {
         res.status(500).send("Failed to generate invoice");
     }
 };
-
-
 
 
 const getOrderDetails = async (req, res) => {
