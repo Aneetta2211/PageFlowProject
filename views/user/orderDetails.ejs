@@ -757,105 +757,104 @@ async function retryPayment(orderId, amount) {
         }
 
         async function confirmCancelItem() {
-            const orderId = document.getElementById('cancelItemOrderID')?.value;
-            const productId = document.getElementById('cancelItemProductID')?.value;
-            const reason = document.getElementById('cancelItemReason')?.value || '';
-            const details = document.getElementById('cancelItemReasonDetails')?.value?.trim() || '';
+    const orderId = document.getElementById('cancelItemOrderID')?.value;
+    const productId = document.getElementById('cancelItemProductID')?.value;
+    const reason = document.getElementById('cancelItemReason')?.value || '';
+    const details = document.getElementById('cancelItemReasonDetails')?.value?.trim() || '';
 
-            let finalReason = reason;
-            if (reason && details) {
-                finalReason = `${reason}: ${details}`;
-            } else if (!reason && details) {
-                finalReason = details;
-            } else if (!reason && !details) {
-                finalReason = '';
-            }
+    let finalReason = reason;
+    if (reason && details) {
+        finalReason = `${reason}: ${details}`;
+    } else if (!reason && details) {
+        finalReason = details;
+    } else if (!reason && !details) {
+        finalReason = '';
+    }
 
-            console.log('Attempting to cancel item:', { orderId, productId, reason: finalReason });
+    console.log('Attempting to cancel item:', { orderId, productId, reason: finalReason });
 
-            if (!orderId || !productId) {
-                console.error('Invalid orderId or productId in cancelItem inputs:', { orderId, productId });
-                await Swal.fire({
-                    title: 'Error!',
-                    text: 'Invalid order or product ID. Please try again.',
-                    icon: 'error',
-                    confirmButtonColor: '#3085d6'
-                });
-                closeCancelItemModal();
-                return;
-            }
+    if (!orderId || !productId) {
+        console.error('Invalid orderId or productId in cancelItem inputs:', { orderId, productId });
+        await Swal.fire({
+            title: 'Error!',
+            text: 'Invalid order or product ID. Please try again.',
+            icon: 'error',
+            confirmButtonColor: '#3085d6'
+        });
+        closeCancelItemModal();
+        return;
+    }
 
-            const requestUrl = `/api/orders/${encodeURIComponent(orderId)}/cancel-item/${encodeURIComponent(productId)}`;
-            console.log('Sending fetch request to:', requestUrl);
+    const result = await Swal.fire({
+        title: 'Are you sure?',
+        text: 'Do you really want to cancel this item? This action cannot be undone.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Yes, cancel it!',
+        cancelButtonText: 'No, keep it'
+    });
 
-            const result = await Swal.fire({
-                title: 'Are you sure?',
-                text: 'Do you really want to cancel this item? This action cannot be undone.',
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#d33',
-                cancelButtonColor: '#3085d6',
-                confirmButtonText: 'Yes, cancel it!',
-                cancelButtonText: 'No, keep it'
-            });
+    if (!result.isConfirmed) {
+        console.log('Item cancellation aborted by user');
+        closeCancelItemModal();
+        return;
+    }
 
-            if (!result.isConfirmed) {
-                console.log('Item cancellation aborted by user');
-                closeCancelItemModal();
-                return;
-            }
+    try {
+        const requestUrl = `/api/orders/${encodeURIComponent(orderId)}/cancel-item/${encodeURIComponent(productId)}`;
+        console.log('Sending fetch request to:', requestUrl);
 
-            try {
-                const response = await fetch(requestUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    credentials: 'include',
-                    body: JSON.stringify({ reason: finalReason })
-                });
+        const response = await fetch(requestUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({ orderId, productId, reason: finalReason }) // Include orderId and productId in body for consistency
+        });
 
-                console.log('Fetch response status:', response.status, 'OK:', response.ok);
+        console.log('Fetch response status:', response.status, 'OK:', response.ok);
 
-                const contentType = response.headers.get('content-type');
-                if (!contentType || !contentType.includes('application/json')) {
-                    const text = await response.text();
-                    console.error('Non-JSON response received:', text);
-                    throw new Error(`Server returned non-JSON response (status: ${response.status})`);
-                }
-
-                const data = await response.json();
-                console.log('Server response data:', data);
-
-                if (response.ok) {
-                    await Swal.fire({
-                        title: 'Cancelled!',
-                        text: data.message || 'Item cancelled successfully.',
-                        icon: 'success',
-                        confirmButtonColor: '#3085d6'
-                    });
-                    window.location.reload();
-                } else {
-                    await Swal.fire({
-                        title: 'Error!',
-                        text: data.error || 'Failed to cancel item. Please try again.',
-                        icon: 'error',
-                        confirmButtonColor: '#3085d6'
-                    });
-                }
-            } catch (error) {
-                console.error('Error cancelling item:', error);
-                await Swal.fire({
-                    title: 'Error!',
-                    text: `An error occurred while cancelling the item: ${error.message}`,
-                    icon: 'error',
-                    confirmButtonColor: '#3085d6'
-                });
-            }
-            closeCancelItemModal();
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            console.error('Non-JSON response received:', text);
+            throw new Error(`Server returned non-JSON response (status: ${response.status})`);
         }
 
+        const data = await response.json();
+        console.log('Server response data:', data);
+
+        if (response.ok) {
+            await Swal.fire({
+                title: 'Cancelled!',
+                text: data.message || 'Item cancelled successfully.',
+                icon: 'success',
+                confirmButtonColor: '#3085d6'
+            });
+            window.location.reload();
+        } else {
+            await Swal.fire({
+                title: 'Error!',
+                text: data.message || 'Failed to cancel item. Please try again.',
+                icon: 'error',
+                confirmButtonColor: '#3085d6'
+            });
+        }
+    } catch (error) {
+        console.error('Error cancelling item:', error);
+        await Swal.fire({
+            title: 'Error!',
+            text: `An error occurred while cancelling the item: ${error.message}`,
+            icon: 'error',
+            confirmButtonColor: '#3085d6'
+        });
+    }
+    closeCancelItemModal();
+}
         async function confirmReturnOrder() {
             const orderId = document.getElementById('returnOrderID')?.value;
             const reason = document.getElementById('returnReason')?.value;
