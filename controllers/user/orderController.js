@@ -690,8 +690,18 @@ const getOrderDetails = async (req, res) => {
         if (!orderID) return res.status(400).send("Order ID missing");
 
         const order = await Order.findOne({ orderId: orderID, user: userId })
-            .populate('orderedItems.product')
-            .populate('cancelledItems.product');
+            .populate({
+                path: 'orderedItems.product',
+                select: 'productName productImage regularPrice salesPrice offerType totalOffer'
+            })
+            .populate({
+                path: 'cancelledItems.product',
+                select: 'productName productImage regularPrice salesPrice offerType totalOffer'
+            })
+            .populate({
+                path: 'returnedItems.product',
+                select: 'productName productImage regularPrice salesPrice offerType totalOffer'
+            });
 
         if (!order) return res.status(404).send("Order not found");
 

@@ -190,33 +190,34 @@
                     </div>
 
                     <!-- Payment Information -->
-                    <div class="text-sm text-gray-700 leading-6">
-                        <p><strong>Offer Type:</strong>
-                            <% 
-                                const offerTypes = new Set();
-                                order.orderedItems.forEach(item => {
-                                    if (item.product?.offerType && item.product.offerType !== 'none') {
-                                        offerTypes.add(item.product.offerType.charAt(0).toUpperCase() + item.product.offerType.slice(1));
-                                    }
-                                });
-                            %>
-                            <%= offerTypes.size > 0 ? Array.from(offerTypes).join(', ') + ' Offer' : 'None' %>
-                        </p>
-                        <p><strong>Original Subtotal:</strong> ₹<%= order.orderedItems.reduce((sum, item) => {
-                            const price = item.product?.regularPrice || item.price;
-                            return sum + (price * item.quantity);
-                        }, 0).toFixed(2) %></p>
-                        <p><strong>Offer Discount:</strong> ₹<%= (
-                            order.orderedItems.reduce((sum, item) => {
-                                const price = item.product?.regularPrice || item.price;
-                                return sum + (price * item.quantity);
-                            }, 0) - order.totalPrice
-                        ).toFixed(2) %></p>
-                        <p><strong>Coupon Discount:</strong> ₹<%= order.discount?.toFixed(2) || '0.00' %></p>
-                        <p><strong>Shipping:</strong> ₹<%= order.shipping?.toFixed(2) || '0.00' %></p>
-                        <p><strong>Payment Method:</strong> <%= order.paymentMethod?.toUpperCase() || 'N/A' %></p>
-                        <p class="text-base font-semibold mt-2"><strong>Grand Total:</strong> ₹<%= order.finalAmount?.toFixed(2) || '0.00' %></p>
-                    </div>
+<div class="text-sm text-gray-700 leading-6">
+    <p><strong>Offer Type:</strong>
+        <% 
+            const offerTypes = new Set();
+            order.orderedItems.forEach(item => {
+                if (item.product?.offerType && item.product.offerType !== 'none') {
+                    offerTypes.add(item.product.offerType.charAt(0).toUpperCase() + item.product.offerType.slice(1));
+                }
+            });
+        %>
+        <%= offerTypes.size > 0 ? Array.from(offerTypes).join(', ') + ' Offer' : 'None' %>
+    </p>
+    <p><strong>Original Subtotal:</strong> ₹<%= order.orderedItems.reduce((sum, item) => {
+        const price = item.product?.regularPrice || item.price;
+        return sum + (price * item.quantity);
+    }, 0).toFixed(2) %></p>
+    <p><strong>Offer Discount:</strong> -₹<%= (
+        order.orderedItems.reduce((sum, item) => {
+            const regularPrice = item.product?.regularPrice || item.price;
+            const salesPrice = item.product?.salesPrice || item.price;
+            return sum + ((regularPrice - salesPrice) * item.quantity);
+        }, 0)
+    ).toFixed(2) %></p>
+    <p><strong>Coupon Discount:</strong> -₹<%= order.discount?.toFixed(2) || '0.00' %></p>
+    <p><strong>Shipping:</strong> ₹<%= order.shipping?.toFixed(2) || '0.00' %></p>
+    <p><strong>Payment Method:</strong> <%= order.paymentMethod?.toUpperCase() || 'N/A' %></p>
+    <p class="text-base font-semibold mt-2"><strong>Grand Total:</strong> ₹<%= order.finalAmount?.toFixed(2) || '0.00' %></p>
+</div>
                 </div>
 
             <!-- Order Items -->
@@ -289,38 +290,33 @@
                 %>
                 <tr class="<%= rowClass %>">
                     <td class="py-2 px-4 border-b">
-                        <div class="flex items-center">
-                            <% if (item.product && item.product.productImage && item.product.productImage.length > 0) { %>
-                                <img src="<%= item.product.productImage[0] %>" 
-                                     alt="<%= item.product.productName || 'Product' %>" 
-                                     class="w-16 h-16 object-cover mr-4">
-                            <% } else if (typeof item.product === 'object' && item.product !== null) { %>
-                                <!-- Handle case where product exists but has no image -->
-                                <img src="/images/default-product.jpg" 
-                                     alt="No image available" 
-                                     class="w-16 h-16 object-cover mr-4">
-                            <% } else { %>
-                                <!-- Handle case where product reference is missing -->
-                                <img src="/images/default-product.jpg" 
-                                     alt="Product not found" 
-                                     class="w-16 h-16 object-cover mr-4">
-                            <% } %>
-                            <div>
-                                <h3 class="font-medium">
-                                    <%= (item.product && item.product.productName) ? item.product.productName : 'Unknown Product' %>
-                                </h3>
-                                <% if (item.isCancelled && item.cancelReason) { %>
-                                    <p class="text-sm text-red-600">Cancelled: <%= item.cancelReason %></p>
-                                <% } %>
-                                <% if (item.isReturned) { %>
-                                    <p class="text-sm text-orange-600">Returned</p>
-                                <% } %>
-                                <% if (item.isReturnDenied) { %>
-                                    <p class="text-sm text-red-600">Return Denied</p>
-                                <% } %>
-                            </div>
-                        </div>
-                    </td>
+    <div class="flex items-center">
+        <% if (item.product && item.product.productImage && item.product.productImage.length > 0) { %>
+            <img src="<%= item.product.productImage[0] %>" 
+                 alt="<%= item.product.productName || 'Product' %>" 
+                 class="w-16 h-16 object-cover mr-4">
+        <% } else { %>
+            <img src="/images/default-product.jpg" 
+                 alt="Product image not available" 
+                 class="w-16 h-16 object-cover mr-4">
+        <% } %>
+        <div>
+            <h3 class="font-medium">
+                <%= (item.product && item.product.productName) ? item.product.productName : 'Unknown Product' %>
+            </h3>
+            <% if (item.isCancelled && item.cancelReason) { %>
+                <p class="text-sm text-red-600">Cancelled: <%= item.cancelReason %></p>
+            <% } %>
+            <% if (item.isReturned) { %>
+                <p class="text-sm text-orange-600">Returned</p>
+            <% } %>
+            <% if (item.isReturnDenied) { %>
+                <p class="text-sm text-red-600">Return Denied</p>
+            <% } %>
+        </div>
+    </div>
+</td>
+<td class="py-2 px-4 border-b">₹<%= (item.product?.regularPrice || item.price).toFixed(2) %></td>
                     <td class="py-2 px-4 border-b">₹<%= item.price ? item.price.toFixed(2) : '0.00' %></td>
                     <td class="py-2 px-4 border-b"><%= item.quantity || 0 %></td>
                     <td class="py-2 px-4 border-b">₹<%= discountedItemTotal ? discountedItemTotal.toFixed(2) : '0.00' %></td>
