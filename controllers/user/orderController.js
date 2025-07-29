@@ -493,7 +493,6 @@ const downloadInvoice = async (req, res) => {
             let x = 50;
             doc.fillColor('black').font(bold ? "Helvetica-Bold" : "Helvetica").fontSize(9);
             columns.forEach((col, i) => {
-                // Truncate long text to fit within column width
                 const text = col.length > 30 ? col.substring(0, 27) + '...' : col;
                 doc.text(text, x + 2, y + 5, { width: colWidths[i] - 4 });
                 if (strikethrough) {
@@ -543,10 +542,9 @@ const downloadInvoice = async (req, res) => {
         drawRow(doc.y, ["Item", "Qty", "Price", "Discount", "Total"], true);
         doc.moveDown(1);
 
-        let originalSubtotal = 0;
-        let discountedSubtotal = 0;
-
-        order.orderedItems.forEach(item => {
+        // Process all items (ordered and cancelled)
+        const allItems = [...order.orderedItems, ...order.cancelledItems];
+        allItems.forEach(item => {
             const product = item.product || {};
             const productName = product.productName || 'Unknown Product';
             const quantity = item.quantity || 0;
@@ -554,12 +552,7 @@ const downloadInvoice = async (req, res) => {
             const discount = item.discountApplied || 0;
             const total = price * quantity;
             const discountedTotal = total - discount;
-
-            originalSubtotal += total;
-            discountedSubtotal += discountedTotal;
-
-            const cancelledItem = order.cancelledItems.find(c => c.product && c.product._id.equals(item.product?._id));
-            const isCancelled = !!cancelledItem;
+            const isCancelled = order.cancelledItems.some(c => c.product && c.product._id.equals(item.product?._id));
 
             console.log('Rendering item:', {
                 productName,
@@ -585,7 +578,8 @@ const downloadInvoice = async (req, res) => {
             }
 
             if (isCancelled) {
-                doc.fontSize(8).fillColor("red").text(`Cancelled: ${cancelledItem.cancelReason || "N/A"}`, 55, doc.y + 10);
+                const cancelledItem = order.cancelledItems.find(c => c.product && c.product._id.equals(item.product?._id));
+                doc.fontSize(8).fillColor("red").text(`Cancelled: ${cancelledItem?.cancelReason || "N/A"}`, 55, doc.y + 10);
                 doc.fillColor("black");
             }
 
@@ -593,9 +587,24 @@ const downloadInvoice = async (req, res) => {
         });
 
         // Summary
-        const coupon = order.discount || 0;
-        const shipping = order.shipping || 0;
-        const grand = order.finalAmount || discountedSubtotal - coupon + shipping;
+        let originalSubtotal = order.totalPrice || 0;
+        let discountedSubtotal = order.totalPrice - order.discount || 0;
+        let coupon = order.discount || 0;
+        let shipping = order.shipping || 0;
+        let grand = order.finalAmount || 0;
+
+        if (order.paymentStatus !== 'Failed' && order.orderedItems.length > 0) {
+            originalSubtotal = order.orderedItems.reduce((sum, item) => {
+                const price = item.price || (item.product?.salesPrice || item.product?.regularPrice || 0);
+                return sum + (price * item.quantity);
+            }, 0);
+            discountedSubtotal = order.orderedItems.reduce((sum, item) => {
+                const price = item.price || (item.product?.salesPrice || item.product?.regularPrice || 0);
+                const discount = item.discountApplied || 0;
+                return sum + (price * item.quantity - discount);
+            }, 0);
+            grand = discountedSubtotal - coupon + shipping;
+        }
 
         console.log('Payment summary:', {
             originalSubtotal,
@@ -643,7 +652,6 @@ const downloadInvoice = async (req, res) => {
         res.status(500).send("Failed to generate invoice");
     }
 };
-
 
 const getOrderDetails = async (req, res) => {
     try {
