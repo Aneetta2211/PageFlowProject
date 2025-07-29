@@ -24,6 +24,9 @@ const orderSchema = new Schema({
         discountApplied: {
             type: Number,
             default: 0
+        },
+        deliveryDate: {
+            type: Date
         }
     }],
     cancelledItems: [{
@@ -40,7 +43,7 @@ const orderSchema = new Schema({
             type: Number,
             default: 0
         },
-        discountApplied: { 
+        discountApplied: {
             type: Number,
             default: 0
         },
@@ -52,6 +55,40 @@ const orderSchema = new Schema({
             default: Date.now
         }
     }],
+    returnedItems: [{ 
+        product: {
+            type: Schema.Types.ObjectId,
+            ref: "product",
+            required: true
+        },
+        quantity: {
+            type: Number,
+            required: true
+        },
+        price: {
+            type: Number,
+            default: 0
+        },
+        discountApplied: {
+            type: Number,
+            default: 0
+        },
+        returnReason: {
+            type: String
+        },
+        returnStatus: {
+            type: String,
+            enum: ['Pending', 'Approved', 'Denied'],
+            default: 'Pending'
+        },
+        returnRequestDate: {
+            type: Date,
+            default: Date.now
+        },
+        returnDate: {
+            type: Date
+        }
+    }],
     totalPrice: {
         type: Number,
         required: true
@@ -60,7 +97,7 @@ const orderSchema = new Schema({
         type: Number,
         default: 0
     },
-    shipping: { 
+    shipping: {
         type: Number,
         default: 49.00
     },
@@ -73,7 +110,7 @@ const orderSchema = new Schema({
         ref: 'Address',
         required: true
     },
-    user: { 
+    user: {
         type: Schema.Types.ObjectId,
         ref: 'User',
         required: true
@@ -99,7 +136,7 @@ const orderSchema = new Schema({
         type: String,
         default: null
     },
-    paymentMethod: { 
+    paymentMethod: {
         type: String,
         required: true,
         enum: ['COD', 'razorpay', 'wallet']
@@ -138,6 +175,10 @@ const orderSchema = new Schema({
     },
     returnDenyReason: {
         type: String
+    },
+    refundedAmount: {
+        type: Number,
+        default: 0
     }
 });
 

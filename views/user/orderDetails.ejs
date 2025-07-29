@@ -219,7 +219,7 @@
                 </div>
             </div>
 
-          <!-- Order Items -->
+<!-- Order Items -->
 <div class="mb-8">
     <h2 class="text-lg font-semibold mb-4">Order Items</h2>
     <div class="overflow-x-auto">
@@ -243,6 +243,20 @@
                     </tr>
                 <% } else { %>
                     <% detailedItems.forEach(item => { %>
+                        <% 
+                            // Check if item is in returnedItems
+                            const isReturned = order.returnedItems?.some(returned => 
+                                returned.product.toString() === item.product?._id?.toString()
+                            );
+                            const returnDetails = isReturned ? order.returnedItems.find(returned => 
+                                returned.product.toString() === item.product?._id?.toString()
+                            ) : null;
+                            // Check if return is possible (delivered and within 7 days)
+                            const maxReturnDays = 7;
+                            const deliveryDate = item.deliveryDate || order.createdOn;
+                            const daysSinceDelivery = (new Date() - new Date(deliveryDate)) / (1000 * 60 * 60 * 24);
+                            const canReturn = order.status === 'Delivered' && daysSinceDelivery <= maxReturnDays && !isReturned && !item.isCancelled;
+                        %>
                         <tr class="<%= item.isCancelled ? 'line-through text-gray-400' : '' %>">
                             <td class="py-2 px-4 border-b">
                                 <div class="flex items-center gap-4">
@@ -259,6 +273,14 @@
                                         <% if (item.isCancelled) { %>
                                             <p class="text-xs text-red-600 italic">Cancelled: <%= item.cancelReason || 'No reason given' %></p>
                                         <% } %>
+                                        <% if (isReturned) { %>
+                                            <p class="text-xs text-orange-600 italic">
+                                                Return Status: <%= returnDetails.returnStatus %>
+                                                <% if (returnDetails.returnReason) { %>
+                                                    (<%= returnDetails.returnReason %>)
+                                                <% } %>
+                                            </p>
+                                        <% } %>
                                     </div>
                                 </div>
                             </td>
@@ -273,17 +295,26 @@
                                 <% } %>
                             </td>
                             <td class="py-2 px-4 border-b text-center">
-                                <% if (!item.isCancelled && !['Cancelled', 'Delivered', 'Returned', 'Return Request'].includes(order.status)) { %>
+                                <% if (!item.isCancelled && !isReturned && !['Cancelled', 'Delivered', 'Returned', 'Return Request'].includes(order.status)) { %>
                                     <button 
                                         class="cancel-item-btn bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600"
                                         data-order-id="<%= order.orderId %>"
                                         data-product-id="<%= item.product?._id %>">
                                         Cancel Item
                                     </button>
+                                <% } else if (canReturn) { %>
+                                    <button 
+                                        class="return-item-btn bg-orange-500 text-white px-3 py-1 rounded text-sm hover:bg-orange-600"
+                                        data-order-id="<%= order.orderId %>"
+                                        data-product-id="<%= item.product?._id %>">
+                                        Return Item
+                                    </button>
                                 <% } else if (item.isCancelled) { %>
                                     <span class="text-xs text-red-600 italic">Already Cancelled</span>
+                                <% } else if (isReturned) { %>
+                                    <span class="text-xs text-orange-600 italic">Return <%= returnDetails.returnStatus %></span>
                                 <% } else { %>
-                                    <span class="text-xs text-gray-400 italic">Not Cancellable</span>
+                                    <span class="text-xs text-gray-400 italic">No Actions Available</span>
                                 <% } %>
                             </td>
                         </tr>
@@ -410,6 +441,32 @@
             </div>
         </div>
     </div>
+    <!-- Return Item Modal -->
+<div id="returnItemModal" class="modal">
+    <div class="modal-content">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold">Return Item</h2>
+            <button onclick="closeReturnItemModal()" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <p class="mb-4">Please provide a reason for returning this item.</p>
+        <input type="hidden" id="returnItemOrderID">
+        <input type="hidden" id="returnItemProductID">
+        <div class="mb-4">
+            <label for="returnItemReason" class="block text-gray-700 mb-2">Reason for Return (Required):</label>
+            <textarea id="returnItemReason" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500" rows="3" required></textarea>
+        </div>
+        <div class="flex justify-end space-x-3">
+            <button onclick="closeReturnItemModal()" class="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400 transition">
+                Close
+            </button>
+            <button onclick="confirmReturnItem()" class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition">
+                Submit Return
+            </button>
+        </div>
+    </div>
+</div>
 
     <script>
         //Utility function to safely escape strings for JavaScript
@@ -945,12 +1002,120 @@ async function retryPayment(orderId, amount) {
             }
         };
 
-        // Add event listeners for buttons
+
+        function openReturnItemModal(orderID, productID) {
+    if (!orderID || !productID) {
+        console.error('Invalid orderID or productID for openReturnItemModal:', { orderID, productID });
+        Swal.fire({
+            title: 'Error!',
+            text: 'Invalid order or product ID. Please try again.',
+            icon: 'error',
+            confirmButtonColor: '#3085d6'
+        });
+        return;
+    }
+    console.log('Opening return item modal for:', { orderID, productID });
+    document.getElementById('returnItemOrderID').value = orderID;
+    document.getElementById('returnItemProductID').value = productID;
+    document.getElementById('returnItemModal').style.display = 'block';
+}
+
+function closeReturnItemModal() {
+    console.log('Closing return item modal');
+    document.getElementById('returnItemModal').style.display = 'none';
+    const returnItemReasonInput = document.getElementById('returnItemReason');
+    if (returnItemReasonInput) returnItemReasonInput.value = '';
+}
+
+async function confirmReturnItem() {
+    const orderId = document.getElementById('returnItemOrderID')?.value;
+    const productId = document.getElementById('returnItemProductID')?.value;
+    const reason = document.getElementById('returnItemReason')?.value?.trim();
+
+    console.log('Attempting to submit return for item:', { orderId, productId, reason });
+
+    if (!orderId || !productId) {
+        console.error('Invalid orderId or productId in returnItem inputs:', { orderId, productId });
+        await Swal.fire({
+            title: 'Error!',
+            text: 'Invalid order or product ID. Please try again.',
+            icon: 'error',
+            confirmButtonColor: '#3085d6'
+        });
+        closeReturnItemModal();
+        return;
+    }
+
+    if (!reason) {
+        await Swal.fire({
+            title: 'Error!',
+            text: 'Please provide a reason for the return.',
+            icon: 'error',
+            confirmButtonColor: '#3085d6'
+        });
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/orders/${encodeURIComponent(orderId)}/return-item/${encodeURIComponent(productId)}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            credentials: 'include',
+            body: JSON.stringify({ reason })
+        });
+
+        console.log('Fetch response status:', response.status);
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const text = await response.text();
+            console.error('Non-JSON response received:', text);
+            throw new Error('Server returned non-JSON response');
+        }
+
+        const data = await response.json();
+        console.log('Server response data:', data);
+
+        if (response.ok) {
+            await Swal.fire({
+                title: 'Success!',
+                text: data.message || 'Return request for item submitted successfully.',
+                icon: 'success',
+                confirmButtonColor: '#3085d6'
+            });
+            window.location.reload();
+        } else {
+            await Swal.fire({
+                title: 'Error!',
+                text: data.error || 'Failed to submit return request for item.',
+                icon: 'error',
+                confirmButtonColor: '#3085d6'
+            });
+            if (response.status === 400) {
+                document.getElementById('returnItemReason').focus();
+            }
+        }
+    } catch (error) {
+        console.error('Error submitting return item:', error);
+        await Swal.fire({
+            title: 'Error!',
+            text: `An error occurred while submitting the return request: ${error.message}`,
+            icon: 'error',
+            confirmButtonColor: '#3085d6'
+        });
+    }
+    closeReturnItemModal();
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+    // Existing listeners remain unchanged
     const cancelOrderBtn = document.getElementById('cancel-order-btn');
     const returnOrderBtn = document.getElementById('return-order-btn');
     const retryPaymentBtn = document.getElementById('retry-payment-btn');
     const cancelItemButtons = document.querySelectorAll('.cancel-item-btn');
+    const returnItemButtons = document.querySelectorAll('.return-item-btn');
 
     if (cancelOrderBtn) {
         cancelOrderBtn.addEventListener('click', function() {
@@ -979,6 +1144,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const orderId = escapeString(this.getAttribute('data-order-id'));
             const productId = escapeString(this.getAttribute('data-product-id'));
             openCancelItemModal(orderId, productId);
+        });
+    });
+
+    returnItemButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const orderId = escapeString(this.getAttribute('data-order-id'));
+            const productId = escapeString(this.getAttribute('data-product-id'));
+            openReturnItemModal(orderId, productId);
         });
     });
 });

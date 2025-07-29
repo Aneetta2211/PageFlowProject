@@ -353,31 +353,91 @@ const cancelOrderItem = async (req, res) => {
 
 const verifyReturnRequest = async (req, res) => {
     try {
-        const { orderId, status } = req.body; 
+        const { orderId, productId, status, denyReason } = req.body;
 
-        
         const order = await Order.findOne({ orderId })
             .populate('user')
             .populate('orderedItems.product')
+            .populate('returnedItems.product')
             .populate('cancelledItems.product');
 
         if (!order) {
             return res.status(404).json({ error: 'Order not found' });
         }
 
-        if (order.status !== 'Return Request' || !order.returnRequested) {
-            return res.status(400).json({ error: 'No valid return request found for this order' });
+        let refundAmount = 0;
+
+        if (productId) {
+            // Handle individual item return
+            const returnItemIndex = order.returnedItems.findIndex(item => item.product.toString() === productId);
+            if (returnItemIndex === -1) {
+                return res.status(404).json({ error: 'Returned item not found' });
+            }
+
+            const returnItem = order.returnedItems[returnItemIndex];
+            if (returnItem.returnStatus !== 'Pending') {
+                return res.status(400).json({ error: `Item return already ${returnItem.returnStatus.toLowerCase()}` });
+            }
+
+            if (status === 'Approved') {
+                refundAmount = (returnItem.price * returnItem.quantity);
+                returnItem.returnStatus = 'Approved';
+                returnItem.returnDate = new Date();
+                order.refundedAmount = (order.refundedAmount || 0) + refundAmount;
+
+                // Restock the product
+                await Product.findByIdAndUpdate(returnItem.product, {
+                    $inc: { quantity: returnItem.quantity }
+                });
+            } else if (status === 'Denied') {
+                returnItem.returnStatus = 'Denied';
+                returnItem.returnDenyReason = denyReason || 'No reason provided';
+            }
+
+            // Update order status based on all returned items
+            if (order.returnedItems.every(item => item.returnStatus !== 'Pending')) {
+                order.returnStatus = order.returnedItems.every(item => item.returnStatus === 'Approved') ? 'Approved' : 'Denied';
+                order.status = order.returnedItems.every(item => item.returnStatus === 'Approved') ? 'Returned' : 'Return Denied';
+                order.returnDate = order.returnedItems.every(item => item.returnStatus === 'Approved') ? new Date() : null;
+                order.returnDenyReason = order.returnedItems.some(item => item.returnStatus === 'Denied') ? 'Some items denied' : null;
+            }
+        } else {
+            // Handle whole-order return
+            if (order.status !== 'Return Request' || !order.returnRequested) {
+                return res.status(400).json({ error: 'No valid return request found for this order' });
+            }
+
+            if (status === 'Approved') {
+                refundAmount = order.finalAmount;
+                order.status = 'Returned';
+                order.returnStatus = 'Approved';
+                order.returnDate = new Date();
+                order.refundedAmount = refundAmount;
+                order.returnedItems.forEach(item => {
+                    item.returnStatus = 'Approved';
+                    item.returnDate = new Date();
+                });
+
+                // Restock all products
+                for (const item of order.returnedItems) {
+                    await Product.findByIdAndUpdate(item.product, {
+                        $inc: { quantity: item.quantity }
+                    });
+                }
+            } else {
+                order.status = 'Return Denied';
+                order.returnStatus = 'Denied';
+                order.returnDenyReason = denyReason || 'No reason provided';
+                order.returnedItems.forEach(item => {
+                    item.returnStatus = 'Denied';
+                    item.returnDenyReason = denyReason || 'No reason provided';
+                });
+            }
         }
 
-       
-        if (status === 'Approved') {
-            order.status = 'Returned';
-            order.returnStatus = 'Approved';
-
-            
-            const refundAmount = order.finalAmount; 
+        // Process refund if approved
+        if (status === 'Approved' && order.paymentStatus === 'Paid' && refundAmount > 0) {
             let userWallet = await Wallet.findOne({ user: order.user._id });
-
             if (!userWallet) {
                 userWallet = new Wallet({
                     user: order.user._id,
@@ -390,20 +450,19 @@ const verifyReturnRequest = async (req, res) => {
             userWallet.transactions.push({
                 amount: refundAmount,
                 type: 'credit',
-                description: `Refund for returned order ${orderId}`,
+                description: `Refund for ${productId ? 'item in' : ''} order ${orderId}${productId ? `, product: ${order.returnedItems[returnItemIndex]?.product?.productName || 'Unknown Product'}` : ''}`,
                 date: new Date()
             });
 
             await userWallet.save();
-
-        } else {
-            order.status = 'Return Denied';
-            order.returnStatus = 'Denied';
         }
 
         await order.save();
 
-        res.status(200).json({ message: `Return request ${status.toLowerCase()} successfully` });
+        res.status(200).json({
+            message: `Return request ${status.toLowerCase()} successfully`,
+            refundAmount: refundAmount > 0 ? refundAmount : undefined
+        });
     } catch (error) {
         console.error('Error verifying return request:', error);
         res.status(500).json({ error: 'Server error while verifying return request' });

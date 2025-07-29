@@ -75,6 +75,7 @@ router.post('/profile/addresses/set-default/:id', userAuth, profileController.se
 router.get("/profile/orders", userAuth, orderController.getOrdersPage);
 router.get("/orders/:orderID", userAuth, orderController.getOrderDetails);
 router.post("/api/orders/:orderID/return", userAuth, orderController.returnOrder);
+router.post('/api/orders/:orderID/return-item/:productID', userAuth, orderController.returnOrderItem);
 router.get("/api/orders/:orderID/invoice", userAuth, orderController.downloadInvoice);
 router.get('/checkout', userAuth, orderController.renderCheckout);
 router.post('/order/place', userAuth, orderController.placeOrder);

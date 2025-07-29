@@ -388,12 +388,135 @@ const cancelOrderItem = async (req, res) => {
     }
 };
 
+const returnOrderItem = async (req, res) => {
+    try {
+        const { orderId, productId } = req.params;
+        const { reason } = req.body;
+        const user = req.user;
+
+        const orderIdRegex = /^OR-\d{4}$/;
+        if (!orderIdRegex.test(orderId)) {
+            console.warn('Invalid orderID format:', orderId);
+            return res.status(400).json({
+                success: false,
+                error: 'Invalid order ID format'
+            });
+        }
+
+        if (!reason) {
+            return res.status(400).json({
+                error: 'Return reason is required'
+            });
+        }
+
+        const order = await Order.findOne({
+            orderId,
+            user: user._id
+        }).populate('orderedItems.product');
+
+        if (!order) {
+            return res.status(404).json({
+                success: false,
+                error: 'Order not found'
+            });
+        }
+
+        if (order.status !== 'Delivered') {
+            return res.status(400).json({
+                success: false,
+                error: 'Only delivered orders can be returned'
+            });
+        }
+
+        const itemIndex = order.orderedItems.findIndex(item => item.product._id.toString() === productId);
+        if (itemIndex === -1) {
+            return res.status(404).json({
+                success: false,
+                error: 'Item not found in order'
+            });
+        }
+
+        const item = order.orderedItems[itemIndex];
+        const maxReturnDays = 7;
+        const deliveryDate = item.deliveryDate || order.createdOn;
+        const daysSinceDelivery = (new Date() - new Date(deliveryDate)) / (1000 * 60 * 60 * 24);
+
+        if (daysSinceDelivery > maxReturnDays) {
+            return res.status(400).json({
+                success: false,
+                error: 'Return period has expired'
+            });
+        }
+
+        // Check if item is already returned
+        const isAlreadyReturned = order.returnedItems.some(returned => 
+            returned.product.toString() === productId
+        );
+        if (isAlreadyReturned) {
+            return res.status(400).json({
+                success: false,
+                error: 'Item already returned'
+            });
+        }
+
+        // Move item to returnedItems
+        order.returnedItems.push({
+            product: item.product._id,
+            quantity: item.quantity,
+            price: item.price,
+            discountApplied: item.discountApplied,
+            returnReason: reason,
+            returnStatus: 'Pending',
+            returnRequestDate: new Date()
+        });
+
+        // Remove item from orderedItems
+        order.orderedItems.splice(itemIndex, 1);
+
+        // Update order totals
+        order.totalPrice = order.orderedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        const originalTotalPrice = order.totalPrice + (item.price * item.quantity);
+        const discountFactor = order.discount && originalTotalPrice > 0 ? order.discount / originalTotalPrice : 0;
+        order.discount = order.totalPrice * discountFactor;
+        order.finalAmount = order.totalPrice - order.discount + (order.shipping || 0);
+
+        // Update order status to reflect return request
+        if (!order.returnRequested) {
+            order.returnRequested = true;
+            order.returnStatus = 'Pending';
+            order.returnRequestDate = new Date();
+        }
+
+        await order.save();
+
+        console.log('Return request saved for item:', {
+            orderId,
+            productId,
+            returnReason: reason,
+            returnStatus: 'Pending'
+        });
+
+        res.json({
+            success: true,
+            message: 'Return request for item submitted successfully',
+            orderId
+        });
+    } catch (error) {
+        console.error('Error processing item return:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to process item return',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+};
+
+// Update the existing returnOrder to handle whole-order returns consistently
 const returnOrder = async (req, res) => {
     try {
         const { orderID } = req.params;
         const { reason } = req.body;
         const user = req.user;
-
 
         const orderIdRegex = /^OR-\d{4}$/;
         if (!orderIdRegex.test(orderID)) {
@@ -430,11 +553,48 @@ const returnOrder = async (req, res) => {
             });
         }
 
+        const maxReturnDays = 7;
+        const daysSinceDelivery = order.orderedItems.every(item => {
+            const deliveryDate = item.deliveryDate || order.createdOn;
+            return (new Date() - new Date(deliveryDate)) / (1000 * 60 * 60 * 24) <= maxReturnDays;
+        });
+
+        if (!daysSinceDelivery) {
+            return res.status(400).json({
+                success: false,
+                error: 'Return period has expired for some items'
+            });
+        }
+
+        // Check if any items are already returned
+        if (order.returnedItems.length > 0) {
+            return res.status(400).json({
+                success: false,
+                error: 'Some items are already returned. Use individual item return instead.'
+            });
+        }
+
+        // Move all orderedItems to returnedItems
+        order.returnedItems = order.orderedItems.map(item => ({
+            product: item.product._id,
+            quantity: item.quantity,
+            price: item.price,
+            discountApplied: item.discountApplied,
+            returnReason: reason,
+            returnStatus: 'Pending',
+            returnRequestDate: new Date()
+        }));
+
+        order.orderedItems = [];
         order.status = 'Return Request';
         order.returnRequested = true;
         order.returnReason = reason;
         order.returnStatus = 'Pending';
         order.returnRequestDate = new Date();
+        order.totalPrice = 0;
+        order.discount = 0;
+        order.finalAmount = 0;
+
         await order.save();
 
         console.log('Return request saved for order:', {
@@ -1484,6 +1644,7 @@ module.exports = {
     getOrdersPage,
     cancelOrder,
     cancelOrderItem,
+    returnOrderItem,
     returnOrder,
     downloadInvoice,
     getOrderDetails,
