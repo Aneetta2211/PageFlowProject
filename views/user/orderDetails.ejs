@@ -219,8 +219,8 @@
                     </div>
                 </div>
 
-                <!-- Order Items -->
-         <div class="mb-8">
+            <!-- Order Items -->
+<div class="mb-8">
     <h2 class="text-lg font-semibold mb-4">Order Items</h2>
     <div class="overflow-x-auto">
         <table class="min-w-full bg-white">
@@ -230,156 +230,111 @@
                     <th class="py-2 px-4 border-b text-left">Price</th>
                     <th class="py-2 px-4 border-b text-left">Quantity</th>
                     <th class="py-2 px-4 border-b text-left">Total</th>
-                    <th class="py-2 px-4 border-b text-left">Discount</th>
                     <th class="py-2 px-4 border-b text-left">Status</th>
-                    <th class="py-2 px-4 border-b text-left">Action</th>
                 </tr>
             </thead>
             <tbody>
                 <% 
-                // Combine all items (ordered, cancelled, and returned)
-                const allItems = [];
-                
-                // 1. Add ordered items
-                (order.orderedItems || []).forEach(item => {
-                    allItems.push({
-                        ...item,
-                        isCancelled: false,
-                        isReturned: false
-                    });
-                });
-                
-                // 2. Add cancelled items
-                (order.cancelledItems || []).forEach(item => {
-                    allItems.push({
-                        ...item,
-                        isCancelled: true,
-                        isReturned: false
-                    });
-                });
-                
-                // 3. Add returned items that might not be in orderedItems anymore
-                (order.returnedItems || []).forEach(returnedItem => {
-                    // Check if this returned item isn't already in the list
-                    if (!allItems.some(item => 
-                        item.product?._id?.toString() === returnedItem.product?.toString()
-                    )) {
+                    const discountFactor = order.discount && order.totalPrice > 0 ? order.discount / order.totalPrice : 0;
+                    const allItems = [];
+                    
+                    // Combine all items (ordered, cancelled, and returned)
+                    (order.orderedItems || []).forEach(item => {
                         allItems.push({
-                            ...returnedItem,
-                            product: returnedItem.product, // Make sure product is populated
+                            ...item,
                             isCancelled: false,
-                            isReturned: true,
-                            // Copy properties that might be missing
-                            regularPrice: returnedItem.price,
-                            totalSales: returnedItem.price * returnedItem.quantity,
-                            itemDiscount: 0 // Adjust if needed
+                            isReturned: order.returnedItems?.some(r => r.product?._id?.toString() === item.product?._id?.toString() && r.returnStatus === 'Approved'),
+                            isReturnDenied: order.returnedItems?.some(r => r.product?._id?.toString() === item.product?._id?.toString() && r.returnStatus === 'Denied'),
+                            cancelReason: null
                         });
-                    }
-                });
+                    });
+                    
+                    (order.cancelledItems || []).forEach(item => {
+                        allItems.push({
+                            ...item,
+                            isCancelled: true,
+                            isReturned: false,
+                            isReturnDenied: false,
+                            cancelReason: item.cancelReason
+                        });
+                    });
+                    
+                    // Add returned items that might have been removed from orderedItems
+                    (order.returnedItems || []).forEach(returnedItem => {
+                        if (!allItems.some(item => item.product?._id?.toString() === returnedItem.product?.toString())) {
+                            allItems.push({
+                                ...returnedItem,
+                                product: returnedItem.product, // Ensure product reference is kept
+                                isCancelled: false,
+                                isReturned: returnedItem.returnStatus === 'Approved',
+                                isReturnDenied: returnedItem.returnStatus === 'Denied',
+                                cancelReason: null,
+                                price: returnedItem.price || 0,
+                                quantity: returnedItem.quantity || 0
+                            });
+                        }
+                    });
 
-                if (allItems.length === 0) { %>
-                    <tr>
-                        <td colspan="7" class="py-2 px-4 border-b text-center text-gray-500">
-                            No items available for this order.
-                        </td>
-                    </tr>
-                <% } else { 
-                    allItems.forEach(item => { 
-                        const isReturned = item.isReturned || 
-                                          (order.returnedItems?.some(ri => 
-                                              ri.product?.toString() === item.product?._id?.toString()
-                                          ));
-                        const returnDetails = isReturned ? 
-                            (order.returnedItems || []).find(ri => 
-                                ri.product?.toString() === item.product?._id?.toString()
-                            ) : null;
-                        const maxReturnDays = 7;
-                        const deliveryDate = item.deliveryDate || order.createdOn;
-                        const daysSinceDelivery = (new Date() - new Date(deliveryDate)) / (1000 * 60 * 60 * 24);
-                        const canReturn = order.status === 'Delivered' && 
-                                        daysSinceDelivery <= maxReturnDays && 
-                                        !isReturned && 
-                                        !item.isCancelled;
+                    if (allItems.length === 0) { %>
+                        <tr>
+                            <td colspan="5" class="py-2 px-4 border-b text-center text-gray-500">
+                                No items available for this order.
+                            </td>
+                        </tr>
+                    <% } else { 
+                        allItems.forEach(item => { 
+                            const itemTotal = item.price * item.quantity;
+                            const discountedItemTotal = discountFactor > 0 ? itemTotal * (1 - discountFactor) : itemTotal;
+                            const rowClass = item.isCancelled || item.isReturned || item.isReturnDenied ? 'bg-gray-100' : '';
                 %>
-                <tr class="<%= item.isCancelled ? 'line-through text-gray-400' : '' %>">
+                <tr class="<%= rowClass %>">
                     <td class="py-2 px-4 border-b">
-                        <div class="flex items-center gap-4">
-                            <% if (item.product?.productImage?.length > 0) { %>
+                        <div class="flex items-center">
+                            <% if (item.product && item.product.productImage && item.product.productImage.length > 0) { %>
                                 <img src="<%= item.product.productImage[0] %>" 
-                                     alt="Product Image" 
-                                     class="w-16 h-16 object-cover rounded" />
+                                     alt="<%= item.product.productName || 'Product' %>" 
+                                     class="w-16 h-16 object-cover mr-4">
+                            <% } else if (typeof item.product === 'object' && item.product !== null) { %>
+                                <!-- Handle case where product exists but has no image -->
+                                <img src="/images/default-product.jpg" 
+                                     alt="No image available" 
+                                     class="w-16 h-16 object-cover mr-4">
                             <% } else { %>
-                                <img src="/images/placeholder.png" 
-                                     alt="No Image" 
-                                     class="w-16 h-16 object-cover rounded" />
+                                <!-- Handle case where product reference is missing -->
+                                <img src="/images/default-product.jpg" 
+                                     alt="Product not found" 
+                                     class="w-16 h-16 object-cover mr-4">
                             <% } %>
                             <div>
-                                <p class="font-medium"><%= item.product?.productName || 'Unknown Product' %></p>
-                                <% if (item.offerType && item.offerType !== 'N/A') { %>
-                                    <p class="text-sm text-gray-600"><%= item.offerType %>: <%= item.totalOfferPercent %>%</p>
+                                <h3 class="font-medium">
+                                    <%= (item.product && item.product.productName) ? item.product.productName : 'Unknown Product' %>
+                                </h3>
+                                <% if (item.isCancelled && item.cancelReason) { %>
+                                    <p class="text-sm text-red-600">Cancelled: <%= item.cancelReason %></p>
                                 <% } %>
-                                <% if (item.isCancelled) { %>
-                                    <p class="text-xs text-red-600 italic">Cancelled: <%= item.cancelReason || 'No reason given' %></p>
+                                <% if (item.isReturned) { %>
+                                    <p class="text-sm text-orange-600">Returned</p>
                                 <% } %>
-                                <% if (isReturned && returnDetails) { %>
-                                    <p class="text-xs text-orange-600 italic">
-                                        Return Status: <%= returnDetails.returnStatus %>
-                                        <% if (returnDetails.returnReason) { %>
-                                            (<%= returnDetails.returnReason %>)
-                                        <% } %>
-                                    </p>
+                                <% if (item.isReturnDenied) { %>
+                                    <p class="text-sm text-red-600">Return Denied</p>
                                 <% } %>
                             </div>
                         </div>
                     </td>
-                    <td class="py-2 px-4 border-b">₹<%= (item.regularPrice || item.price || 0).toFixed(2) %></td>
+                    <td class="py-2 px-4 border-b">₹<%= item.price ? item.price.toFixed(2) : '0.00' %></td>
                     <td class="py-2 px-4 border-b"><%= item.quantity || 0 %></td>
-                    <td class="py-2 px-4 border-b">₹<%= ((item.price || item.regularPrice || 0) * (item.quantity || 0)).toFixed(2) %></td>
-                    <td class="py-2 px-4 border-b">
-                        <% if (item.itemDiscount && item.itemDiscount > 0) { %>
-                            ₹<%= item.itemDiscount.toFixed(2) %>
-                        <% } else { %>
-                            N/A
-                        <% } %>
-                    </td>
+                    <td class="py-2 px-4 border-b">₹<%= discountedItemTotal ? discountedItemTotal.toFixed(2) : '0.00' %></td>
                     <td class="py-2 px-4 border-b">
                         <% if (item.isCancelled) { %>
                             <span class="text-red-600">Cancelled</span>
-                            <% if (item.cancelReason) { %>
-                                <p class="text-sm text-gray-600">Reason: <%= item.cancelReason %></p>
-                            <% } %>
-                        <% } else if (isReturned && returnDetails?.returnStatus === 'Approved') { %>
+                        <% } else if (item.isReturned) { %>
                             <span class="text-orange-600">Returned</span>
-                        <% } else if (isReturned && returnDetails?.returnStatus === 'Denied') { %>
+                        <% } else if (item.isReturnDenied) { %>
                             <span class="text-red-600">Return Denied</span>
-                            <% if (returnDetails.returnDenyReason) { %>
-                                <p class="text-sm text-gray-600">Reason: <%= returnDetails.returnDenyReason %></p>
-                            <% } %>
-                        <% } else if (isReturned && returnDetails?.returnStatus === 'Pending') { %>
+                        <% } else if (order.returnedItems?.some(r => r.product?._id?.toString() === item.product?._id?.toString() && r.returnStatus === 'Pending')) { %>
                             <span class="text-yellow-600">Return Pending</span>
                         <% } else { %>
                             <span class="text-green-600">Active</span>
-                        <% } %>
-                    </td>
-                    <td class="py-2 px-4 border-b text-center">
-                        <% if (!item.isCancelled && !isReturned && !['Cancelled', 'Delivered', 'Returned', 'Return Request'].includes(order.status)) { %>
-                            <button class="cancel-item-btn bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600"
-                                    data-order-id="<%= order.orderId %>"
-                                    data-product-id="<%= item.product?._id %>">
-                                Cancel Item
-                            </button>
-                        <% } else if (canReturn) { %>
-                            <button class="return-item-btn bg-orange-500 text-white px-3 py-1 rounded text-sm hover:bg-orange-600"
-                                    data-order-id="<%= order.orderId %>"
-                                    data-product-id="<%= item.product?._id %>">
-                                Return Item
-                            </button>
-                        <% } else if (item.isCancelled) { %>
-                            <span class="text-xs text-red-600 italic">Already Cancelled</span>
-                        <% } else if (isReturned) { %>
-                            <span class="text-xs text-orange-600 italic">Return <%= returnDetails?.returnStatus %></span>
-                        <% } else { %>
-                            <span class="text-xs text-gray-400 italic">No Actions Available</span>
                         <% } %>
                     </td>
                 </tr>
@@ -388,31 +343,27 @@
             </tbody>
         </table>
     </div>
-</div>
     <div class="mt-4 text-right">
         <p class="text-lg font-semibold">Grand Total: ₹<%= order.finalAmount ? order.finalAmount.toFixed(2) : '0.00' %></p>
     </div>
-</div>      </div>
+</div>
 
-                <!-- Shipping Address -->
-                <div class="mb-8">
-                    <h2 class="text-lg font-semibold mb-4">Shipping Address</h2>
-                    <div class="address-container">
-                        <% if (order.address) { %>
-                            <p class="mb-2"><strong>Type:</strong> <%= order.address.addressType || 'N/A' %></p>
-                            <p class="mb-2"><strong>Name:</strong> <%= order.address.name || 'N/A' %></p>
-                            <p class="mb-2"><strong>Landmark:</strong> <%= order.address.landMark || 'N/A' %></p>
-                            <p class="mb-2"><strong>City, State, Pincode:</strong> <%= order.address.city || 'N/A' %>, <%= order.address.state || 'N/A' %> <%= order.address.pincode || 'N/A' %></p>
-                            <p class="mb-2"><strong>Phone:</strong> <%= order.address.phone || 'N/A' %></p>
-                            <p class="mb-2"><strong>Alternate Phone:</strong> <%= order.address.altPhone || 'N/A' %></p>
-                        <% } else { %>
-                            <p>No address information available.</p>
-                        <% } %>
-                    </div>
-                </div>
-            </div>
-        </div>
+<!-- Shipping Address (kept in original position) -->
+<div class="mb-8">
+    <h2 class="text-lg font-semibold mb-4">Shipping Address</h2>
+    <div class="address-container">
+        <% if (order.address) { %>
+            <p class="mb-2"><strong>Type:</strong> <%= order.address.addressType || 'N/A' %></p>
+            <p class="mb-2"><strong>Name:</strong> <%= order.address.name || 'N/A' %></p>
+            <p class="mb-2"><strong>Landmark:</strong> <%= order.address.landMark || 'N/A' %></p>
+            <p class="mb-2"><strong>City, State, Pincode:</strong> <%= order.address.city || 'N/A' %>, <%= order.address.state || 'N/A' %> <%= order.address.pincode || 'N/A' %></p>
+            <p class="mb-2"><strong>Phone:</strong> <%= order.address.phone || 'N/A' %></p>
+            <p class="mb-2"><strong>Alternate Phone:</strong> <%= order.address.altPhone || 'N/A' %></p>
+        <% } else { %>
+            <p>No address information available.</p>
+        <% } %>
     </div>
+</div>
 
     <!-- Cancel Order Modal -->
     <div id="cancelModal" class="modal">
