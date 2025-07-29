@@ -429,13 +429,18 @@ const returnOrder = async (req, res) => {
 
 const returnOrderItem = async (req, res) => {
     try {
-        const { orderId, productId } = req.params;  
-
+        const { orderId, productId } = req.params;
         const { returnReason } = req.body;
-        const userId = req.session.user._id;
+        const userId = req.session.user?._id;
 
-       
-        const order = await Order.findOne({ orderId, user: userId });
+        console.log('Received return item request:', { orderId, productId, userId, returnReason });
+
+        if (!userId) {
+            return res.status(401).json({ error: 'User not authenticated' });
+        }
+
+        const order = await Order.findOne({ orderId: orderId.trim(), user: userId });
+        console.log('Order query result:', order);
 
         if (!order) {
             return res.status(404).json({ error: 'Order not found' });
@@ -446,7 +451,6 @@ const returnOrderItem = async (req, res) => {
             return res.status(404).json({ error: 'Product not found in order' });
         }
 
-       
         const alreadyRequested = order.returnedItems.some(
             returned => returned.product.toString() === productId
         );
@@ -470,7 +474,6 @@ const returnOrderItem = async (req, res) => {
         await order.save();
 
         res.status(200).json({ message: 'Return request submitted successfully' });
-
     } catch (err) {
         console.error('Error in returnOrderItem:', err);
         res.status(500).json({ error: 'Failed to return item' });

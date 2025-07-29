@@ -1033,7 +1033,7 @@ async function confirmReturnItem() {
     const productId = document.getElementById('returnItemProductID')?.value;
     const reason = document.getElementById('returnItemReason')?.value?.trim();
 
-    console.log('Attempting to submit return for item:', { orderId, productId, reason });
+    console.log('Sending return item request with:', { orderId, productId, reason });
 
     if (!orderId || !productId) {
         console.error('Invalid orderId or productId in returnItem inputs:', { orderId, productId });
@@ -1115,7 +1115,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const returnOrderBtn = document.getElementById('return-order-btn');
     const retryPaymentBtn = document.getElementById('retry-payment-btn');
     const cancelItemButtons = document.querySelectorAll('.cancel-item-btn');
-    const returnButtons = document.querySelectorAll(".return-item-btn");
+    const returnButtons = document.querySelectorAll('.return-item-btn');
 
     if (cancelOrderBtn) {
         cancelOrderBtn.addEventListener('click', function() {
@@ -1147,48 +1147,14 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-     returnButtons.forEach(button => {
-      button.addEventListener("click", async () => {
-        const orderId = button.getAttribute("data-order-id");
-        const productId = button.getAttribute("data-product-id");
-
-        const { value: reason } = await Swal.fire({
-          title: "Return Reason",
-          input: "text",
-          inputLabel: "Why are you returning this item?",
-          inputPlaceholder: "Enter reason...",
-          showCancelButton: true,
-          inputValidator: (value) => {
-            if (!value) return "You must provide a reason!";
-          }
+    returnButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const orderId = escapeString(this.getAttribute('data-order-id'));
+            const productId = escapeString(this.getAttribute('data-product-id'));
+            openReturnItemModal(orderId, productId);
         });
-
-        if (!reason) return;
-
-        try {
-          const response = await fetch(`/api/orders/${orderId}/return-item/${productId}`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify({ reason })
-          });
-
-          const data = await response.json();
-
-          if (data.success) {
-            Swal.fire("Success", data.message, "success").then(() => location.reload());
-          } else {
-            Swal.fire("Error", data.error || "Failed to return item", "error");
-          }
-
-        } catch (error) {
-          console.error("Return error:", error);
-          Swal.fire("Error", "Something went wrong", "error");
-        }
-      });
     });
-  });
+});
     </script>
 </body>
 </html>
