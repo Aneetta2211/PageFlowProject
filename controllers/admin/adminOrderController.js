@@ -121,11 +121,14 @@ const renderOrderDetailsPage = async (req, res) => {
     .populate('cancelledItems.product')
     .populate('returnedItems.product', 'productName productImage regularPrice salesPrice') 
     .lean();
+    
+if (!order) {
+    console.error(`Admin: Order with orderId ${orderID} not found`);
+    return res.status(404).render("admin/admin-error", {
+        errorMessage: "Order not found. Please check the Order ID.",
+    });
+}
 
-        if (!order) {
-            console.error(`Order with orderId ${orderId} not found`);
-            return res.status(404).send('Order not found');
-        }
 
         console.log('Fetched order details:', {
             orderId: order.orderId,
