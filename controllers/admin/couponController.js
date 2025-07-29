@@ -46,17 +46,10 @@ const couponInfo = async (req, res) => {
       layout: false,
     });
   } catch (error) {
-    console.error("Error fetching coupons:", error);
-    res.render("admin/coupons", {
-      coupons: [],
-      currentPage: 1,
-      totalPages: 1,
-      totalCoupons: 0,
-      limit: 4,
-      searchQuery: "",
-      layout: false,
-    });
-  }
+    console.error("Admin Error:", error);
+    res.render("admin/admin-error", { errorMessage: "Something went wrong. Please try again later." });
+}
+
 };
 
 

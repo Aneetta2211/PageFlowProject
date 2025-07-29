@@ -117,20 +117,12 @@ const getCart = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error in getCart:', error);
-    res.render('user/cart', {
-      cart: { items: [] },
-      user: req.user,
-      subtotal: 0,
-      discount: 0,
-      total: 0,
-      offerPercentage: 0,
-      offerSource: 'none',
-      hasValidItems: false,
-      error: 'Error loading your cart. Please try again later.',
-      currentPage: 'cart'
+    console.error("User Error:", error);
+    res.status(500).render("user/page-404", {
+        errorMessage: "Something went wrong. Please try again later.",
     });
-  }
+}
+
 };
 
 const addToCart = async (req, res) => {

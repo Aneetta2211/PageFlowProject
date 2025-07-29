@@ -102,10 +102,11 @@ if (searchQuery) {
             sortBy,
              search: searchQuery
         });
-    } catch (error) {
-        console.error('Error rendering order page:', error);
-        res.status(500).send('Internal Server Error');
-    }
+   } catch (error) {
+    console.error("Admin Error:", error);
+    res.render("admin/admin-error", { errorMessage: "Something went wrong. Please try again later." });
+}
+
 };
 
 
@@ -165,10 +166,11 @@ const renderOrderDetailsPage = async (req, res) => {
         };
 
         res.render('admin/order-details', { order: orderWithAddress });
-    } catch (error) {
-        console.error('Error rendering order details page:', error);
-        res.status(500).send('Internal Server Error');
-    }
+   } catch (error) {
+    console.error("Admin Error:", error);
+    res.render("admin/admin-error", { errorMessage: "Something went wrong. Please try again later." });
+}
+
 };
 
 const updateOrderStatus = async (req, res) => {
@@ -358,7 +360,7 @@ const verifyReturnRequest = async (req, res) => {
 
         console.log('Received verify return request:', { orderId, productId, status, denyReason });
 
-        // Validate inputs
+        
         if (!orderId || (productId && !mongoose.isValidObjectId(productId))) {
             console.error('Invalid input:', { orderId, productId });
             return res.status(400).json({ error: 'Invalid order ID or product ID' });
@@ -368,7 +370,7 @@ const verifyReturnRequest = async (req, res) => {
             return res.status(400).json({ error: 'Invalid status' });
         }
 
-        // Fetch order with necessary populations
+        
         const order = await Order.findOne({ orderId })
             .populate('user', 'name email')
             .populate('orderedItems.product')
@@ -380,33 +382,11 @@ const verifyReturnRequest = async (req, res) => {
             return res.status(404).json({ error: 'Order not found' });
         }
 
-        console.log('Fetched order:', {
-            orderId: order.orderId,
-            returnRequested: order.returnRequested,
-            returnStatus: order.returnStatus,
-            returnedItems: order.returnedItems.map(item => ({
-                productId: item.product?._id?.toString(),
-                productName: item.product?.productName,
-                returnStatus: item.returnStatus,
-                returnReason: item.returnReason
-            }))
-        });
-
         let refundAmount = 0;
-        let returnItemIndex; // Declare outside to use later if needed
 
         if (productId) {
-            // Handle individual item return
-            returnItemIndex = order.returnedItems.findIndex(item => {
-                const match = item.product?._id?.toString() === productId;
-                console.log('Checking returned item:', {
-                    itemProductId: item.product?._id?.toString(),
-                    inputProductId: productId,
-                    match
-                });
-                return match;
-            });
-
+            
+            const returnItemIndex = order.returnedItems.findIndex(item => item.product?._id?.toString() === productId);
             if (returnItemIndex === -1) {
                 console.error('Returned item not found:', { productId, returnedItems: order.returnedItems });
                 return res.status(404).json({ error: 'Returned item not found' });
@@ -414,37 +394,33 @@ const verifyReturnRequest = async (req, res) => {
 
             const returnItem = order.returnedItems[returnItemIndex];
             if (returnItem.returnStatus !== 'Pending') {
-                console.warn('Item return already processed:', {
-                    productId,
-                    currentStatus: returnItem.returnStatus
-                });
+                console.warn('Item return already processed:', { productId, currentStatus: returnItem.returnStatus });
                 return res.status(400).json({ error: `Item return already ${returnItem.returnStatus.toLowerCase()}` });
             }
 
             if (status === 'Approved') {
-                refundAmount = (returnItem.price * returnItem.quantity);
+                refundAmount = returnItem.price * returnItem.quantity;
                 returnItem.returnStatus = 'Approved';
                 returnItem.returnDate = new Date();
                 order.refundedAmount = (order.refundedAmount || 0) + refundAmount;
 
-                // Remove item from orderedItems
+                
                 order.orderedItems = order.orderedItems.filter(item => item.product.toString() !== productId);
 
-                // Restock the product
+                
                 if (returnItem.product?._id) {
                     await Product.findByIdAndUpdate(returnItem.product._id, {
                         $inc: { quantity: returnItem.quantity }
                     });
                     console.log(`Restocked product ${returnItem.product._id} by ${returnItem.quantity}`);
-                } else {
-                    console.warn('Product ID missing in returned item:', returnItem);
                 }
             } else if (status === 'Denied') {
                 returnItem.returnStatus = 'Denied';
                 returnItem.returnDenyReason = denyReason || 'No reason provided';
+                
             }
 
-            // Update order status based on all returned items
+            
             if (order.returnedItems.every(item => item.returnStatus !== 'Pending')) {
                 order.returnStatus = order.returnedItems.every(item => item.returnStatus === 'Approved') ? 'Approved' : 'Denied';
                 order.status = order.returnedItems.every(item => item.returnStatus === 'Approved') ? 'Returned' : 'Return Denied';
@@ -452,7 +428,7 @@ const verifyReturnRequest = async (req, res) => {
                 order.returnDenyReason = order.returnedItems.some(item => item.returnStatus === 'Denied') ? 'Some items denied' : null;
             }
         } else {
-            // Handle whole-order return
+            
             if (order.status !== 'Return Request' || !order.returnRequested) {
                 console.warn('Invalid whole-order return request:', {
                     orderId,
@@ -473,18 +449,16 @@ const verifyReturnRequest = async (req, res) => {
                     item.returnDate = new Date();
                 });
 
-                // Remove all items from orderedItems
+              
                 order.orderedItems = [];
 
-                // Restock all products
+               
                 for (const item of order.returnedItems) {
                     if (item.product?._id) {
                         await Product.findByIdAndUpdate(item.product._id, {
                             $inc: { quantity: item.quantity }
                         });
                         console.log(`Restocked product ${item.product._id} by ${item.quantity}`);
-                    } else {
-                        console.warn('Product ID missing in returned item:', item);
                     }
                 }
             } else {
@@ -495,10 +469,11 @@ const verifyReturnRequest = async (req, res) => {
                     item.returnStatus = 'Denied';
                     item.returnDenyReason = denyReason || 'No reason provided';
                 });
+                
             }
         }
 
-        // Process refund if approved
+        
         if (status === 'Approved' && order.paymentStatus === 'Paid' && refundAmount > 0) {
             let userWallet = await Wallet.findOne({ user: order.user._id });
             if (!userWallet) {
@@ -515,7 +490,7 @@ const verifyReturnRequest = async (req, res) => {
                 type: 'credit',
                 description: productId 
                     ? `Refund for item in order ${orderId}, product: ${order.returnedItems[returnItemIndex]?.product?.productName || 'Unknown Product'}`
-                    : `Refund for order ${orderId}`, // Simplified description for whole-order return
+                    : `Refund for order ${orderId}`,
                 date: new Date()
             });
 

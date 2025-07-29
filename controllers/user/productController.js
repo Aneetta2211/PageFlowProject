@@ -132,10 +132,13 @@ const loadShoppingPage = async (req, res) => {
       selectedQuery: searchQuery,
       selectedPrice: priceFilter,
     });
-  } catch (error) {
-    console.error("Error loading shop page:", error.message);
-    res.status(500).redirect('/login');
-  }
+ } catch (error) {
+    console.error("User Error:", error);
+    res.status(500).render("user/page-404", {
+        errorMessage: "Something went wrong. Please try again later.",
+    });
+}
+
 };
 
 const productDetails = async (req, res) => {
@@ -183,10 +186,13 @@ const productDetails = async (req, res) => {
       offerType,
       wishlistItems
     });
-  } catch (error) {
-    console.error("Error loading product details:", error.message);
-    res.status(500).redirect('/pageNotFound');
-  }
+} catch (error) {
+    console.error("User Error:", error);
+    res.status(500).render("user/page-404", {
+        errorMessage: "Something went wrong. Please try again later.",
+    });
+}
+
 };
 
 module.exports = {

@@ -43,10 +43,11 @@ const customerInfo = async (req, res) => {
       currentPage: page,
       search: search
     });
-  } catch (error) {
-    console.error("Error in customerInfo controller:", error);
-    res.status(500).render('admin/admin-error', { message: 'An error occurred while fetching customer data' });
-  }
+} catch (error) {
+    console.error("Admin Error:", error);
+    res.render("admin/admin-error", { errorMessage: "Something went wrong. Please try again later." });
+}
+
 };
 
 

@@ -13,11 +13,18 @@ const shortid = require("shortid");
 
 const pageNotFound = async (req, res) => {
     try {
-        res.render("user/page-404");
+        res.status(404).render("user/page-404", {
+            errorMessage: "Oops! The page you are looking for does not exist.",
+        });
     } catch (error) {
-        res.redirect("/pageNotFound");
+        console.error("User Error:", error);
+        res.status(500).render("user/page-404", {
+            errorMessage: "Something went wrong. Please try again later.",
+        });
     }
 };
+
+
 
 const loadHomepage = async (req, res) => {
     try {
@@ -43,18 +50,24 @@ const loadHomepage = async (req, res) => {
             wishlistItems 
         });
     } catch (error) {
-        console.error("Landing Page Error:", error.message);
-        res.status(500).send(`Server Error: Unable to load landing page - ${error.message}`);
-    }
+    console.error("User Error:", error);
+    res.status(500).render("user/page-404", {
+        errorMessage: "Something went wrong. Please try again later.",
+    });
+}
+
 };
 
 const loadSignup = async (req, res) => {
     try {
         res.render("user/signup", { error: null }); 
     } catch (error) {
-        console.error("Signup Page Error:", error);
-        res.status(500).send("Server Error");
-    }
+    console.error("User Error:", error);
+    res.status(500).render("user/page-404", {
+        errorMessage: "Something went wrong. Please try again later.",
+    });
+}
+
 };
 
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
@@ -174,9 +187,12 @@ const registerUser = async (req, res) => {
         });
 
     } catch (error) {
-        console.error("Signup Error:", error);
-        return res.status(500).send("Internal Server Error");
-    }
+    console.error("User Error:", error);
+    res.status(500).render("user/page-404", {
+        errorMessage: "Something went wrong. Please try again later.",
+    });
+}
+
 };
 
 
@@ -214,9 +230,12 @@ const verifyOTP = async (req, res) => {
         console.log("OTP verified! Redirecting to login...");
         return res.redirect("/login?message=OTP verified! Please log in.");
     } catch (error) {
-        console.error("OTP Verification Error:", error);
-        return res.status(500).send("Internal Server Error");
-    }
+    console.error("User Error:", error);
+    res.status(500).render("user/page-404", {
+        errorMessage: "Something went wrong. Please try again later.",
+    });
+}
+
 };
 
 const resendOTP = async (req, res) => {
@@ -247,9 +266,12 @@ const resendOTP = async (req, res) => {
             otpExpires: req.session.otpExpires
         });
     } catch (error) {
-        console.error("Resend OTP Error:", error);
-        return res.status(500).send("Internal Server Error");
-    }
+    console.error("User Error:", error);
+    res.status(500).render("user/page-404", {
+        errorMessage: "Something went wrong. Please try again later.",
+    });
+}
+
 };
 
 const loadLogin = async (req, res) => {
@@ -257,9 +279,12 @@ const loadLogin = async (req, res) => {
         const message = req.query.message || null;
         res.render("user/login", { error: null, message });
     } catch (error) {
-        console.error("Login Page Error:", error);
-        res.status(500).send("Server Error");
-    }
+    console.error("User Error:", error);
+    res.status(500).render("user/page-404", {
+        errorMessage: "Something went wrong. Please try again later.",
+    });
+}
+
 };
 
 const loginUser = async (req, res) => {
@@ -302,7 +327,7 @@ const loadHome = async (req, res) => {
 
         const categories = await Category.find({ isListed: true }).lean();
 
-        // Properly initialize wishlist
+        
         let wishlist = await Wishlist.findOne({ userId: req.session.user.id })
             .populate('products.productId')
             .lean() || { products: [] };
@@ -314,10 +339,13 @@ const loadHome = async (req, res) => {
             categories: categories || [],
             wishlistItems: wishlist
         });
-    } catch (error) {
-        console.error("Home Page Error:", error);
-        res.status(500).send(`Server Error: ${error.message}`);
-    }
+   } catch (error) {
+    console.error("User Error:", error);
+    res.status(500).render("user/page-404", {
+        errorMessage: "Something went wrong. Please try again later.",
+    });
+}
+
 };
 
 const logout = async (req, res) => {
@@ -329,10 +357,13 @@ const logout = async (req, res) => {
             }
             return res.redirect("/login");
         });
-    } catch (error) {
-        console.log("Logout error", error);
-        res.redirect("/pageNotFound");
-    }
+   } catch (error) {
+    console.error("User Error:", error);
+    res.status(500).render("user/page-404", {
+        errorMessage: "Something went wrong. Please try again later.",
+    });
+}
+
 };
 
 const loadAbout = async (req, res) => {
@@ -343,10 +374,13 @@ const loadAbout = async (req, res) => {
             title: "About Us - Our Story",
             currentPage: "about"
         });
-    } catch (error) {
-        console.error("About Page Error:", error);
-        res.status(500).send("Server Error");
-    }
+   } catch (error) {
+    console.error("User Error:", error);
+    res.status(500).render("user/page-404", {
+        errorMessage: "Something went wrong. Please try again later.",
+    });
+}
+
 };
 
 const loadContact = async (req, res) => {
@@ -357,10 +391,13 @@ const loadContact = async (req, res) => {
             title: "Contact Us - PageFlow",
             currentPage: "contact"
         });
-    } catch (error) {
-        console.error("Contact Page Error:", error);
-        res.status(500).send("Server Error");
-    }
+   } catch (error) {
+    console.error("User Error:", error);
+    res.status(500).render("user/page-404", {
+        errorMessage: "Something went wrong. Please try again later.",
+    });
+}
+
 };
 
 module.exports = {

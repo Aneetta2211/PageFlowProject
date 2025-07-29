@@ -121,12 +121,11 @@ const getOrdersPage = async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('Error in getOrdersPage:', error);
-        res.status(500).render('error', {
-            message: 'Failed to load orders',
-            error: process.env.NODE_ENV === 'development' ? error : null
-        });
-    }
+    console.error("User Error:", error);
+    res.status(500).render("user/page-404", {
+        errorMessage: "Something went wrong. Please try again later.",
+    });
+}
 };
 const cancelOrder = async (req, res) => {
     try {
@@ -812,9 +811,11 @@ const getOrderDetails = async (req, res) => {
             user: req.user
         });
     } catch (error) {
-        console.error("Error loading order details:", error);
-        return res.status(500).send("Internal Server Error");
-    }
+    console.error("User Error:", error);
+    res.status(500).render("user/page-404", {
+        errorMessage: "Something went wrong. Please try again later.",
+    });
+}
 };
 
 

@@ -38,9 +38,10 @@ const walletInfo = async (req, res) => {
             search
         });
     } catch (error) {
-        console.error("Error fetching wallet info:", error);
-        res.redirect("/admin/pageerror");
-    }
+    console.error("Admin Error:", error);
+    res.render("admin/admin-error", { errorMessage: "Something went wrong. Please try again later." });
+}
+
 };
 
 const walletOrders = async (req, res) => {
@@ -87,10 +88,11 @@ const walletOrders = async (req, res) => {
             orders,
             wallet
         });
-    } catch (error) {
-        console.error("Error fetching wallet orders:", error);
-        res.redirect("/admin/pageerror");
-    }
+   } catch (error) {
+    console.error("Admin Error:", error);
+    res.render("admin/admin-error", { errorMessage: "Something went wrong. Please try again later." });
+}
+
 };
 
 module.exports = {

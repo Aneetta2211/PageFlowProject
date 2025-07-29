@@ -25,9 +25,11 @@ const getForgotPasspage = async (req, res) => {
     try {
         res.render("user/forgotPassword");
     } catch (error) {
-        console.error('Error loading forgot password page:', error);
-        res.redirect("/pageNotFound");
-    }
+    console.error("User Error:", error);
+    res.status(500).render("user/page-404", {
+        errorMessage: "Something went wrong. Please try again later.",
+    });
+}
 };
 
 const forgotPassword = async (req, res) => {
@@ -73,10 +75,12 @@ const getVerifyOtpPage = async (req, res) => {
             return res.redirect("/forgotPassword");
         }
         res.render("user/forgotPassword-otp", { error: null });
-    } catch (error) {
-        console.error('Error loading OTP verification page:', error);
-        res.redirect("/pageNotFound");
-    }
+   } catch (error) {
+    console.error("User Error:", error);
+    res.status(500).render("user/page-404", {
+        errorMessage: "Something went wrong. Please try again later.",
+    });
+}
 };
 
 const verifyOtp = async (req, res) => {
@@ -125,10 +129,12 @@ const getResetPasswordPage = async (req, res) => {
             return res.redirect("/forgotPassword");
         }
         res.render("user/resetPassword", { error: null });
-    } catch (error) {
-        console.error('Error loading reset password page:', error);
-        res.redirect("/pageNotFound");
-    }
+     } catch (error) {
+    console.error("User Error:", error);
+    res.status(500).render("user/page-404", {
+        errorMessage: "Something went wrong. Please try again later.",
+    });
+}
 };
 
 const resetPassword = async (req, res) => {
@@ -224,10 +230,12 @@ const getProfilePage = async (req, res) => {
                 success: req.query.success || null 
             }
         });
-    } catch (error) {
-        console.error('Profile Page Error:', error);
-        res.redirect('/home?error=Failed to load profile');
-    }
+     } catch (error) {
+    console.error("User Error:", error);
+    res.status(500).render("user/page-404", {
+        errorMessage: "Something went wrong. Please try again later.",
+    });
+}
 };
 
 const getEditProfilePage = async (req, res) => {
@@ -261,9 +269,11 @@ const getEditProfilePage = async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('Edit Profile Error:', error);
-        res.redirect('/profile?error=Failed to load edit profile page');
-    }
+    console.error("User Error:", error);
+    res.status(500).render("user/page-404", {
+        errorMessage: "Something went wrong. Please try again later.",
+    });
+}
 };
 
 const sendOtpForEmail = async (req, res) => {
@@ -663,10 +673,12 @@ const getAddressesPage = async (req, res) => {
             title: 'My Addresses',
             currentPage: 'addresses'
         });
-    } catch (error) {
-        console.error('Address Page Error:', error);
-        res.redirect('/profile?error=Failed to load addresses');
-    }
+     } catch (error) {
+    console.error("User Error:", error);
+    res.status(500).render("user/page-404", {
+        errorMessage: "Something went wrong. Please try again later.",
+    });
+}
 };
 const getAddAddressPage = async (req, res) => {
     try {
@@ -679,10 +691,12 @@ const getAddAddressPage = async (req, res) => {
             editMode: false,
             title: 'Add New Address'
         });
-    } catch (error) {
-        console.error('Add Address Page Error:', error);
-        res.redirect('/profile/addresses?error=Failed to load address form');
-    }
+     } catch (error) {
+    console.error("User Error:", error);
+    res.status(500).render("user/page-404", {
+        errorMessage: "Something went wrong. Please try again later.",
+    });
+}
 };
 
 const getEditAddressPage = async (req, res) => {
@@ -710,10 +724,12 @@ const getEditAddressPage = async (req, res) => {
             editMode: true,
             title: 'Edit Address'
         });
-    } catch (error) {
-        console.error('Edit Address Page Error:', error);
-        res.redirect('/profile/addresses?error=Failed to load address form');
-    }
+   } catch (error) {
+    console.error("User Error:", error);
+    res.status(500).render("user/page-404", {
+        errorMessage: "Something went wrong. Please try again later.",
+    });
+}
 };
 
 const addAddress = async (req, res) => {

@@ -37,10 +37,11 @@ const getProductAddPage = async (req, res) => {
       errorMessage,
       currentRoute: 'add-product'
     });
-  } catch (error) {
-    console.log(error);
-    res.status(500).send('Server Error');
-  }
+  }catch (error) {
+  console.error("Admin Error:", error);
+  res.render("admin/admin-error", { errorMessage: "Something went wrong. Please try again later." });
+}
+
 };
 
 
@@ -164,9 +165,10 @@ const getAllProducts = async (req, res) => {
       successMessage: successMessage
     });
   } catch (error) {
-    console.error('Error in getAllProducts:', error);
-    res.redirect("/pageerror");
-  }
+    console.error("Admin Error:", error);
+    res.render("admin/admin-error", { errorMessage: "Something went wrong. Please try again later." });
+}
+
 };
 
 const getEditProductPage = async (req, res) => {
@@ -198,10 +200,11 @@ const getEditProductPage = async (req, res) => {
       errorMessage, 
       currentRoute: 'edit-product'
     });
-  } catch (error) {
-    console.error("Error in getEditProductPage:", error);
-    res.redirect("/pageerror");
-  }
+ } catch (error) {
+    console.error("Admin Error:", error);
+    res.render("admin/admin-error", { errorMessage: "Something went wrong. Please try again later." });
+}
+
 };
 
 
@@ -276,13 +279,10 @@ const updateProduct = async (req, res) => {
     req.session.successMessage = "Product updated successfully!";
     res.redirect("/admin/products");
   } catch (error) {
-    console.error("Error updating product:", error);
-    if (error.message === "A product with this name already exists") {
-      req.session.errorMessage = error.message;
-      return res.redirect(`/admin/edit-product/${req.params.id}`);
-    }
-    res.redirect("/pageerror");
-  }
+    console.error("Admin Error:", error);
+    res.render("admin/admin-error", { errorMessage: "Something went wrong. Please try again later." });
+}
+
 };
 
 const blockProduct = async (req, res) => {

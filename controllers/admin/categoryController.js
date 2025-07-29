@@ -33,16 +33,10 @@ const categoryInfo = async (req, res) => {
             searchQuery: searchQuery
         });
     } catch (error) {
-        console.error("Error fetching categories:", error);
-        res.render("admin/category", {
-            categories: [],
-            currentPage: 1,
-            totalPages: 1,
-            totalCategories: 0,
-            limit: 4,
-            searchQuery: ""
-        });
-    }
+    console.error("Admin Error:", error);
+    res.render("admin/admin-error", { errorMessage: "Something went wrong. Please try again later." });
+}
+
 };
 
 const addCategory = async (req, res) => {
@@ -177,9 +171,10 @@ const editCategoryPage = async (req, res) => {
         }
         res.render("admin/editCategory", { category });
     } catch (error) {
-        console.error("Error loading category for edit:", error);
-        res.redirect("/admin/category?error=Error loading category");
-    }
+    console.error("Admin Error:", error);
+    res.render("admin/admin-error", { errorMessage: "Something went wrong. Please try again later." });
+}
+
 };
 
 const updateCategory = async (req, res) => {

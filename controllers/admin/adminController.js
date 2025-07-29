@@ -9,27 +9,9 @@ const Product = require("../../models/productSchema.js");
 const Category = require("../../models/categorySchema.js");
 
 const pageerror = async (req, res) => {
-    res.render('admin/dashboard', {
-        currentRoute: 'dashboard',
-        errorPage: 'admin-error',
-        errorMessage: 'Page not found',
-        filterType: 'daily',
-        startDate: null,
-        endDate: null,
-        salesData: null,
-        totalUsers: 0,
-        totalProducts: 0,
-        totalUsersGrowth: 0,
-        totalProductsGrowth: 0,
-        totalOrdersGrowth: 0,
-        totalRevenueGrowth: 0,
-        chartData: null,
-        topProducts: [],
-        topCategories: [],
-        currentPage: 1,
-        totalPages: 1
-    });
+    res.render('admin/admin-error');
 };
+
 
 const loadLogin = (req, res) => {
     if (req.session.admin) {
@@ -403,30 +385,12 @@ const loadDashboard = async (req, res) => {
             currentPage,
             totalPages
         });
-    } catch (error) {
-        console.error("Error loading dashboard:", error);
-        res.render("admin/dashboard", {
-            currentRoute: 'dashboard',
-            errorPage: 'admin-error',
-            errorMessage: 'Error loading dashboard: ' + error.message,
-            salesData: null,
-            totalUsers: 0,
-            totalProducts: 0,
-            totalUsersGrowth: 0,
-            totalProductsGrowth: 0,
-            totalOrdersGrowth: 0,
-            totalRevenueGrowth: 0,
-            filterType: 'daily',
-            startDate: null,
-            endDate: null,
-            chartData: null,
-            topProducts: [],
-            topCategories: [],
-            currentPage: 1,
-            totalPages: 1
-        });
-    }
-};
+    }  catch (error) {
+    console.error('Dashboard Load Error:', error);
+    res.render('admin/admin-error', { errorMessage: 'Something went wrong while loading the dashboard.' });
+}
+}
+
 
 const logout = async (req, res) => {
     try {
@@ -438,9 +402,10 @@ const logout = async (req, res) => {
             res.redirect("/admin/login");
         });
     } catch (error) {
-        console.error("Unexpected error during logout", error);
-        res.redirect("/pageerror");
-    }
+    console.error("Admin Error:", error);
+    res.render("admin/admin-error", { errorMessage: "Something went wrong. Please try again later." });
+}
+
 };
 
 const getSalesReport = async (req, res) => {
@@ -541,15 +506,10 @@ const getSalesReport = async (req, res) => {
             errorMessage: null
         });
     } catch (error) {
-        console.error("Error loading sales report:", error);
-        res.render('error', {
-            salesData: null,
-            filterType,
-            startDate,
-            endDate,
-            errorMessage: 'Failed to load sales data: ' + error.message
-        });
-    }
+    console.error("Admin Error:", error);
+    res.render("admin/admin-error", { errorMessage: "Something went wrong. Please try again later." });
+}
+
 };
 
 const downloadReport = async (req, res) => {
@@ -745,9 +705,10 @@ const downloadReport = async (req, res) => {
         }
 
     } catch (error) {
-        console.error('Error downloading report:', error);
-        res.redirect('/pageerror');
-    }
+    console.error("Admin Error:", error);
+    res.render("admin/admin-error", { errorMessage: "Something went wrong. Please try again later." });
+}
+
 };
 
 module.exports = {

@@ -29,9 +29,11 @@ const getWishlist = async (req, res) => {
             user: req.session.user 
         });
     } catch (error) {
-        console.error("Error fetching wishlist:", error);
-        res.status(500).render('error', { error: "Failed to load wishlist" });
-    }
+    console.error("User Error:", error);
+    res.status(500).render("user/page-404", {
+        errorMessage: "Something went wrong. Please try again later.",
+    });
+}
 };
 
 const addToWishlist = async (req, res) => {

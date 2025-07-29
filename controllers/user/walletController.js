@@ -29,9 +29,11 @@ const loadWalletPage = async (req, res) => {
             transactions: transactions
         });
     } catch (error) {
-        console.error('Error loading wallet page:', error);
-        res.status(500).json({ success: false, error: 'Failed to load wallet page' });
-    }
+    console.error("User Error:", error);
+    res.status(500).render("user/page-404", {
+        errorMessage: "Something went wrong. Please try again later.",
+    });
+}
 };
 
 const addToWallet = async ({ userId, amount, description, type = "credit" }) => {

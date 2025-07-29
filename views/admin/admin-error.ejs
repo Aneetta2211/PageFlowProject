@@ -1,54 +1,59 @@
-<!-- <%- include('../partials/admin/header') %> -->
-<style>
-    .error-container {
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-        text-align: center;
-        background: #f8f9fa;
-    }
-    
-    .error-container h1 {
-        font-size: 2rem;
-        color: #343a40; 
-        margin-bottom: 10px;
-    }
-    
-    .error-container p {
-        font-size: 1.2rem;
-        color: #666;
-        margin-bottom: 20px;
-    }
-    
-    .error-container button {
-        background-color: #007bff;
-        color: #fff;
-        border: none;
-        padding: 10px 20px;
-        border-radius: 5px;
-        cursor: pointer;
-        transition: 0.3s;
-        font-size: 1rem;
-    }
-    
-    .error-container button:hover {
-        background-color: #c0392b; 
-    }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Error Page</title>
+    <style>
+        .error-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            text-align: center;
+            background: #f8f9fa;
+        }
+        
+        .error-container h1 {
+            font-size: 2rem;
+            color: #343a40; 
+            margin-bottom: 10px;
+        }
+        
+        .error-container p {
+            font-size: 1.2rem;
+            color: #666;
+            margin-bottom: 20px;
+        }
+        
+        .error-container button {
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: 0.3s;
+            font-size: 1rem;
+        }
+        
+        .error-container button:hover {
+            background-color: #c0392b; 
+        }
     </style>
-    
+</head>
+<body>
+    <div class="error-container">
+        <h1>Error Page Admin</h1>
+        <p>An error occurred. Please try again later.</p>
+        <button onclick="godashboard()">Go to Dashboard</button>
+    </div>
 
-<div class="error-container">
-    <h1>Error Page Admin</h1>
-    <p>An error occurred. Please try again later.</p>
-    <button onclick="godashboard()">Go to Dashboard</button>
-</div>
-
-<script>
-    function godashboard() {
-        window.location.href = "/admin";
-    }
-</script>
-
-<!-- <%- include('../partials/admin/footer') %> -->
+    <script>
+        function godashboard() {
+            window.location.href = "/admin";
+        }
+    </script>
+</body>
+</html>
