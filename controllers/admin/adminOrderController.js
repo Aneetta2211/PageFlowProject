@@ -355,27 +355,67 @@ const verifyReturnRequest = async (req, res) => {
     try {
         const { orderId, productId, status, denyReason } = req.body;
 
+        console.log('Received verify return request:', { orderId, productId, status, denyReason });
+
+        // Validate inputs
+        if (!orderId || (productId && !mongoose.isValidObjectId(productId))) {
+            console.error('Invalid input:', { orderId, productId });
+            return res.status(400).json({ error: 'Invalid order ID or product ID' });
+        }
+        if (!['Approved', 'Denied'].includes(status)) {
+            console.error('Invalid status:', status);
+            return res.status(400).json({ error: 'Invalid status' });
+        }
+
+        // Fetch order with necessary populations
         const order = await Order.findOne({ orderId })
-            .populate('user')
+            .populate('user', 'name email')
             .populate('orderedItems.product')
             .populate('returnedItems.product')
             .populate('cancelledItems.product');
 
         if (!order) {
+            console.error('Order not found:', orderId);
             return res.status(404).json({ error: 'Order not found' });
         }
+
+        console.log('Fetched order:', {
+            orderId: order.orderId,
+            returnRequested: order.returnRequested,
+            returnStatus: order.returnStatus,
+            returnedItems: order.returnedItems.map(item => ({
+                productId: item.product?._id?.toString(),
+                productName: item.product?.productName,
+                returnStatus: item.returnStatus,
+                returnReason: item.returnReason
+            }))
+        });
 
         let refundAmount = 0;
 
         if (productId) {
             // Handle individual item return
-            const returnItemIndex = order.returnedItems.findIndex(item => item.product.toString() === productId);
+            const returnItemIndex = order.returnedItems.findIndex(item => {
+                const match = item.product?._id?.toString() === productId;
+                console.log('Checking returned item:', {
+                    itemProductId: item.product?._id?.toString(),
+                    inputProductId: productId,
+                    match
+                });
+                return match;
+            });
+
             if (returnItemIndex === -1) {
+                console.error('Returned item not found:', { productId, returnedItems: order.returnedItems });
                 return res.status(404).json({ error: 'Returned item not found' });
             }
 
             const returnItem = order.returnedItems[returnItemIndex];
             if (returnItem.returnStatus !== 'Pending') {
+                console.warn('Item return already processed:', {
+                    productId,
+                    currentStatus: returnItem.returnStatus
+                });
                 return res.status(400).json({ error: `Item return already ${returnItem.returnStatus.toLowerCase()}` });
             }
 
@@ -386,9 +426,14 @@ const verifyReturnRequest = async (req, res) => {
                 order.refundedAmount = (order.refundedAmount || 0) + refundAmount;
 
                 // Restock the product
-                await Product.findByIdAndUpdate(returnItem.product, {
-                    $inc: { quantity: returnItem.quantity }
-                });
+                if (returnItem.product?._id) {
+                    await Product.findByIdAndUpdate(returnItem.product._id, {
+                        $inc: { quantity: returnItem.quantity }
+                    });
+                    console.log(`Restocked product ${returnItem.product._id} by ${returnItem.quantity}`);
+                } else {
+                    console.warn('Product ID missing in returned item:', returnItem);
+                }
             } else if (status === 'Denied') {
                 returnItem.returnStatus = 'Denied';
                 returnItem.returnDenyReason = denyReason || 'No reason provided';
@@ -404,6 +449,11 @@ const verifyReturnRequest = async (req, res) => {
         } else {
             // Handle whole-order return
             if (order.status !== 'Return Request' || !order.returnRequested) {
+                console.warn('Invalid whole-order return request:', {
+                    orderId,
+                    status: order.status,
+                    returnRequested: order.returnRequested
+                });
                 return res.status(400).json({ error: 'No valid return request found for this order' });
             }
 
@@ -420,9 +470,14 @@ const verifyReturnRequest = async (req, res) => {
 
                 // Restock all products
                 for (const item of order.returnedItems) {
-                    await Product.findByIdAndUpdate(item.product, {
-                        $inc: { quantity: item.quantity }
-                    });
+                    if (item.product?._id) {
+                        await Product.findByIdAndUpdate(item.product._id, {
+                            $inc: { quantity: item.quantity }
+                        });
+                        console.log(`Restocked product ${item.product._id} by ${item.quantity}`);
+                    } else {
+                        console.warn('Product ID missing in returned item:', item);
+                    }
                 }
             } else {
                 order.status = 'Return Denied';
@@ -455,9 +510,11 @@ const verifyReturnRequest = async (req, res) => {
             });
 
             await userWallet.save();
+            console.log(`Refunded ₹${refundAmount} to wallet for order ${orderId}${productId ? `, product ${productId}` : ''}`);
         }
 
         await order.save();
+        console.log(`Return request ${status.toLowerCase()} for order ${orderId}${productId ? `, product ${productId}` : ''}`);
 
         res.status(200).json({
             message: `Return request ${status.toLowerCase()} successfully`,
@@ -468,7 +525,6 @@ const verifyReturnRequest = async (req, res) => {
         res.status(500).json({ error: 'Server error while verifying return request' });
     }
 };
-
 module.exports = {
     renderOrderPage,
     renderOrderDetailsPage,
